@@ -1,0 +1,14 @@
+aliases:
+  # KDE and Qt
+  kde: https://invent.kde.org/
+  qt: https://download.qt.io/official_releases/qt/
+  kde_cdn: https://download.kde.org/stable/
+
+  # Generic forges
+  github: https://github.com/
+  github_files: https://github.com/
+  gitlab: https://gitlab.com/
+  freedesktop: https://gitlab.freedesktop.org/
+  gnome: https://gitlab.gnome.org/GNOME/
+  gnome_gitlab: https://gitlab.gnome.org/
+  pypi: https://files.pythonhosted.org/packages/
