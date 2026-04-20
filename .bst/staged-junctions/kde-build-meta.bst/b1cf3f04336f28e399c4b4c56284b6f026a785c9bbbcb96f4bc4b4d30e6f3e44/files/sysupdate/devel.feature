@@ -1,2 +1,0 @@
-[Feature]
-Description=Development files

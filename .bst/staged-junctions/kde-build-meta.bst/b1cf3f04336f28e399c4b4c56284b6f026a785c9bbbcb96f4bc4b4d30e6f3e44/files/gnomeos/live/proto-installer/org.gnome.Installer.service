@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=org.gnome.Installer
-Exec=/usr/lib/gnomeos-installer/installer.py --gapplication-service

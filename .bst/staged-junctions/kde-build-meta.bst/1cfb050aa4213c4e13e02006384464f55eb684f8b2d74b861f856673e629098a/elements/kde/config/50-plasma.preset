@@ -1,3 +1,0 @@
-enable graphical.target
-enable create-user.service
-enable plasma.service

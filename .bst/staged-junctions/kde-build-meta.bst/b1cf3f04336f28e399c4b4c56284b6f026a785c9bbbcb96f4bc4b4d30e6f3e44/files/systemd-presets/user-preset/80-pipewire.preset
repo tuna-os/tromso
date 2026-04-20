@@ -1,5 +1,0 @@
-enable pipewire.socket
-enable wireplumber.service
-
-# Backwards-compat with PulseAudio
-enable pipewire-pulse.socket
