@@ -57,6 +57,11 @@ bst-build *ARGS:
 log:
     tail -f /var/tmp/aurora-build.log
 
+# Launch live HTML build dashboard at http://localhost:8765
+[group('build')]
+dashboard:
+    python3 {{justfile_directory()}}/bst-dashboard.py
+
 # ── Build ─────────────────────────────────────────────────────────────
 [group('build')]
 build:
