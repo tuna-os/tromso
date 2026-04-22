@@ -58,12 +58,43 @@ log:
     tail -f /var/tmp/aurora-build.log
 
 # Launch live HTML build dashboard at http://localhost:8765
+# Downloads bst-dashboard.py from GitHub on first run; cached at ~/.cache/bst-dashboard/
 [group('build')]
 dashboard:
-    python3 {{justfile_directory()}}/bst-dashboard.py \
+    #!/usr/bin/env bash
+    set -euo pipefail
+    SCRIPT="${HOME}/.cache/bst-dashboard/bst-dashboard.py"
+    if [ ! -f "$SCRIPT" ]; then
+        echo "Downloading bst-dashboard (run 'just dashboard-update' to upgrade)…"
+        mkdir -p "$(dirname "$SCRIPT")"
+        curl -fsSL https://raw.githubusercontent.com/hanthor/buildstream-dashboard/main/bst-dashboard.py \
+            -o "$SCRIPT"
+    fi
+    python3 "$SCRIPT" \
         --log /var/tmp/aurora-build.log \
         --target oci/aurora.bst \
-        --project {{justfile_directory()}}
+        --project "{{justfile_directory()}}" &
+    PID=$!
+    # Wait for the server to accept connections then open the browser
+    for i in $(seq 1 20); do
+        sleep 0.3
+        if curl -sf http://localhost:8765/ > /dev/null 2>&1; then
+            xdg-open http://localhost:8765/ 2>/dev/null || true
+            break
+        fi
+    done
+    wait $PID
+
+# Pull the latest bst-dashboard from GitHub
+[group('build')]
+dashboard-update:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p "${HOME}/.cache/bst-dashboard"
+    echo "Updating bst-dashboard…"
+    curl -fsSL https://raw.githubusercontent.com/hanthor/buildstream-dashboard/main/bst-dashboard.py \
+        -o "${HOME}/.cache/bst-dashboard/bst-dashboard.py"
+    echo "Done."
 
 # ── Build ─────────────────────────────────────────────────────────────
 [group('build')]
