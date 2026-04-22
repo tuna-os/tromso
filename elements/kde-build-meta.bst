@@ -3,9 +3,9 @@ description: Junction to hanthor/kde-build-meta (fork of gnome-build-meta with K
 
 sources:
 - kind: tar
-  url: github:hanthor/kde-build-meta/archive/30e38bc.tar.gz
-  ref: d17f1b0f85b3954a3b9eb11764d3ccd0d5bd70b9f005e180ca90557d05c9ff90
-  base-dir: kde-build-meta-30e38bce6639b85a3676c74e1009be57c6ec38d4
+  url: github:hanthor/kde-build-meta/archive/abb267c.tar.gz
+  ref: f6fa2bd07e3f05a780c370db440c95d71cceaa14f2e880506bcc28ac64740576
+  base-dir: kde-build-meta-abb267c6319434f84b61af2fd0151b0099c4917f
 
 config:
   options:
