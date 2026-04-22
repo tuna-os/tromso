@@ -84,6 +84,17 @@ disown
 
 ---
 
+## Reference Sources
+
+**Always consult Arch Linux KDE PKGBUILDs** when determining cmake flags, dependencies, or build configuration for KDE packages:
+
+- **Arch KDE packages**: `https://github.com/archlinux/svntogit-community/tree/packages/kde-*/trunk/`
+- **KDE Linux packaging**: `https://github.com/KDE/linux-packaging`
+- **Rationale**: Arch maintains actively-updated, minimal, and correct cmake flags for KDE Plasma 6. When a KDE element fails due to wrong flags or missing deps, check the corresponding Arch PKGBUILD first.
+  - Example: sddm's `-DBUILD_WITH_QT6=ON` is the correct minimal flag (Arch confirmed), not the complex multi-flag approach
+
+---
+
 ## Common Build Patterns
 
 ### All KDE cmake elements need:
