@@ -48,7 +48,7 @@ bst-build *ARGS:
     set -euo pipefail
     LOG=/var/tmp/aurora-build.log
     echo "=== Build started at $(date) ===" > "$LOG"
-    BST_FLAGS="--max-jobs $(nproc) --fetch-parallelism $(nproc) ${BST_FLAGS:-}"
+    BST_FLAGS="--max-jobs $(($(nproc) / 2)) --fetchers $(nproc) ${BST_FLAGS:-}"
     just bst build ${ARGS:-oci/aurora.bst} >> "$LOG" 2>&1 &
     echo "BST PID: $! — tailing $LOG (Ctrl-C stops tail, build continues)"
     tail -f "$LOG"
