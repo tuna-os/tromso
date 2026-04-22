@@ -60,7 +60,10 @@ log:
 # Launch live HTML build dashboard at http://localhost:8765
 [group('build')]
 dashboard:
-    python3 {{justfile_directory()}}/bst-dashboard.py
+    python3 {{justfile_directory()}}/bst-dashboard.py \
+        --log /var/tmp/aurora-build.log \
+        --target oci/aurora.bst \
+        --project {{justfile_directory()}}
 
 # ── Build ─────────────────────────────────────────────────────────────
 [group('build')]
