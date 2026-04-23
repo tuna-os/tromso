@@ -26,6 +26,11 @@ import threading
 import subprocess
 import multiprocessing
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle requests in a separate thread."""
+    daemon_threads = True
 
 _DEFAULT_BST2_IMAGE = (
     "registry.gitlab.com/freedesktop-sdk/infrastructure/"
@@ -58,6 +63,11 @@ BST2_IMAGE  = _args.bst_image or os.environ.get("BST2_IMAGE",           _DEFAULT
 BUILD_LOCK = threading.Lock()
 BUILD_PROC: "subprocess.Popen | None" = None
 
+_sysinfo_lock = threading.Lock()
+_sysinfo = {"cpu_pct": 0.0, "cpu_cores": [], "mem_used": 0, "mem_total": 0,
+            "bst_cpu_pct": None, "bst_mem": None, "cpu_temp": None,
+            "bst_running": False}
+_cpu_prev: list[tuple[int, int]] = []   # list of (idle_ticks, total_ticks)
 
 def _bst_container_id() -> str:
     """Return container ID of any running BST2 container, or empty string."""
@@ -74,7 +84,8 @@ def _bst_container_id() -> str:
 def build_running() -> bool:
     if BUILD_PROC is not None and BUILD_PROC.poll() is None:
         return True
-    return bool(_bst_container_id())
+    with _sysinfo_lock:
+        return _sysinfo.get("bst_running", False)
 
 
 def start_build() -> bool:
@@ -324,20 +335,23 @@ def _fetch_deptree():
 
 # ── System resource sampling ───────────────────────────────────────────────────
 
-_sysinfo_lock = threading.Lock()
-_sysinfo = {"cpu_pct": 0.0, "mem_used": 0, "mem_total": 0,
-            "bst_cpu_pct": None, "bst_mem": None, "cpu_temp": None}
-_cpu_prev: tuple = (0, 0)   # (idle_ticks, total_ticks)
-
-
-def _read_proc_stat() -> tuple[int, int]:
-    """Return (idle_ticks, total_ticks) from /proc/stat aggregate cpu line."""
-    with open("/proc/stat") as f:
-        parts = f.readline().split()          # cpu  user nice system idle iowait ...
-    vals = list(map(int, parts[1:8]))          # user nice system idle iowait irq softirq
-    idle  = vals[3] + vals[4]                  # idle + iowait
-    total = sum(vals)
-    return idle, total
+def _read_proc_stat() -> list[tuple[int, int]]:
+    """Return a list of (idle_ticks, total_ticks), first entry is aggregate."""
+    stats = []
+    try:
+        with open("/proc/stat") as f:
+            for line in f:
+                if not line.startswith("cpu"):
+                    break
+                parts = line.split()
+                # cpu  user nice system idle iowait irq softirq ...
+                vals = list(map(int, parts[1:8]))
+                idle  = vals[3] + vals[4]
+                total = sum(vals)
+                stats.append((idle, total))
+    except Exception:
+        pass
+    return stats
 
 
 def _read_proc_meminfo() -> tuple[int, int]:
@@ -352,9 +366,8 @@ def _read_proc_meminfo() -> tuple[int, int]:
     return (total - avail) * 1024, total * 1024
 
 
-def _bst_container_stats() -> tuple[float | None, int | None]:
+def _bst_container_stats(cid: str) -> tuple[float | None, int | None]:
     """Return (cpu_pct, mem_bytes) for the running BST container, or (None, None)."""
-    cid = _bst_container_id()
     if not cid:
         return None, None
     try:
@@ -442,23 +455,36 @@ def _sysinfo_sampler():
     global _cpu_prev
     while True:
         try:
-            idle, total = _read_proc_stat()
-            prev_idle, prev_total = _cpu_prev
-            d_total = total - prev_total
-            cpu_pct = round(100.0 * (1.0 - (idle - prev_idle) / d_total), 1) if d_total else 0.0
-            _cpu_prev = (idle, total)
+            stats = _read_proc_stat()
+            if not _cpu_prev or len(_cpu_prev) != len(stats):
+                _cpu_prev = stats
+                time.sleep(1)
+                continue
+
+            cpu_pcts = []
+            for i in range(len(stats)):
+                idle, total = stats[i]
+                prev_idle, prev_total = _cpu_prev[i]
+                d_total = total - prev_total
+                pct = round(100.0 * (1.0 - (idle - prev_idle) / d_total), 1) if d_total else 0.0
+                cpu_pcts.append(max(0.0, min(100.0, pct)))
+
+            _cpu_prev = stats
 
             mem_used, mem_total = _read_proc_meminfo()
-            bst_cpu, bst_mem = _bst_container_stats()
+            cid = _bst_container_id()
+            bst_cpu, bst_mem = _bst_container_stats(cid) if cid else (None, None)
             cpu_temp = _get_cpu_temp()
 
             with _sysinfo_lock:
-                _sysinfo["cpu_pct"]     = max(0.0, min(100.0, cpu_pct))
+                _sysinfo["cpu_pct"]     = cpu_pcts[0]
+                _sysinfo["cpu_cores"]   = cpu_pcts[1:]
                 _sysinfo["mem_used"]    = mem_used
                 _sysinfo["mem_total"]   = mem_total
                 _sysinfo["bst_cpu_pct"] = bst_cpu
                 _sysinfo["bst_mem"]     = bst_mem
                 _sysinfo["cpu_temp"]    = cpu_temp
+                _sysinfo["bst_running"] = bool(cid)
         except Exception:
             pass
         time.sleep(2)
@@ -837,11 +863,29 @@ HTML = """<!DOCTYPE html>
   /* ── Sysinfo bar ── */
   #sysinfo-wrap { padding: 2px 16px 8px; display: flex; gap: 20px; flex-wrap: wrap; }
   .si-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .si-clickable { cursor: pointer; user-select: none; }
+  .si-clickable:hover { color: var(--text); }
   .si-lbl { min-width: 30px; font-weight: 600; }
   .si-bar-bg { width: 80px; height: 7px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
   .si-bar { height: 100%; border-radius: 3px; transition: width .8s ease, background-color .8s; }
   .si-txt { min-width: 54px; }
   #si-cpu-txt { min-width: 90px; }
+
+  #si-cores-wrap {
+    grid-column: 1 / -1;
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px 16px;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    width: 100%;
+  }
+  #si-cores-wrap.open { display: grid; }
+  .core-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); }
+  .core-lbl { min-width: 45px; }
+  .core-bar-bg { flex: 1; height: 4px; background: var(--bg); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .core-bar { height: 100%; transition: width .8s ease; }
 
   /* ── cmake mini progress ── */
   .cmake-bar-bg { height: 3px; background: var(--border); border-radius: 2px; margin-top: 3px; overflow: hidden; }
@@ -945,7 +989,7 @@ HTML = """<!DOCTYPE html>
 </div>
 
 <div id="sysinfo-wrap">
-  <div class="si-item">
+  <div class="si-item si-clickable" onclick="toggleCores()">
     <span class="si-lbl">CPU</span>
     <div class="si-bar-bg"><div id="si-cpu-bar" class="si-bar" style="width:0%;background:var(--blue)"></div></div>
     <span class="si-txt" id="si-cpu-txt">–</span>
@@ -960,6 +1004,7 @@ HTML = """<!DOCTYPE html>
     <div class="si-bar-bg"><div id="si-bst-bar" class="si-bar" style="width:0%;background:var(--yellow)"></div></div>
     <span class="si-txt" id="si-bst-txt">–</span>
   </div>
+  <div id="si-cores-wrap"></div>
 </div>
 
 <main>
@@ -1029,9 +1074,15 @@ function _updateThemeBtn() {
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', _updateThemeBtn);
 _updateThemeBtn();
 
+function toggleCores() {
+  _showCores = !_showCores;
+  poll();
+}
+
 // ── Dashboard ───────────────────────────────────────────────────────────────
 let lastVersion = -1;
 let autoScroll = true;
+let _showCores = false;
 // Resolve API URL relative to where this page is hosted (works under any path prefix)
 const API_URL = new URL('api/state', document.baseURI).href;
 
@@ -1125,6 +1176,22 @@ async function poll() {
     document.getElementById('si-cpu-bar').style.background = cpuColor;
     const tempStr = si.cpu_temp != null ? ' ' + Math.round(si.cpu_temp) + '°C' : '';
     document.getElementById('si-cpu-txt').textContent = cpuPct.toFixed(1) + '%' + tempStr;
+
+    // Per-core bars
+    const coresWrap = document.getElementById('si-cores-wrap');
+    if (_showCores && si.cpu_cores && si.cpu_cores.length > 0) {
+      coresWrap.classList.add('open');
+      coresWrap.innerHTML = si.cpu_cores.map((pct, i) => {
+        const cColor = pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--yellow)' : 'var(--blue)';
+        return `<div class="core-item"><span class="core-lbl">Core ${i}</span>` +
+          `<div class="core-bar-bg"><div class="core-bar" style="width:${pct}%;background-color:${cColor}"></div></div>` +
+          `<span style="min-width:30px;text-align:right">${Math.round(pct)}%</span></div>`;
+      }).join('');
+    } else {
+      coresWrap.classList.remove('open');
+      coresWrap.innerHTML = '';
+    }
+
     if (si.mem_total) {
       const memPct = Math.round(si.mem_used / si.mem_total * 100);
       const memColor = memPct > 85 ? 'var(--red)' : memPct > 65 ? 'var(--yellow)' : 'var(--green)';
@@ -1740,7 +1807,7 @@ if __name__ == "__main__":
     tailer = threading.Thread(target=tail_log, daemon=True)
     tailer.start()
 
-    server = HTTPServer(("0.0.0.0", PORT), Handler)
+    server = ThreadedHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"BST Dashboard  http://localhost:{PORT}/")
     print(f"  log:     {LOG_FILE}")
     print(f"  target:  {BST_TARGET}")
