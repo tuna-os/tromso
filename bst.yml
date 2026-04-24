@@ -1,0 +1,10 @@
+cache:
+  - name: local
+    type: grpc
+    url: grpc://192.168.0.221:11001
+    timeout: 120
+  - name: freedesktop
+    type: grpc
+    url: https://cache.freedesktop-sdk.io:11001
+    timeout: 300
+

@@ -156,11 +156,15 @@ export:
     if [ -n "${OCI_IMAGE_REVISION}" ]; then
         LABEL_ARGS="${LABEL_ARGS} --label org.opencontainers.image.revision=${OCI_IMAGE_REVISION}"
     fi
+    if [ -n "${OCI_IMAGE_VERSION}" ]; then
+        LABEL_ARGS="${LABEL_ARGS} --label org.opencontainers.image.version=${OCI_IMAGE_VERSION}"
+    fi
     DATE_TAG="$(date -u +%Y%m%d)"
-    printf 'FROM %s\nRUN sed -i "s/^VERSION_ID=.*/VERSION_ID=\\"%s\\"/" /usr/lib/os-release\n' "$IMAGE_ID" "$DATE_TAG" \
+    printf 'FROM %s\nRUN sed -i "s/^VERSION_ID=.*/VERSION_ID=\\"%s\\"/" /usr/lib/os-release \\\n    && sed -i "s/^IMAGE_VERSION=.*/IMAGE_VERSION=\\"%s\\"/" /usr/lib/os-release\n' "$IMAGE_ID" "$DATE_TAG" "$DATE_TAG" \
         | $SUDO_CMD podman build --pull=never --security-opt label=type:unconfined_t --squash-all ${LABEL_ARGS} -t "{{image_name}}:{{image_tag}}" -f - .
     $SUDO_CMD podman rmi "$IMAGE_ID" || true
     echo "==> Export complete: {{image_name}}:{{image_tag}}"
+    just chunkify "{{image_name}}:{{image_tag}}"
 
 # ── Clean ─────────────────────────────────────────────────────────────
 [group('build')]
@@ -173,28 +177,36 @@ clean:
 generate-bootable-image $base_dir=base_dir $filesystem=filesystem:
     #!/usr/bin/env bash
     set -euo pipefail
-    if ! podman image exists "{{image_name}}:{{image_tag}}"; then
-        echo "ERROR: Image '{{image_name}}:{{image_tag}}' not found. Run 'just build' first." >&2
+
+    if ! sudo podman image exists "{{image_name}}:{{image_tag}}"; then
+        echo "ERROR: Image '{{image_name}}:{{image_tag}}' not found in podman." >&2
+        echo "Run 'just build' first to build and export the OCI image." >&2
         exit 1
     fi
-    if [ ! -e "${base_dir}/bootable.raw" ]; then
+
+    if [ ! -e "${base_dir}/bootable.raw" ] ; then
+        echo "==> Creating 30G sparse disk image..."
         fallocate -l 30G "${base_dir}/bootable.raw"
     fi
-    echo "==> Installing Aurora to disk via bootc (in container)..."
-    # Copy image to root storage so sudo podman can access it
-    podman save "{{image_name}}:{{image_tag}}" | sudo podman load >/dev/null 2>&1 || true
-    DISK=$(realpath "${base_dir}/bootable.raw")
-    sudo podman run --rm --privileged --pid=host \
-        -v "$DISK:$DISK:rw" \
-        -v /dev:/dev \
-        --security-opt label=type:unconfined_t \
-        "{{image_name}}:{{image_tag}}" \
-        bootc install to-disk \
-            --via-loopback "$DISK" \
-            --filesystem "{{filesystem}}" \
-            --wipe \
-            --bootloader systemd
+
+    echo "==> Installing OS to disk image via bootc..."
+    just bootc install to-disk \
+        --via-loopback /data/bootable.raw \
+        --filesystem "${filesystem}" \
+        --wipe \
+        --composefs-backend \
+        --bootloader systemd \
+        --karg systemd.firstboot=no \
+        --karg splash \
+        --karg quiet \
+        --karg console=tty0 \
+        --karg console=ttyS0 \
+        --karg systemd.debug_shell=ttyS1
+
+    echo "==> Bootable disk image ready: ${base_dir}/bootable.raw"
     sync
+    
+    # Remove stale qcow2 so boot-vm uses the fresh raw image
     rm -f "${base_dir}/bootable.qcow2"
 
 # ── bootc helper ─────────────────────────────────────────────────────
@@ -214,21 +226,25 @@ bootc *ARGS:
 boot-vm $base_dir=base_dir:
     #!/usr/bin/env bash
     set -euo pipefail
+
     DISK=$(realpath "{{base_dir}}/bootable.raw")
     if [ ! -e "$DISK" ]; then
         echo "ERROR: ${DISK} not found. Run 'just generate-bootable-image' first." >&2
         exit 1
     fi
+
     OVMF_CODE=""
-    for candidate in /usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/OVMF/OVMF_CODE.fd /usr/share/OVMF/OVMF_CODE_4M.fd; do
+    for candidate in /usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/OVMF/OVMF_CODE.fd /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/edk2/x64/OVMF_CODE.4m.fd /usr/share/qemu/OVMF_CODE.fd; do
         if [ -f "$candidate" ]; then OVMF_CODE="$candidate"; break; fi
     done
     if [ -z "$OVMF_CODE" ]; then
-        echo "ERROR: OVMF firmware not found. Install edk2-ovmf." >&2; exit 1
+        echo "ERROR: OVMF firmware not found. Install edk2-ovmf (Fedora) or ovmf (Debian/Ubuntu)." >&2
+        exit 1
     fi
+
     OVMF_VARS="{{base_dir}}/.ovmf-vars.fd"
     if [ ! -e "$OVMF_VARS" ]; then
-        for candidate in /usr/share/edk2/ovmf/OVMF_VARS.fd /usr/share/OVMF/OVMF_VARS.fd; do
+        for candidate in /usr/share/edk2/ovmf/OVMF_VARS.fd /usr/share/OVMF/OVMF_VARS.fd /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/edk2/x64/OVMF_VARS.4m.fd /usr/share/qemu/OVMF_VARS.fd; do
             if [ -f "$candidate" ]; then cp "$candidate" "$OVMF_VARS"; break; fi
         done
     fi
@@ -244,3 +260,71 @@ boot-vm $base_dir=base_dir:
         -device virtio-net-pci,netdev=net0 \
         -netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22 \
         -serial mon:stdio
+
+# ── Chunkah ──────────────────────────────────────────────────────────
+chunkify image_ref:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    SUDO_CMD=""
+    if [ "$(id -u)" -ne 0 ]; then
+        SUDO_CMD="sudo"
+    fi
+
+    echo "==> Chunkifying {{image_ref}}..."
+    CONFIG=$($SUDO_CMD podman inspect "{{image_ref}}")
+
+    FAKECAP_RESTORE="{{justfile_directory()}}/files/fakecap/fakecap-restore"
+    if [ ! -x "$FAKECAP_RESTORE" ]; then
+        echo "==> Compiling fakecap-restore..."
+        gcc -O2 -o "$FAKECAP_RESTORE" "{{justfile_directory()}}/files/fakecap/fakecap-restore.c"
+    fi
+
+    LOWER=$($SUDO_CMD podman image mount "{{image_ref}}")
+
+    cleanup() {
+        $SUDO_CMD umount "$MERGED" 2>/dev/null || true
+        $SUDO_CMD rm -rf "$UPPER" "$WORK" "$MERGED"
+        $SUDO_CMD podman image umount "{{image_ref}}" >/dev/null 2>&1 || true
+    }
+    trap cleanup EXIT
+
+    UPPER=$(mktemp -d -p /var/tmp)
+    WORK=$(mktemp -d -p /var/tmp)
+    MERGED=$(mktemp -d -p /var/tmp)
+    $SUDO_CMD chmod 755 "$UPPER" "$WORK" "$MERGED"
+    $SUDO_CMD mount -t overlay overlay \
+        -o "lowerdir=${LOWER},upperdir=${UPPER},workdir=${WORK}" \
+        "$MERGED"
+
+    echo "==> Applying user.component xattrs via fakecap-restore..."
+    $SUDO_CMD "$FAKECAP_RESTORE" files/fakecap-manifest.tsv "$MERGED"
+
+    CHUNKAH_REF="quay.io/coreos/chunkah@sha256:306371251e61cc870c8546e225b13bdf2e333f79461dc5e0fc280cc170cee070"
+    for attempt in 1 2 3; do
+        $SUDO_CMD podman pull "$CHUNKAH_REF" && break
+        echo "==> chunkah pull attempt $attempt failed, retrying in 10s..."
+        [ "$attempt" -lt 3 ] && sleep 10
+    done
+
+    LOADED=$($SUDO_CMD podman run --rm \
+        --pull never \
+        --security-opt label=type:unconfined_t \
+        -v "${MERGED}:/chunkah:ro" \
+        -e "CHUNKAH_ROOTFS=/chunkah" \
+        -e "CHUNKAH_CONFIG_STR=$CONFIG" \
+        "$CHUNKAH_REF" build --max-layers 120 --prune /sysroot/ \
+        --label ostree.commit- --label ostree.final-diffid- \
+        | $SUDO_CMD podman load)
+
+    echo "$LOADED"
+
+    NEW_REF=$(echo "$LOADED" | sed -n 's/^Loaded image(s): //p; s/^Loaded image: //p' | head -1)
+    if [ -z "$NEW_REF" ]; then
+        NEW_REF=$(echo "$LOADED" | grep -oP '^[0-9a-f]{64}$' | head -1 || true)
+    fi
+
+    if [ -n "$NEW_REF" ] && [ "$NEW_REF" != "{{image_ref}}" ]; then
+        echo "==> Retagging chunked image to {{image_ref}}..."
+        $SUDO_CMD podman tag "$NEW_REF" "{{image_ref}}"
+    fi

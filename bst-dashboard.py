@@ -174,6 +174,7 @@ class State:
     def __init__(self):
         self._lock = threading.Lock()
         self.active: dict = {}
+        self.active_pulls: dict = {}   # bst_hash -> {element, short, start}
         self.completed: list = []
         self.failures: list = []
         self._summary_elements: set = set()  # elements named in BST Failure Summary
@@ -191,7 +192,7 @@ class State:
 
     def snapshot(self):
         with self._lock:
-            live = bool(self.active) or self.catching_up
+            live = bool(self.active) or bool(self.active_pulls) or self.catching_up
             if live:
                 # Build is running: elapsed = now - start
                 elapsed = int(time.time() - self.build_start_ts) if self.build_start_ts else 0
@@ -203,6 +204,7 @@ class State:
             done = self.success_count + self.cached_count + self.pulled + self.failure_count
             return {
                 "active": list(self.active.values()),
+                "active_pulls": list(self.active_pulls.values()),
                 "completed": self.completed[-60:],
                 "failures": self.failures,
                 "pulled": self.pulled,
@@ -499,6 +501,7 @@ def reset_state():
     """Reset state for a new build (log was truncated/rotated)."""
     def _reset(s):
         s.active.clear()
+        s.active_pulls.clear()
         s.completed.clear()
         s.failures.clear()
         s._summary_elements.clear()
@@ -530,6 +533,7 @@ def parse_line(raw: str):
             ts = time.time()
         def _set_start(s):
             s.active.clear()
+            s.active_pulls.clear()
             s.completed.clear()
             s.failures.clear()
             s._summary_elements.clear()
@@ -554,6 +558,7 @@ def parse_line(raw: str):
     if PIPELINE_SUMMARY_RE.match(clean):
         def _pipeline_done(s):
             s.active.clear()
+            s.active_pulls.clear()
             s.catching_up = False
             if not s.build_end_ts:
                 s.build_end_ts = time.time()
@@ -690,15 +695,37 @@ def parse_line(raw: str):
                 s.build_end_ts = time.time()
             STATE.update(_fail)
 
-    elif action == "pull":
-        if status == "SKIPPED" and "Pull" in msg:
-            def _skip_pull(s):
+    elif action in ("pull", "fetch"):
+        if status == "START":
+            def _pull_start(s, _h=bst_hash, _sh=short, _k=action):
+                now = time.time()
+                s.active_pulls[_h] = {"element": _sh, "hash": _h, "kind": _k,
+                                      "start": now, "last_activity": now, "detail": ""}
+            STATE.update(_pull_start)
+        elif status in ("STATUS", "INFO", "WARN"):
+            # STATUS lines often carry the URL/source being transferred —
+            # grab the tail so the UI can hint at what's moving.
+            detail = msg[:60] if msg else ""
+            def _pull_activity(s, _h=bst_hash, _d=detail):
+                if _h in s.active_pulls:
+                    s.active_pulls[_h]["last_activity"] = time.time()
+                    s.active_pulls[_h]["detail"] = _d
+            STATE.update(_pull_activity)
+        elif status == "SKIPPED" and "Pull" in msg:
+            def _skip_pull(s, _h=bst_hash):
+                s.active_pulls.pop(_h, None)
                 s.cached_count += 1
             STATE.update(_skip_pull)
-        elif status == "SUCCESS" and "Pull" in msg:
-            def _pull(s):
-                s.pulled += 1
-            STATE.update(_pull)
+        elif status == "SUCCESS":
+            def _pull_done(s, _h=bst_hash, _k=action):
+                s.active_pulls.pop(_h, None)
+                if _k == "pull":
+                    s.pulled += 1
+            STATE.update(_pull_done)
+        elif status == "FAILURE":
+            def _pull_fail(s, _h=bst_hash):
+                s.active_pulls.pop(_h, None)
+            STATE.update(_pull_fail)
 
 
 def tail_log():
@@ -833,7 +860,8 @@ HTML = """<!DOCTYPE html>
   .job { padding: 6px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; cursor: pointer; touch-action: manipulation; }
   .job:last-child { border-bottom: none; }
   .job:hover, .job:active { background: color-mix(in srgb, var(--text) 5%, transparent); border-radius: 4px; }
-  .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--blue); animation: pulse 1s infinite; flex-shrink: 0; }
+  .pulse      { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--blue);   animation: pulse 1s infinite; flex-shrink: 0; }
+  .pulse-pull { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); animation: pulse 1.4s infinite; flex-shrink: 0; }
   .dot-ok  { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
   .dot-err { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
@@ -1174,7 +1202,9 @@ async function poll() {
     if (d.catching_up) {
       badge.className = 'badge badge-loading'; badge.textContent = 'Loading…';
     } else if (d.live) {
-      badge.className = 'badge badge-live'; badge.textContent = '⚡ Live';
+      const pullCount = (d.active_pulls || []).length;
+      badge.className = 'badge badge-live';
+      badge.textContent = pullCount > 0 && d.active.length === 0 ? `⬇ Fetching (${pullCount})` : '⚡ Live';
     } else if (d.success > 0 || d.failure > 0) {
       badge.className = 'badge badge-done'; badge.textContent = 'Last build (complete)';
     } else {
@@ -1253,27 +1283,57 @@ async function poll() {
     // Active jobs
     const activeEl = document.getElementById('active-list');
     const now = Date.now() / 1000;
-    activeEl.innerHTML = d.active.length === 0
-      ? '<div style="color:var(--muted);padding:8px">No active jobs</div>'
-      : d.active.map(j => {
-          const dur = j.start ? Math.round(now - j.start) : 0;
-          const esc = j.element.replace(/"/g, '&quot;');
-          let cmakeHtml = '';
-          if (j.cmake_total) {
-            const cpct = Math.round(j.cmake_done / j.cmake_total * 100);
-            cmakeHtml = `<div style="display:flex;align-items:center;gap:6px;margin-top:1px">` +
-              `<div class="cmake-bar-bg" style="flex:1"><div class="cmake-bar" style="width:${cpct}%"></div></div>` +
-              `<span class="cmake-lbl">${j.cmake_done}/${j.cmake_total}</span></div>`;
-          } else if (j.rust_crates) {
-            cmakeHtml = `<div style="display:flex;align-items:center;gap:6px;margin-top:1px">` +
-              `<span class="cmake-lbl" style="color:var(--orange)">🦀 ${j.rust_crates} crates</span></div>`;
-          }
-          return `<div class="job" style="flex-direction:column;align-items:stretch" onclick="openLog('${j.hash}','${esc}')">` +
-            `<div style="display:flex;align-items:center;gap:8px">` +
-            `<span class="pulse"></span><span class="ename" title="${esc}">${j.element}</span>` +
-            `<span class="dur">${fmtDur(dur)}</span></div>` +
-            cmakeHtml + `</div>`;
-        }).join('');
+    const builds = d.active || [];
+    const pulls  = d.active_pulls || [];
+    if (builds.length === 0 && pulls.length === 0) {
+      activeEl.innerHTML = '<div style="color:var(--muted);padding:8px">No active jobs</div>';
+    } else {
+      const buildHtml = builds.map(j => {
+        const dur = j.start ? Math.round(now - j.start) : 0;
+        const esc = j.element.replace(/"/g, '&quot;');
+        let cmakeHtml = '';
+        if (j.cmake_total) {
+          const cpct = Math.round(j.cmake_done / j.cmake_total * 100);
+          cmakeHtml = `<div style="display:flex;align-items:center;gap:6px;margin-top:1px">` +
+            `<div class="cmake-bar-bg" style="flex:1"><div class="cmake-bar" style="width:${cpct}%"></div></div>` +
+            `<span class="cmake-lbl">${j.cmake_done}/${j.cmake_total}</span></div>`;
+        } else if (j.rust_crates) {
+          cmakeHtml = `<div style="display:flex;align-items:center;gap:6px;margin-top:1px">` +
+            `<span class="cmake-lbl" style="color:var(--orange)">🦀 ${j.rust_crates} crates</span></div>`;
+        }
+        return `<div class="job" style="flex-direction:column;align-items:stretch" onclick="openLog('${j.hash}','${esc}')">` +
+          `<div style="display:flex;align-items:center;gap:8px">` +
+          `<span class="pulse"></span><span class="ename" title="${esc}">${j.element}</span>` +
+          `<span class="dur">${fmtDur(dur)}</span></div>` +
+          cmakeHtml + `</div>`;
+      });
+      // Sort pulls: most recently active first (these are actively transferring)
+      const sortedPulls = [...pulls].sort((a, b) =>
+        (b.last_activity || b.start || 0) - (a.last_activity || a.start || 0));
+      // Show up to 8 active pulls; collapse the rest into a count badge
+      const MAX_PULLS = 8;
+      const shownPulls = sortedPulls.slice(0, MAX_PULLS);
+      const pullHtml = shownPulls.map(p => {
+        const dur = p.start ? Math.round(now - p.start) : 0;
+        const esc = p.element.replace(/"/g, '&quot;');
+        const idle = now - (p.last_activity || p.start || now);
+        const idleStyle = idle > 10 ? 'opacity:.5' : '';  // dim stalled pulls
+        const detailHtml = p.detail
+          ? `<div style="font-size:10px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.detail.replace(/</g,'&lt;')}</div>`
+          : '';
+        return `<div class="job" style="flex-direction:column;align-items:stretch;${idleStyle}">` +
+          `<div style="display:flex;align-items:center;gap:8px">` +
+          `<span class="pulse-pull"></span>` +
+          `<span class="ename" style="color:var(--yellow)" title="${esc}">${p.element}</span>` +
+          `<span class="dur">${fmtDur(dur)}</span></div>` +
+          detailHtml + `</div>`;
+      });
+      if (sortedPulls.length > MAX_PULLS) {
+        pullHtml.push(`<div style="color:var(--muted);font-size:11px;padding:4px 0 0 16px">` +
+          `+${sortedPulls.length - MAX_PULLS} more pulling…</div>`);
+      }
+      activeEl.innerHTML = buildHtml.join('') + pullHtml.join('');
+    }
 
     // Failures
     const failEl = document.getElementById('fail-list');

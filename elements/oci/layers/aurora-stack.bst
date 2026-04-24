@@ -18,7 +18,7 @@ public:
   bst:
     integration-commands:
       # Required for bootc to create the image
-      - mkdir -p /boot /sysroot /sysroot/ostree
+      - mkdir -p /boot /sysroot /sysroot/ostree /etc/ostree/remotes.d
       # This needs to be a relative symlink
       - ln -s sysroot/ostree ostree
 

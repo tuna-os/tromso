@@ -1,0 +1,443 @@
+name: Build Aurora (Multi-Runner)
+
+# Adapted from hanthor/dakota build-dakota-aarch64.yml for Aurora KDE build
+# Breaks the build into 10 parallel chunks across GitHub runners
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily at 14:00 UTC
+    - cron: '0 14 * * *'
+
+env:
+  IMAGE_NAME: aurora
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:f89b4aef847ef040b345acceda15a850219eb8f1
+  NUM_CHUNKS: "10"
+  CORE_SPLIT: "200"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Phase 1: Plan ────────────────────────────────────────────────────
+  planning:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix_keys: ${{ steps.matrix.outputs.matrix_keys }}
+      matrix_data: ${{ steps.matrix.outputs.matrix_data }}
+      cache_keys: ${{ steps.matrix.outputs.cache_keys }}
+      core_targets: ${{ steps.matrix.outputs.core_targets }}
+      final_target: ${{ steps.matrix.outputs.final_target }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: podman pull "$BST2_IMAGE"
+
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+
+      - name: Cache BuildStream sources
+        uses: actions/cache@v4
+        with:
+          path: .cache/buildstream/sources
+          key: bst-sources-aurora-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
+          restore-keys: |
+            bst-sources-aurora-${{ runner.os }}-
+
+      - name: Generate Build Matrix
+        id: matrix
+        env:
+          BST_FLAGS: --no-interactive
+          BUILD_IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          mkdir -p .cache/buildstream logs
+
+          podman run --rm --privileged --device /dev/fuse \
+            --security-opt apparmor=unconfined --cap-add SYS_ADMIN \
+            -v "${{ github.workspace }}:/src:rw" \
+            -v "${{ github.workspace }}/.cache/buildstream:/root/.cache/buildstream:rw" \
+            -w /src \
+            "$BST2_IMAGE" \
+            python3 /src/scripts/ci-build-matrix.py oci/aurora.bst \
+              "$NUM_CHUNKS" "$CORE_SPLIT" > matrix.json
+
+          cat matrix.json
+
+          python3 -c "
+          import json
+          data = json.load(open('matrix.json'))
+          keys = list(data['matrix'].keys())
+          print(f'matrix_keys={json.dumps(keys)}')
+          print(f'matrix_data={json.dumps(data[\"matrix\"])}')
+          print(f'cache_keys={json.dumps(data.get(\"cache_keys\", {}))}')
+          print(f'core_targets={data.get(\"core\", \"\")}')
+          print(f'final_target={data[\"final\"]}')
+          " >> "$GITHUB_OUTPUT"
+
+  # ── Phase 2: Core (bootstrap) elements ──────────────────────────────
+  build_core:
+    needs: planning
+    if: needs.planning.outputs.core_targets != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TARGETS: ${{ needs.planning.outputs.core_targets }}
+      BUILD_IMAGE_NAME: aurora
+    steps:
+      - name: Free disk space
+        uses: ublue-os/remove-unwanted-software@v10
+        continue-on-error: true
+
+      - uses: actions/checkout@v4
+      - run: podman pull "$BST2_IMAGE"
+
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v1
+
+      - name: Cache BuildStream sources
+        uses: actions/cache@v4
+        with:
+          path: .cache/buildstream/sources
+          key: bst-sources-aurora-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
+          restore-keys: |
+            bst-sources-aurora-${{ runner.os }}-
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Restore Core Cache from GHCR
+        run: |
+          mkdir -p ~/.cache/buildstream
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          CORE_REF="ghcr.io/${REPO_LOWER}/cache-aurora-core:latest"
+          if oras pull "$CORE_REF" -o .; then
+            if [ -f cas-core.tar.zst ]; then
+              zstd -d -T0 cas-core.tar.zst -o cas-core.tar
+              tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
+              rm -f cas-core.tar cas-core.tar.zst
+            fi
+          else
+            echo "No existing Aurora core cache, starting fresh."
+          fi
+
+      - name: Generate CI config
+        run: |
+          mkdir -p logs
+          cat > buildstream-ci.conf <<'BSTCONF'
+          scheduler:
+            on-error: continue
+            fetchers: 12
+            builders: 1
+            network-retries: 3
+          logging:
+            message-format: '[%{wallclock}][%{elapsed}][%{key}][%{element}] %{action} %{message}'
+            error-lines: 80
+          build:
+            max-jobs: 0
+            retry-failed: True
+          cache:
+            cache-buildtrees: never
+          BSTCONF
+
+      - name: Build Core
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+        run: just bst --log-file /src/logs/build-core.log build $TARGETS
+
+      - name: Archive and Push Core CAS
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          CORE_REF="ghcr.io/${REPO_LOWER}/cache-aurora-core:latest"
+          podman run --rm \
+            -v "$HOME/.cache/buildstream:/input:ro" \
+            -v "${{ github.workspace }}:/output:rw" \
+            "$BST2_IMAGE" \
+            sh -c "tar -cf /output/cas-core.tar -C /input --exclude 'cas/staging' --exclude 'cas/tmp' . || [ \$? -eq 1 ]"
+          zstd -T0 --rm cas-core.tar -o cas-core.tar.zst
+          oras push "$CORE_REF" cas-core.tar.zst:application/vnd.buildstream.cas.tar.zst
+
+  # ── Phase 3: Dependency chunks (parallel) ───────────────────────────
+  build_deps:
+    needs: [planning, build_core]
+    if: always() && !contains(needs.*.result, 'failure') && needs.planning.outputs.matrix_keys != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: ${{ fromJson(needs.planning.outputs.matrix_keys) }}
+    env:
+      TARGETS: ${{ fromJson(needs.planning.outputs.matrix_data)[matrix.chunk] }}
+      CHUNK_CACHE_KEY: ${{ fromJson(needs.planning.outputs.cache_keys)[matrix.chunk] }}
+      BUILD_IMAGE_NAME: aurora
+    name: Build ${{ matrix.chunk }}
+    steps:
+      - name: Free disk space
+        uses: ublue-os/remove-unwanted-software@v10
+        continue-on-error: true
+
+      - uses: actions/checkout@v4
+      - run: podman pull "$BST2_IMAGE"
+
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v1
+
+      - name: Cache BuildStream sources
+        uses: actions/cache@v4
+        with:
+          path: .cache/buildstream/sources
+          key: bst-sources-aurora-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
+          restore-keys: |
+            bst-sources-aurora-${{ runner.os }}-
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Check GHCR for cached chunk
+        id: cache_check
+        if: env.CHUNK_CACHE_KEY != '' && env.CHUNK_CACHE_KEY != 'null'
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-aurora-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
+          if oras manifest fetch "$CHUNK_REF" > /dev/null 2>&1; then
+            echo "cache_hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache_hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore Core Cache
+        if: steps.cache_check.outputs.cache_hit != 'true'
+        run: |
+          mkdir -p ~/.cache/buildstream
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          if oras pull "ghcr.io/${REPO_LOWER}/cache-aurora-core:latest" -o .; then
+            if [ -f cas-core.tar.zst ]; then
+              zstd -d -T0 cas-core.tar.zst -o cas-core.tar
+              tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
+              rm -f cas-core.tar cas-core.tar.zst
+            fi
+          fi
+
+      - name: Restore Chunk Cache (fallback to latest)
+        if: steps.cache_check.outputs.cache_hit != 'true'
+        continue-on-error: true
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-aurora-${{ matrix.chunk }}:latest"
+          if oras pull "$LATEST_REF" -o .; then
+            if [ -f cas-${{ matrix.chunk }}.tar.zst ]; then
+              mkdir -p ~/.cache/buildstream
+              zstd -d -T0 cas-${{ matrix.chunk }}.tar.zst -o cas-${{ matrix.chunk }}.tar
+              tar -xf cas-${{ matrix.chunk }}.tar -C "$HOME/.cache/buildstream"
+              rm -f cas-${{ matrix.chunk }}.tar cas-${{ matrix.chunk }}.tar.zst
+            fi
+          fi
+
+      - name: Generate CI config
+        if: steps.cache_check.outputs.cache_hit != 'true'
+        run: |
+          mkdir -p logs
+          cat > buildstream-ci.conf <<'BSTCONF'
+          scheduler:
+            on-error: continue
+            fetchers: 12
+            builders: 1
+            network-retries: 3
+          logging:
+            message-format: '[%{wallclock}][%{elapsed}][%{key}][%{element}] %{action} %{message}'
+            error-lines: 80
+          build:
+            max-jobs: 0
+            retry-failed: True
+          cache:
+            cache-buildtrees: never
+          BSTCONF
+
+      - name: Build Chunk
+        id: build
+        if: steps.cache_check.outputs.cache_hit != 'true'
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+        run: |
+          [ -z "$TARGETS" ] && { echo "skipped=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          mkdir -p ~/.cache/buildstream
+          for i in 1 2 3; do
+            just bst --log-file /src/logs/build-${{ matrix.chunk }}.log build $TARGETS && break
+            echo "Retry $i/3..."; sleep 10
+          done
+
+      - name: Push Chunk CAS to GHCR
+        if: always() && steps.cache_check.outputs.cache_hit != 'true' && steps.build.outputs.skipped != 'true' && env.CHUNK_CACHE_KEY != '' && env.CHUNK_CACHE_KEY != 'null'
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-aurora-${{ matrix.chunk }}:latest"
+          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-aurora-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
+          podman run --rm \
+            -v "$HOME/.cache/buildstream:/input:ro" \
+            -v "${{ github.workspace }}:/output:rw" \
+            "$BST2_IMAGE" \
+            sh -c "tar -cf /output/cas-${{ matrix.chunk }}.tar -C /input --exclude 'cas/staging' --exclude 'cas/tmp' . || [ \$? -eq 1 ]"
+          zstd -T0 --rm cas-${{ matrix.chunk }}.tar -o cas-${{ matrix.chunk }}.tar.zst
+          oras push "$LATEST_REF" cas-${{ matrix.chunk }}.tar.zst:application/vnd.buildstream.cas.tar.zst
+          [ "${{ steps.build.outcome }}" == "success" ] && \
+            oras push "$CHUNK_REF" cas-${{ matrix.chunk }}.tar.zst:application/vnd.buildstream.cas.tar.zst || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs-aurora-${{ matrix.chunk }}
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ── Phase 4: Final assembly + push ──────────────────────────────────
+  build_final:
+    needs: [planning, build_deps]
+    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      BUILD_IMAGE_NAME: aurora
+    steps:
+      - name: Free disk space
+        uses: ublue-os/remove-unwanted-software@v10
+        continue-on-error: true
+
+      - uses: actions/checkout@v4
+
+      - name: Checkout chunkah
+        uses: actions/checkout@v4
+        with:
+          repository: coreos/chunkah
+          path: chunkah
+
+      - run: podman pull "$BST2_IMAGE"
+
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v1
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Download and Merge CAS Chunks
+        env:
+          MATRIX_KEYS: ${{ needs.planning.outputs.matrix_keys }}
+          CACHE_KEYS: ${{ needs.planning.outputs.cache_keys }}
+        run: |
+          mkdir -p ~/.cache/buildstream
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          if oras pull "ghcr.io/${REPO_LOWER}/cache-aurora-core:latest" -o .; then
+            if [ -f cas-core.tar.zst ]; then
+              zstd -d -T0 cas-core.tar.zst -o cas-core.tar
+              tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
+              rm -f cas-core.tar cas-core.tar.zst
+            fi
+          fi
+
+          echo "$MATRIX_KEYS" | jq -r '.[]' | while read -r chunk; do
+            CACHE_KEY=$(echo "$CACHE_KEYS" | jq -r --arg c "$chunk" '.[$c] // empty')
+            PULLED=false
+            if [ -n "$CACHE_KEY" ]; then
+              if oras pull "ghcr.io/${REPO_LOWER}/cache-aurora-${chunk}:${CACHE_KEY}" -o .; then
+                PULLED=true
+              fi
+            fi
+            if [ "$PULLED" = "false" ]; then
+              oras pull "ghcr.io/${REPO_LOWER}/cache-aurora-${chunk}:latest" -o . || continue
+            fi
+            TARBALL="cas-${chunk}.tar.zst"
+            if [ -f "$TARBALL" ]; then
+              zstd -d -T0 "$TARBALL" -o "cas-${chunk}.tar"
+              tar -xf "cas-${chunk}.tar" -C "$HOME/.cache/buildstream"
+              rm -f "$TARBALL" "cas-${chunk}.tar"
+            fi
+          done
+          du -sh ~/.cache/buildstream
+
+      - name: Generate CI config
+        run: |
+          mkdir -p logs
+          cat > buildstream-ci.conf <<'BSTCONF'
+          scheduler:
+            on-error: continue
+            fetchers: 12
+            builders: 1
+            network-retries: 3
+          logging:
+            message-format: '[%{wallclock}][%{elapsed}][%{key}][%{element}] %{action} %{message}'
+            error-lines: 80
+          build:
+            max-jobs: 0
+            retry-failed: True
+          cache:
+            cache-buildtrees: never
+          BSTCONF
+
+      - name: Build Final Target
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+        run: just bst --log-file /src/logs/build-final.log build ${{ needs.planning.outputs.final_target }}
+
+      - name: Export OCI image
+        id: export
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+          BUILD_IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          OCI_IMAGE_REVISION: ${{ github.sha }}
+          OCI_IMAGE_VERSION: latest
+        run: |
+          just export
+          echo "image_ref=${{ env.IMAGE_NAME }}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Verify + lint
+        run: |
+          sudo podman images
+          just lint
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-logs-aurora
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Login to GHCR (podman)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
+
+      - name: Push to GHCR
+        run: |
+          sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
+            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
+            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          for tag in latest "${{ github.sha }}"; do
+            for i in 1 2 3; do
+              sudo podman push "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
+              echo "Retry $i..."; sleep 5
+            done
+          done
+
