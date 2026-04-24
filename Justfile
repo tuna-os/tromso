@@ -33,7 +33,8 @@ bst *ARGS:
     podman run --rm \
         --privileged \
         --device /dev/fuse \
-        --network=host \
+        --dns=8.8.8.8 \
+        --dns=1.1.1.1 \
         -v "{{justfile_directory()}}:/src:rw" \
         -v "${HOME}/.cache/buildstream:/root/.cache/buildstream:rw" \
         -w /src \

@@ -5,14 +5,13 @@ depends:
   - aurora/deps.bst
   - oci/os-release.bst
 
-  # Essential OCI infrastructure from gnomeos (no GNOME-specific signing)
+  # Essential OCI infrastructure
   - kde-build-meta.bst:oci/integration/bootc-config.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:vm/config/useradd-ostree.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:vm/config/sudo-nopasswd.bst
   - kde-build-meta.bst:oci/integration/lvm2-enable-activation.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/linux-firmware.bst
   - kde-build-meta.bst:oci/initramfs.bst
-  - kde-build-meta.bst:gnomeos-deps/bootc.bst
 
 public:
   bst:
