@@ -6,7 +6,7 @@ build-depends:
   - kde-build-meta.bst:freedesktop-sdk.bst:components/oci-builder.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/glib.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:vm/prepare-image.bst
-  - filename: kde-build-meta.bst:oci/gnomeos/image.bst
+  - filename: kde-build-meta.bst:oci/kde-linux/image.bst
     config:
       location: /parent
   - filename: oci/layers/aurora.bst
@@ -64,7 +64,7 @@ config:
         parent:
           image: /parent
         layer: /layer
-        comment: "Import Aurora layer"
+        comment: "Aurora KDE Linux image"
         config:
           Labels:
             'com.github.containers.toolbox': 'true'
