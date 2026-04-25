@@ -34,4 +34,18 @@ depends:
   - kde-build-meta.bst:freedesktop-sdk.bst:components/vmlinuxh.bst
   - kde-build-meta.bst:core/sysprof-app.bst
 
+  # Desktop infrastructure & utilities (missing from KDE)
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/xwayland.bst        # X11 on Wayland
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/less.bst            # Pager
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/util-linux.bst      # mount, fdisk, etc.
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/avahi.bst           # mDNS service discovery
+
+  # Fonts (for proper text rendering)
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/dejavu-fonts.bst
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/liberation-fonts.bst
+
+  # bootc - container/image management (disabled due to Cargo/DNS build issues)
+  # TODO: Resolve DNS/Cargo issues for bootc build (see feedback_bootc_dns.md)
+  # - kde-build-meta.bst:gnomeos-deps/bootc.bst
+
   # TODO: Add systemsettings back after fixing plasma-activities dependency order
