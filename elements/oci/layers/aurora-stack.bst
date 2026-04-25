@@ -12,7 +12,7 @@ depends:
   - kde-build-meta.bst:oci/integration/lvm2-enable-activation.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/linux-firmware.bst
   - kde-build-meta.bst:oci/initramfs.bst
-  - oci/bootc-binary.bst
+  - bootc.bst
 
 public:
   bst:
