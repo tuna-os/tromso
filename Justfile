@@ -56,24 +56,20 @@ bst-nspawn *ARGS:
     echo "==> Extracting bst2 container image..." | tee -a "$LOG"
     CONTAINER_ID=$(podman create "{{bst2_image}}")
     ROOTFS=$(mktemp -d)
-    CUSTOM_RESOLV=$(mktemp)
-    trap "podman rm -f $CONTAINER_ID 2>/dev/null; sudo rm -rf $ROOTFS 2>/dev/null; rm -f $CUSTOM_RESOLV 2>/dev/null" EXIT
+    trap "podman rm -f $CONTAINER_ID 2>/dev/null; sudo rm -rf $ROOTFS 2>/dev/null" EXIT
 
     podman export "$CONTAINER_ID" | tar -x -C "$ROOTFS"
     echo "✓ Image extracted to $ROOTFS" | tee -a "$LOG"
 
     # Run systemd-nspawn container
     echo "==> Running bst in systemd-nspawn..." | tee -a "$LOG"
-    printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' > "$CUSTOM_RESOLV"
-
     sudo systemd-nspawn \
         --directory="$ROOTFS" \
         --bind="{{justfile_directory()}}:/src" \
         --bind="${HOME}/.cache/buildstream:/root/.cache/buildstream" \
         --bind-ro="${HOME}/.cargo:/root/.cargo" \
-        --bind-ro="$CUSTOM_RESOLV:/etc/resolv.conf" \
         --chdir=/src \
-        --network-veth \
+        --network=host \
         --capability=all \
         /bin/bash -c 'cd /src && bst --colors "$@"' -- ${BST_FLAGS:-} {{ARGS}} 2>&1 | tee -a "$LOG"
 
