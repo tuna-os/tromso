@@ -2,7 +2,7 @@
 # Aurora Dakota Build Monitor
 
 MAX_JOBS=4
-FETCHERS=16
+FETCHERS=64
 LOG=/var/tmp/aurora-build.log
 KBM_DIR=/var/home/james/dev/kde-build-meta
 AURORA_DIR=/var/home/james/dev/kde-linux

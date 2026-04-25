@@ -993,6 +993,7 @@ HTML = """<!DOCTYPE html>
   </div>
   <button id="tree-btn" onclick="openTree()" title="Dependency tree" style="padding:5px 9px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:13px;color:var(--muted)">🌳</button>
   <button id="noti-btn" onclick="toggleNotifications()" title="Toggle notifications" style="padding:5px 9px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:13px;color:var(--muted)">🔔</button>
+  <button id="loop-btn" onclick="toggleLoop()" title="Toggle monitor loop" style="padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:13px;color:var(--muted)">⟳ Loop</button>
   <button id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark">◐</button>
   <button id="ctrl-btn" onclick="toggleBuild()" style="color:var(--muted);border-color:var(--border)">…</button>
 </header>
@@ -1781,6 +1782,26 @@ async function toggleBuild() {
   }
 }
 
+function toggleLoop() {
+  const btn = document.getElementById('loop-btn');
+  btn.disabled = true;
+  fetch(new URL('api/loop/toggle', document.baseURI), {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.running) {
+        btn.textContent = '✓ Loop';
+        btn.style.color = 'var(--green)';
+      } else {
+        btn.textContent = '⟳ Loop';
+        btn.style.color = 'var(--muted)';
+      }
+    })
+    .catch(e => console.error('Loop toggle error:', e))
+    .finally(() => {
+      btn.disabled = false;
+    });
+}
+
 poll();
 setInterval(poll, 800);
 updateNotiBtn();
@@ -1826,6 +1847,13 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/deptree/refresh":
             threading.Thread(target=_fetch_deptree, daemon=True).start()
             self._json_reply({"ok": True})
+        elif path == "/api/loop/toggle":
+            try:
+                result = subprocess.run(["./toggle-loop.sh"], cwd="/var/home/james/dev/kde-linux", capture_output=True, timeout=5)
+                running = result.returncode == 0 and b"started" in result.stdout
+                self._json_reply({"ok": True, "running": running})
+            except Exception as e:
+                self._json_reply({"ok": False, "error": str(e)})
         else:
             self.send_response(404)
             self.end_headers()
