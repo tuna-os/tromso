@@ -42,6 +42,10 @@ config:
     - |
       glib-compile-schemas /layer/usr/share/glib-2.0/schemas
 
+    # Enable SSH service for remote access
+    - |
+      systemctl --root=/layer enable sshd.service || true
+
     # bootc images must not have both /etc and /usr/etc.
     - |
       if [ -d /layer/usr/etc ]; then

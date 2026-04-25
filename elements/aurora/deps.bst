@@ -5,6 +5,10 @@ depends:
   # Base freedesktop-sdk runtime
   - kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
+  # Bootable system requirements (kernel + firmware for bootc)
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/linux.bst
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/linux-firmware.bst
+
   # KDE core applications (equivalent to Dakota's GNOME stack)
   - kde-build-meta.bst:kde/apps/dolphin.bst           # File manager (like nautilus)
   - kde-build-meta.bst:kde/apps/kate.bst              # Text editor
@@ -21,6 +25,7 @@ depends:
   - kde-build-meta.bst:freedesktop-sdk.bst:components/debuginfod.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/git-lfs.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/git.bst
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/openssh.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/podman.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/skopeo.bst
 

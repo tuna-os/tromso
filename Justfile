@@ -172,20 +172,6 @@ export:
         | $SUDO_CMD podman build --pull=never --security-opt label=type:unconfined_t --squash-all ${LABEL_ARGS} -t "{{image_name}}:{{image_tag}}" -f - .
     $SUDO_CMD podman rmi "$IMAGE_ID" || true
     echo "==> Export complete: {{image_name}}:{{image_tag}}"
-
-    # Inject bootc binary into image with ostree runtime dependencies
-    echo "==> Injecting bootc binary with runtime libraries..."
-    if [ -f files/bootc-binary ]; then
-        mkdir -p /tmp/bootc-inject
-        cp files/bootc-binary /tmp/bootc-inject/
-        printf 'FROM fedora:latest AS libs\nRUN dnf install -y ostree && mkdir -p /libs && cp -av /lib64/*.so* /libs/ 2>/dev/null || true\n\nFROM {{image_name}}:{{image_tag}}\nCOPY --from=libs /libs/ /usr/lib/x86_64-linux-gnu/\nCOPY bootc-binary /usr/bin/bootc\nRUN chmod +x /usr/bin/bootc && ldconfig 2>&1 | head -5\n' | \
-            $SUDO_CMD podman build --pull=newer -t "{{image_name}}:{{image_tag}}" -f - /tmp/bootc-inject
-        rm -rf /tmp/bootc-inject
-        echo "==> bootc injected with dependencies"
-    else
-        echo "WARNING: bootc binary not found at files/bootc-binary"
-    fi
-
     just chunkify "{{image_name}}:{{image_tag}}"
 
 # ── Clean ─────────────────────────────────────────────────────────────
