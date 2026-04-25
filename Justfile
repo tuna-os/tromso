@@ -172,6 +172,19 @@ export:
         | $SUDO_CMD podman build --pull=never --security-opt label=type:unconfined_t --squash-all ${LABEL_ARGS} -t "{{image_name}}:{{image_tag}}" -f - .
     $SUDO_CMD podman rmi "$IMAGE_ID" || true
     echo "==> Export complete: {{image_name}}:{{image_tag}}"
+
+    # Inject bootc binary into image
+    echo "==> Injecting bootc binary..."
+    if [ -f files/bootc-binary ]; then
+        mkdir -p /tmp/bootc-inject && cp files/bootc-binary /tmp/bootc-inject/
+        printf 'FROM {{image_name}}:{{image_tag}}\nCOPY bootc-binary /usr/bin/bootc\nRUN chmod +x /usr/bin/bootc\n' | \
+            $SUDO_CMD podman build --pull=never -t "{{image_name}}:{{image_tag}}" -f - /tmp/bootc-inject
+        rm -rf /tmp/bootc-inject
+        echo "==> bootc injected"
+    else
+        echo "WARNING: bootc binary not found at files/bootc-binary"
+    fi
+
     just chunkify "{{image_name}}:{{image_tag}}"
 
 # ── Clean ─────────────────────────────────────────────────────────────
