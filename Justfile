@@ -70,7 +70,7 @@ bst-nspawn *ARGS:
         --bind-ro="${HOME}/.cargo:/root/.cargo" \
         --chdir=/src \
         --network-veth \
-        --resolv-conf=copy-host \
+        --resolv-conf=uplink \
         --capability=all \
         /bin/bash -c 'cd /src && bst --colors "$@"' -- ${BST_FLAGS:-} {{ARGS}} 2>&1 | tee -a "$LOG"
 
