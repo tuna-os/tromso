@@ -50,18 +50,19 @@ bst-nspawn *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
     mkdir -p "${HOME}/.cache/buildstream" "${HOME}/.cargo"
+    LOG=/var/tmp/aurora-build.log
 
     # Extract bst2 OCI image to temporary directory
-    echo "==> Extracting bst2 container image..."
+    echo "==> Extracting bst2 container image..." | tee -a "$LOG"
     CONTAINER_ID=$(podman create "{{bst2_image}}")
     ROOTFS=$(mktemp -d)
     trap "podman rm -f $CONTAINER_ID 2>/dev/null; sudo rm -rf $ROOTFS 2>/dev/null" EXIT
 
     podman export "$CONTAINER_ID" | tar -x -C "$ROOTFS"
-    echo "✓ Image extracted to $ROOTFS"
+    echo "✓ Image extracted to $ROOTFS" | tee -a "$LOG"
 
     # Run systemd-nspawn container
-    echo "==> Running bst in systemd-nspawn..."
+    echo "==> Running bst in systemd-nspawn..." | tee -a "$LOG"
     sudo systemd-nspawn \
         --directory="$ROOTFS" \
         --bind="{{justfile_directory()}}:/src" \
@@ -71,7 +72,7 @@ bst-nspawn *ARGS:
         --network-veth \
         --resolv-conf=copy-host \
         --capability=all \
-        /bin/bash -c 'cd /src && bst --colors "$@"' -- ${BST_FLAGS:-} {{ARGS}}
+        /bin/bash -c 'cd /src && bst --colors "$@"' -- ${BST_FLAGS:-} {{ARGS}} 2>&1 | tee -a "$LOG"
 
 # ── Build log ─────────────────────────────────────────────────────────
 # Run build in background, log to /var/tmp/aurora-build.log, tail it
