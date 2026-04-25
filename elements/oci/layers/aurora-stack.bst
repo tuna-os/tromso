@@ -12,7 +12,9 @@ depends:
   - kde-build-meta.bst:oci/integration/lvm2-enable-activation.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/linux-firmware.bst
   - kde-build-meta.bst:oci/initramfs.bst
-  - kde-build-meta.bst:gnomeos-deps/bootc.bst
+  # bootc removed - DNS/Cargo issues in nested sandbox
+  # Keep bootc-config.bst for OCI infrastructure only
+  # bootc binary will be injected into image post-build
 
 public:
   bst:
