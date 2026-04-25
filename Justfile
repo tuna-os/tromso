@@ -63,14 +63,18 @@ bst-nspawn *ARGS:
 
     # Run systemd-nspawn container
     echo "==> Running bst in systemd-nspawn..." | tee -a "$LOG"
+    CUSTOM_RESOLV=$(mktemp)
+    trap "rm -f $CUSTOM_RESOLV" EXIT
+    printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' > "$CUSTOM_RESOLV"
+
     sudo systemd-nspawn \
         --directory="$ROOTFS" \
         --bind="{{justfile_directory()}}:/src" \
         --bind="${HOME}/.cache/buildstream:/root/.cache/buildstream" \
         --bind-ro="${HOME}/.cargo:/root/.cargo" \
+        --bind-ro="$CUSTOM_RESOLV:/etc/resolv.conf" \
         --chdir=/src \
         --network-veth \
-        --resolv-conf=uplink \
         --capability=all \
         /bin/bash -c 'cd /src && bst --colors "$@"' -- ${BST_FLAGS:-} {{ARGS}} 2>&1 | tee -a "$LOG"
 
