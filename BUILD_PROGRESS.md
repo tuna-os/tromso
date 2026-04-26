@@ -2,46 +2,45 @@
 
 ## ✅ COMPLETED
 
-### Qt6 Components for plasma-workspace - SUCCESSFULLY RESOLVED
-- **Issue**: plasma-workspace requires multiple Qt6 components that weren't explicitly listed as build-depends
-- **Root Causes**:
-  1. qt6-qtlocation missing from plasma-workspace build-depends
-  2. qt6-qtpositioning missing from plasma-workspace build-depends
-  3. Qt components need to be explicitly listed; they don't transitively include cmake config files from indirect dependencies
-- **Fixes Applied**:
-  1. Patched plasma-workspace to make Qt6Location optional
-  2. Added qt6-qtpositioning to plasma-workspace build-depends
-  3. Both modules now properly stage cmake config files for find_package() to locate
-- **Status**: ✅ RESOLVED
+### Root Cause Analysis: TextEditor/TextWidgets CMake Failure
+- **Problem**: `Configuring incomplete, errors occurred!` when moving TextEditor/TextWidgets to OPTIONAL_COMPONENTS
+- **Root Cause**: Subdirectories unconditionally link against these components without checking if they were found:
+  1. `interactiveconsole/CMakeLists.txt`: Links `KF6::TextEditor` and `KF6::TextWidgets` directly
+  2. `components/shellprivate/CMakeLists.txt`: Links `KF6::TextWidgets` directly
+  3. When these targets don't exist (optional, not found), cmake FATAL_ERROR during target_link_libraries
+- **Solution**: Patch subdirectories to conditionally include/link components only if found
 
-### Qt6Location CMake Fix - PATCH SUCCESSFULLY APPLIED
-- **Status**: ✅ PATCH APPLIED
+### Patches Applied (Plasma-Workspace)
+| Patch | Issue | Solution |
+|-------|-------|----------|
+| 0001 | Qt6Location required but missing | Make Qt6Location optional |
+| 0002 | KF6 TextEditor/TextWidgets required | Move to OPTIONAL_COMPONENTS |
+| 0003 | KWin virtual keyboard D-Bus interface undefined | Comment out virtualkeyboard dbus call |
+| 0004 | Breeze config mode failing | Change to QUIET find_package |
+| 0005 | KF6Baloo reported as missing | Make find_package QUIET |
+| **0006** | **interactiveconsole hard-codes TextEditor/TextWidgets links** | **Conditionally build if components found** |
+| **0007** | **shellprivate hard-codes TextWidgets link** | **Conditionally link if component found** |
 
-### TextEditor/TextWidgets Optional Components - PATCH SUCCESSFULLY APPLIED
-- **Issue**: plasma-workspace was failing with `Could NOT find KF6 (missing: TextEditor TextWidgets)`
-- **Fix**: Created patch 0002-make-kf6-texteditor-textwidgets-optional.patch to move components from REQUIRED to OPTIONAL_COMPONENTS
-- **Status**: ✅ PATCH SUCCESSFULLY APPLIED
-
-### KWinDBusInterface - X11 Support Disabled for Wayland-only Build ✅ TESTED
-- **Issue**: plasma-workspace was failing with `Could NOT find KWinDBusInterface`
-- **Root Cause**: KWin is X11-only window manager; Aurora is Wayland-only
-- **Fixes Applied**:
-  1. Added `-DCMAKE_DISABLE_FIND_PACKAGE_KWinDBusInterface=ON` to cmake-local variables
-  2. Added `-DCMAKE_DISABLE_FIND_PACKAGE_ScreenSaverDBusInterface=ON` for consistency
-  3. Added `-DWITH_X11=OFF` to disable all X11 session support
-  4. Wayland Plasma uses native shell for window management (no KWin needed)
-- **Commit**: 876523745 (kde-build-meta) - Disable KWinDBusInterface and X11 support for Wayland-only build
-- **Status**: ✅ IN TESTING - Build 11:24:44 AM IST 2026-04-26
+### Dependencies Added to aurora/deps.bst
+- kde/plasma/plasma-desktop.bst (desktop shell)
+- kde/plasma/breeze.bst (theme)
+- kde/config/plasma.bst (systemd presets)
+- kde/qt6/qt6-qtlocation.bst (Qt6 component)
+- kde/libs/qcoro.bst (C++ coroutines)
+- kde/plasma/layer-shell-qt.bst (Wayland layer shell)
+- kde/plasma/libplasma.bst (Plasma library)
+- kde/plasma/libkscreen.bst (screen management)
+- kde/plasma/libksysguard.bst (system monitor)
+- kde/plasma/kpipewire.bst (PipeWire support)
+- kde/plasma/kwayland.bst (Wayland support)
+- kde/plasma/kscreenlocker.bst (screen locker)
 
 ## 🔄 IN PROGRESS
 
-### Current Build Status (plasma-workspace interactiveconsole fix)
-- **Issue Found**: interactiveconsole CMakeLists.txt unconditionally links to KF6::TextEditor and KF6::TextWidgets
-  - These components were made OPTIONAL in the main find_package call (patch 0002)
-  - But interactiveconsole/CMakeLists.txt didn't check if they were found before linking
-  - Result: cmake FATAL_ERROR when trying to link against non-existent targets
-- **Fix Applied**: Patch 0006 - conditionally build interactiveconsole only if TextEditor and TextWidgets are found
-- 🔄 Testing build with interactiveconsole fix (plasma-workspace patch 0006)
+### Current Build Status
+- **Patches**: 7 patches created for plasma-workspace
+- **Dependencies**: Full Plasma desktop stack in aurora/deps.bst
+- 🔄 Building with patches 0006-0007 to resolve interactiveconsole and shellprivate linking
 
 ## 📝 Current Working Config
 aurora/deps.bst includes:
