@@ -41,9 +41,9 @@ These packages have known issues and are disabled pending further investigation:
 
 #### Window Management
 - **kwin** - Window manager
-  - Issue: X11-only (Wayland-only Aurora architecture)
-  - Status: Won't fix for this build (by design)
-  - Workaround: Wayland Plasma uses native shell
+  - Issue: Was X11-only disabled, now enabled with full X11 support
+  - Status: ✅ Re-enabled with -DKWIN_BUILD_X11=ON and X11 libs added
+  - Configuration: Added xorg-lib-{x11,xcb,xfixes}, xcb-util-* dependencies
 
 #### System & Hardware
 - **kscreen** - Screen management
@@ -90,14 +90,14 @@ These packages have known issues and are disabled pending further investigation:
   - Issue: Debug issues
   - Status: Needs investigation
 
-### X11 Dependency Issues
-- **Status**: 🔧 PARTIALLY MITIGATED
-- **Disabled Features**: 
-  - KWinDBusInterface (X11-only window manager)
-  - ScreenSaverDBusInterface (X11 session management)
-  - X11 libraries entirely (-DWITH_X11=OFF)
-- **Impact**: Some X11-specific features unavailable, but Wayland-only build works
-- **Future Work**: May need XWayland for legacy app support
+### X11 Support - Now Enabled
+- **Status**: ✅ FULLY ENABLED (2026-04-26 decision)
+- **Enabled Features**:
+  - KWin with X11 backend (-DKWIN_BUILD_X11=ON)
+  - Full X11 libraries (xorg-lib-{x11,xcb,xfixes}, xcb-util-*)
+  - XWayland for legacy X11 app support
+- **Reason**: User guidance "we babe to build x11! from freedesktop we can enable x11"
+- **Impact**: Full X11 session support alongside Wayland, better compatibility
 
 ## 🟢 RESOLVED ISSUES (Fixed in this session)
 
