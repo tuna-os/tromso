@@ -12,9 +12,9 @@ depends:
   # KDE Plasma desktop environment (graphical shell)
   # Note: Using direct plasma.service launch via systemd preset instead of SDDM
   # - kde-build-meta.bst:kde/plasma/sddm.bst          # TODO: Fix patch application issue
-  # - kde-build-meta.bst:kde/plasma/plasma-workspace.bst # TODO: QCoro6 staging issue
+  - kde-build-meta.bst:kde/plasma/plasma-workspace.bst # Plasma workspace (X11 + Wayland support)
   - kde-build-meta.bst:kde/plasma/plasma-desktop.bst  # Desktop shell
-  # - kde-build-meta.bst:kde/plasma/kwin.bst            # Window manager (TODO: wayland/libinput issues)
+  - kde-build-meta.bst:kde/plasma/kwin.bst            # Window manager (X11 enabled)
   - kde-build-meta.bst:kde/plasma/breeze.bst          # Default theme
   # - kde-build-meta.bst:kde/plasma/kscreen.bst         # Screen management (TODO: cmake config error)
   # - kde-build-meta.bst:kde/plasma/plasma-nm.bst       # Network Manager integration (TODO: complex deps)
