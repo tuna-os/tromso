@@ -5,72 +5,46 @@
 ### Qt6 Components for plasma-workspace - SUCCESSFULLY RESOLVED
 - **Issue**: plasma-workspace requires multiple Qt6 components that weren't explicitly listed as build-depends
 - **Root Causes**:
-  1. qt6-qtlocation missing from plasma-workspace build-depends (commit 9de55dd9)
+  1. qt6-qtlocation missing from plasma-workspace build-depends
   2. qt6-qtpositioning missing from plasma-workspace build-depends
   3. Qt components need to be explicitly listed; they don't transitively include cmake config files from indirect dependencies
 - **Fixes Applied**:
-  1. Patched plasma-workspace to make Qt6Location optional (commit ebc41e5d6)
-  2. Added qt6-qtpositioning to plasma-workspace build-depends (commit ab25216da)
+  1. Patched plasma-workspace to make Qt6Location optional
+  2. Added qt6-qtpositioning to plasma-workspace build-depends
   3. Both modules now properly stage cmake config files for find_package() to locate
-- **Status**: ✅ PLASMA-WORKSPACE SUCCESSFULLY BUILDING (as of 00:49:41 in latest build)
+- **Status**: ✅ RESOLVED
 
 ### Qt6Location CMake Fix - PATCH SUCCESSFULLY APPLIED
-- **Issue**: plasma-workspace was failing with `Could not find required Qt component Location`
-- **Root Causes**: 
-  1. plasma-workspace.bst was missing qt6-qtlocation in its build-depends (commit 9de55dd9)
-  2. qt6-qtlocation wasn't installing cmake config files properly (needed cmake variables)
-  3. Qt6Location component is complex to build standalone
+- **Status**: ✅ PATCH APPLIED
+
+### TextEditor/TextWidgets Optional Components - PATCH SUCCESSFULLY APPLIED
+- **Issue**: plasma-workspace was failing with `Could NOT find KF6 (missing: TextEditor TextWidgets)`
+- **Fix**: Created patch 0002-make-kf6-texteditor-textwidgets-optional.patch to move components from REQUIRED to OPTIONAL_COMPONENTS
+- **Status**: ✅ PATCH SUCCESSFULLY APPLIED
+
+### KWinDBusInterface - X11 Support Disabled for Wayland-only Build ✅ TESTED
+- **Issue**: plasma-workspace was failing with `Could NOT find KWinDBusInterface`
+- **Root Cause**: KWin is X11-only window manager; Aurora is Wayland-only
 - **Fixes Applied**:
-  1. Added `- kde/qt6/qt6-qtlocation.bst` to plasma-workspace.bst build-depends
-  2. Added cmake variables to qt6-qtlocation.bst: `-DINSTALL_ARCHDATADIR=lib -DQT_DISABLE_RPATH=ON`
-  3. Patched plasma-workspace to make Qt6Location optional:
-     - Removed Location from required Qt6 components
-     - Put patch in correct location: `patches/plasma-workspace/0001-make-qt6location-optional.patch`
-     - Patch successfully applied during fetch phase
-  4. Committed fixes to hanthor/kde-build-meta (commits 39c1bb7ab → 77f6809e5 → ae063e95c → 378745111 → ebc41e5d6)
-- **Status**: ✅ PATCH APPLIED - plasma-workspace now building (commit ebc41e5d6)
+  1. Added `-DCMAKE_DISABLE_FIND_PACKAGE_KWinDBusInterface=ON` to cmake-local variables
+  2. Added `-DCMAKE_DISABLE_FIND_PACKAGE_ScreenSaverDBusInterface=ON` for consistency
+  3. Added `-DWITH_X11=OFF` to disable all X11 session support
+  4. Wayland Plasma uses native shell for window management (no KWin needed)
+- **Commit**: 876523745 (kde-build-meta) - Disable KWinDBusInterface and X11 support for Wayland-only build
+- **Status**: ✅ IN TESTING - Build 11:24:44 AM IST 2026-04-26
 
-### Dependencies Added to aurora/deps.bst
-- qt6-qtlocation
-- qcoro (C++ coroutines for Qt)
-- layer-shell-qt, libplasma, libkscreen
-- libksysguard, kpipewire, kwayland, kscreenlocker
+## 🔄 IN PROGRESS
 
-## 🔄 IN PROGRESS - Full KDE Aurora Build
-
-### Build Status (Build started 11:08:48 AM IST 2026-04-26)
-- ✅ plasma-workspace: SUCCESSFULLY BUILT (confirmed at 00:31:19 into build)
-- ✅ plasma-desktop: SUCCESSFULLY BUILT (confirmed at 00:38:47 into build)
-- 🔄 Full OCI image: CURRENTLY BUILDING - waiting for completion
-
-### Recently Fixed
-1. **plasma-workspace Qt6 Dependencies** - ✅ SUCCESSFULLY RESOLVED
-   - Previous fix: Patched plasma-workspace to make Location optional (ebc41e5d6)
-   - Secondary issue: Qt6Positioning not available
-   - Applied fix: Added qt6-qtpositioning.bst to build-depends (commit ab25216da)
-   - Status: ✅ Both plasma-workspace and plasma-desktop now build successfully
-
-## ⚠️ PENDING - Package-Specific Issues
-
-### Critical Blockers
-
-2. **plasma-desktop** - Blocked by plasma-workspace dependency
-   - Cannot be disabled without breaking dependency chain
-   - plasma-desktop explicitly requires plasma-workspace as build-depend
-
-3. **konsole** - D-Bus XML introspection parsing failure
-   - qdbusxml2cpp failing on D-Bus interface definitions
-   - Errors: Invalid D-Bus type signatures in org.kde.konsole.* XML
-
-4. **kinfocenter** - About-distro module compilation
-   - About-distro module compiling despite CMAKE flags to disable it
-   - OpenGL/Vulkan header issues
-
-5. **Other packages** - kscreen, plasma-nm, powerdevil, spectacle, plasma-pa
-   - Various cmake configuration and transitive dependency issues
+### Current Build Status (plasma-workspace interactiveconsole fix)
+- **Issue Found**: interactiveconsole CMakeLists.txt unconditionally links to KF6::TextEditor and KF6::TextWidgets
+  - These components were made OPTIONAL in the main find_package call (patch 0002)
+  - But interactiveconsole/CMakeLists.txt didn't check if they were found before linking
+  - Result: cmake FATAL_ERROR when trying to link against non-existent targets
+- **Fix Applied**: Patch 0006 - conditionally build interactiveconsole only if TextEditor and TextWidgets are found
+- 🔄 Testing build with interactiveconsole fix (plasma-workspace patch 0006)
 
 ## 📝 Current Working Config
-aurora/deps.bst includes only:
+aurora/deps.bst includes:
 - plasma-desktop (which pulls plasma-workspace as dependency)
 - breeze theme
 - kde/config/plasma.bst (systemd configuration)
@@ -79,18 +53,14 @@ aurora/deps.bst includes only:
 
 ## 🎯 Next Steps
 
-To complete KDE Plasma support:
-
-1. **CURRENT**: Test patched plasma-workspace with optional Qt6Location (commit 378745111)
-   - This should allow plasma-workspace to build even without proper qt6-qtlocation cmake files
-   - If successful, will unblock plasma-desktop and other packages
-2. **Investigate D-Bus XML parsing** - Fix konsole's qdbusxml2cpp errors  
-3. **Fix about-distro module** - Understand why CMAKE disabling flags aren't respected
-4. **Additional package fixes** - Address kscreen, kwin, plasma-nm, plasma-pa, powerdevil, spectacle, kinfocenter failures
-5. **Future: Proper Qt6Location** - Once plasma-workspace builds, may revisit proper qt6-qtlocation cmake integration
+If KWinDBusInterface fix succeeds:
+1. ✅ Verify plasma-workspace builds with cmake flags
+2. ✅ Verify plasma-desktop builds (depends on plasma-workspace)
+3. 🔄 Complete full OCI/Aurora image build
+4. 📋 Address remaining package-specific issues if any
 
 ## Reference
 
-- kde-build-meta fix: commit 9de55dd9081c119bf62b121fe416727138d425ef
-- Fixed file: elements/kde/plasma/plasma-workspace.bst (line: `- kde/qt6/qt6-qtlocation.bst`)
+- Latest fix: commit 876523745 (kde-build-meta)
+- Junction update: commits ae3d5a5 (sha256sum fix), 2fe2b2f (initial junction update)
 - Build logs: /var/tmp/aurora-build.log

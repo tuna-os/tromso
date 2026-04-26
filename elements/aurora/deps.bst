@@ -9,6 +9,38 @@ depends:
   - kde-build-meta.bst:freedesktop-sdk.bst:components/linux.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/linux-firmware.bst
 
+  # KDE Plasma desktop environment (graphical shell)
+  # Note: Using direct plasma.service launch via systemd preset instead of SDDM
+  # - kde-build-meta.bst:kde/plasma/sddm.bst          # TODO: Fix patch application issue
+  # - kde-build-meta.bst:kde/plasma/plasma-workspace.bst # TODO: QCoro6 staging issue
+  - kde-build-meta.bst:kde/plasma/plasma-desktop.bst  # Desktop shell
+  # - kde-build-meta.bst:kde/plasma/kwin.bst            # Window manager (TODO: wayland/libinput issues)
+  - kde-build-meta.bst:kde/plasma/breeze.bst          # Default theme
+  # - kde-build-meta.bst:kde/plasma/kscreen.bst         # Screen management (TODO: cmake config error)
+  # - kde-build-meta.bst:kde/plasma/plasma-nm.bst       # Network Manager integration (TODO: complex deps)
+  # - kde-build-meta.bst:kde/plasma/plasma-pa.bst       # PulseAudio integration (TODO: debug)
+  # - kde-build-meta.bst:kde/plasma/konsole.bst         # Terminal application (TODO: D-Bus XML parsing)
+  # - kde-build-meta.bst:kde/plasma/spectacle.bst       # Screenshot tool (TODO: debug)
+  # - kde-build-meta.bst:kde/plasma/powerdevil.bst      # Power management (TODO: complex deps)
+  # - kde-build-meta.bst:kde/plasma/plasma-systemmonitor.bst (TODO: cmake config)
+  # - kde-build-meta.bst:kde/plasma/kinfocenter.bst (TODO: about-distro module)
+  # - kde-build-meta.bst:kde/plasma/bluedevil.bst       # Bluetooth support (TODO: debug)
+  # - kde-build-meta.bst:kde/plasma/xdg-desktop-portal-kde.bst (TODO: debug)
+  - kde-build-meta.bst:kde/config/plasma.bst          # Systemd preset & service files
+
+  # Qt6 components (required by various Plasma packages)
+  - kde-build-meta.bst:kde/qt6/qt6-qtlocation.bst
+
+  # KDE libraries needed by multiple Plasma packages
+  - kde-build-meta.bst:kde/libs/qcoro.bst               # C++ coroutines for Qt
+  - kde-build-meta.bst:kde/plasma/layer-shell-qt.bst    # Wayland layer shell
+  - kde-build-meta.bst:kde/plasma/libplasma.bst         # Plasma library
+  - kde-build-meta.bst:kde/plasma/libkscreen.bst        # Screen management lib
+  - kde-build-meta.bst:kde/plasma/libksysguard.bst      # System monitor lib
+  - kde-build-meta.bst:kde/plasma/kpipewire.bst         # PipeWire support
+  - kde-build-meta.bst:kde/plasma/kwayland.bst          # Wayland support
+  - kde-build-meta.bst:kde/plasma/kscreenlocker.bst     # Screen locker
+
   # KDE core applications (equivalent to Dakota's GNOME stack)
   - kde-build-meta.bst:kde/apps/dolphin.bst           # File manager (like nautilus)
   - kde-build-meta.bst:kde/apps/kate.bst              # Text editor
