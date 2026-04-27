@@ -526,3 +526,17 @@ undefined references from transitive dependencies:
 **Fix applied:** Added 7 KDE Framework build-depends to plasma-desktop.bst.
 
 **Submodule commit:** `f4a1cad89` (kde-build-meta-local)
+
+---
+
+### [2026-04-27] - PLASMA-DESKTOP: Re-enable kwin build-depend
+
+**Failing element:** kde/plasma/plasma-desktop.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-desktop/d16a7300-build.20260427-123042.log
+
+**Root cause:** CMake configure failed with `Could not find package configuration file provided by "KWinDBusInterface"`. This package is provided by kwin. The kwin dependency was previously disabled due to X11 issues, but those are now resolved.
+
+**Fix applied:** Re-enabled `kde/plasma/kwin.bst` build-depend (was commented out as `# - kde/plasma/kwin.bst  # Disabled: X11 dependencies`).
+
+**Submodule commit:** `e8f15a007` (kde-build-meta-local)
