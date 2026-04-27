@@ -454,3 +454,19 @@ undefined references from transitive dependencies:
 **Fix applied:** Added `freedesktop-sdk.bst:components/libxslt.bst` to `plasma-workspace.bst` build-depends.
 
 **Submodule commit:** `09c7c4f9c` (kde-build-meta-local), `65fb8cb` (main)
+
+---
+
+### [2026-04-27] - PLASMA-WORKSPACE: Add docbook-xml/docbook-xsl and DTD paths
+
+**Failing element:** kde/plasma/plasma-workspace.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-workspace/dffd61e1-build.20260427-110208.log
+
+**Root cause:** `meinproc6` failed with `failed to load "file:///usr/share/xml/docbook/xml-dtd/4.5/docbookx.dtd": No such file or directory`. kdoctools has docbook-xml and docbook-xsl as build-depends but the DTD path cmake variables are not propagated to downstream elements. plasma-workspace invokes meinproc6 to process .docbook files.
+
+**Fix applied:**
+- Added `freedesktop-sdk.bst:components/docbook-xml.bst` and `freedesktop-sdk.bst:components/docbook-xsl.bst` to build-depends
+- Added `-DDocBookXML4_DTD_DIR=/usr/share/xml/docbook/xml-dtd/4.5` and `-DDocBookXSL_DIR=/usr/share/xml/docbook/xml/xsl-stylesheets` to cmake-local
+
+**Submodule commit:** `402fd7eb9` (kde-build-meta-local), `cf6a745` (main)
