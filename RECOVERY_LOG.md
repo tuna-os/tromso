@@ -554,3 +554,17 @@ undefined references from transitive dependencies:
 **Fix applied:** Added `freedesktop-sdk.bst:components/xorg-lib-x11.bst`, `freedesktop-sdk.bst:components/xorg-lib-xi.bst`, and `freedesktop-sdk.bst:components/libinput.bst` to build-depends.
 
 **Submodule commit:** `627b02a98` (kde-build-meta-local)
+
+---
+
+### [2026-04-27] - PLASMA-DESKTOP: Disable BUILD_KCM_MOUSE_X11
+
+**Failing element:** kde/plasma/plasma-desktop.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-desktop/dd009cdc-build.20260427-130707.log
+
+**Root cause:** CMake configure failed with `Missing X11 dependencies for kcm_mouse: xorg-libinput`. The CMake checks for pkg-config module "xorg-libinput" but the actual module is "libinput". This is a CMake bug in plasma-desktop. Disabled X11 mouse KCM since this is a Wayland-only build.
+
+**Fix applied:** Added `-DBUILD_KCM_MOUSE_X11=OFF` to cmake-local variables.
+
+**Submodule commit:** `d9f943ca5` (kde-build-meta-local)
