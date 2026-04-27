@@ -411,3 +411,32 @@ undefined references from transitive dependencies:
 - Also noted: KF6People is still missing but patched optional (warning only, not error)
 
 **Submodule commit:** `8aaa219cb` (kde-build-meta-local), `daa2b4e` (main)
+
+---
+
+### [2026-04-27] - KDECONNECT: Fix libfakekey tar source `ref` key
+
+**Failing element:** core-deps/libfakekey.bst
+
+**Root cause:** BuildStream element resolution failed with `Unexpected key: sha256` at line 7 column 10. BuildStream's `kind: tar` sources require the `ref` key for checksums, not `sha256`.
+
+**Fix applied:** Replaced `sha256` with `ref` in the tar source definition of `libfakekey.bst`.
+
+**Submodule commit:** `5718b3548` (kde-build-meta-local), `0d733d1` (main)
+
+---
+
+### [2026-04-27] - PLASMA-WORKSPACE: Fix virtualkeyboard_interface.h missing
+
+**Failing element:** kde/plasma/plasma-workspace.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-workspace/79797ffc-build.20260427-093910.log
+
+**Root cause:** Compilation failed at `components/keyboardlayout/virtualkeyboard.h:11:10: fatal error: virtualkeyboard_interface.h: No such file or directory`. The existing patch `0003-skip-kwin-virtualkeyboard-dbus-interface.patch` only commented out the `qt_add_dbus_interface` call and the `target_sources` reference for virtualkeyboard files. However, `ecm_add_qml_module` auto-discovers all `.h` and `.cpp` files in the directory. So `virtualkeyboard.h` was still picked up by auto-discovery, and its `#include "virtualkeyboard_interface.h"` (which was never generated since the dbus interface call was commented out) caused a fatal compilation error when the qmltyperegistrations tried to include it.
+
+**Fix applied:** Rewrote the patch to:
+1. Remove the `qt_add_dbus_interface` call for `${KWIN_VIRTUALKEYBOARD_INTERFACE}` from CMakeLists.txt
+2. Remove the `virtualkeyboard.cpp virtualkeyboard.h` line from `target_sources`
+3. Delete `virtualkeyboard.cpp` and `virtualkeyboard.h` entirely so they are not auto-discovered by `ecm_add_qml_module`
+
+**Submodule commit:** `21d77d8d5` (kde-build-meta-local), `9490249` (main)
