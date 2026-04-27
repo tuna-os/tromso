@@ -568,3 +568,22 @@ undefined references from transitive dependencies:
 **Fix applied:** Added `-DBUILD_KCM_MOUSE_X11=OFF` to cmake-local variables.
 
 **Submodule commit:** `d9f943ca5` (kde-build-meta-local)
+
+---
+
+### [2026-04-27] - PLASMA-DESKTOP: Fix X11 input KCM dependencies
+
+**Failing element:** kde/plasma/plasma-desktop.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-desktop/715de2f3-build.20260427-151414.log
+
+**Root cause:** CMake configure failed with two X11 dependency errors:
+1. `Missing X11 dependencies for kcm_mouse: xorg-libinput` - CMake checks for pkg-config module "xorg-libinput" but the actual module is "libinput"
+2. `Missing X11 dependencies for kcm_touchpad: xorg-libinput;xorg-server` - same libinput issue plus missing xorg-server
+
+**Fix applied:**
+- Created `patches/plasma-desktop/0001-fix-libinput-pkgconfig.patch` to change `pkg_check_modules(XORGLIBINPUT xorg-libinput IMPORTED_TARGET)` to `pkg_check_modules(XORGLIBINPUT libinput IMPORTED_TARGET)`
+- Added `core-deps/xvfb.bst` as build-depend to provide `xorg-server.pc`
+- Removed `-DBUILD_KCM_MOUSE_X11=OFF` flag so X11 mouse and touchpad KCMs build properly
+
+**Submodule commit:** `6aeaafe10` (kde-build-meta-local)
