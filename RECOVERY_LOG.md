@@ -396,3 +396,18 @@ undefined references from transitive dependencies:
 **Fix applied:** Stripped all `-DWITH_X11=OFF`, `-DWITHOUT_X11=ON`, `-DBUILD_KCM_MOUSE_X11`, `-DBUILD_KCM_TOUCHPAD_X11`, and `-DCMAKE_DISABLE_FIND_PACKAGE_XCB` cmake flags from all .bst files.
 
 **Submodule commit:** `b59ba045f` (kde-build-meta-local), `02d733f` (main)
+
+---
+
+### [2026-04-27] - KDECONNECT: Add libfakekey build-depend
+
+**Failing element:** kde/apps/kdeconnect.bst
+
+**Root cause:** CMake configure failed with `Could NOT find LibFakeKey` in `plugins/mousepad/CMakeLists.txt`. Arch PKGBUILD lists `libfakekey` as a dependency. Not previously in our build tree.
+
+**Fix applied:**
+- Created `core-deps/libfakekey.bst` (autotools, from github:veyon/libfakekey tag 0.3)
+- Added `core-deps/libfakekey.bst` to `kdeconnect.bst` build-depends
+- Also noted: KF6People is still missing but patched optional (warning only, not error)
+
+**Submodule commit:** `8aaa219cb` (kde-build-meta-local), `daa2b4e` (main)
