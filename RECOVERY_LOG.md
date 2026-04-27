@@ -587,3 +587,26 @@ undefined references from transitive dependencies:
 - Removed `-DBUILD_KCM_MOUSE_X11=OFF` flag so X11 mouse and touchpad KCMs build properly
 
 **Submodule commit:** `6aeaafe10` (kde-build-meta-local)
+
+---
+
+### [2026-04-27] - PLASMA-DESKTOP: Add missing dependencies per Arch PKGBUILD
+
+**Failing element:** kde/plasma/plasma-desktop.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-desktop/715de2f3-build.20260427-151414.log
+
+**Root cause:** Multiple X11 dependencies missing that Arch PKGBUILD declares:
+- `xorg-libinput` pkg-config module name bug (fixed via patch)
+- `xorg-server` (provided by xvfb)
+- `libwacom`, `libxkbfile`, `libxcursor`, `xcb-util-keysyms`, `libibus`, `xdg-user-dirs`
+
+**Fix applied:**
+- Added patch `0001-fix-libinput-pkgconfig.patch` to fix `xorg-libinput` → `libinput` pkg-config module name
+- Added `core-deps/xvfb.bst` for `xorg-server.pc`
+- Added all missing freedesktop-sdk components matching Arch PKGBUILD:
+  - `xorg-lib-xcb`, `xorg-lib-xcursor`, `xorg-lib-xext`, `xorg-lib-xkbfile`
+  - `libwacom`, `libibus`, `xcb-util-keysyms`, `xdg-user-dirs`
+- Removed `-DBUILD_KCM_MOUSE_X11=OFF` flag to enable X11 mouse KCM properly
+
+**Submodule commit:** `ad23ad6e4` (kde-build-meta-local)
