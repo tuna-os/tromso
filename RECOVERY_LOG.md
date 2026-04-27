@@ -512,3 +512,17 @@ undefined references from transitive dependencies:
 **Fix applied:** Added `kde/qt6/qt6-qt5compat.bst` to build-depends.
 
 **Submodule commit:** `7283ec6f0` (kde-build-meta-local)
+
+---
+
+### [2026-04-27] - PLASMA-DESKTOP: Add missing Framework dependencies
+
+**Failing element:** kde/plasma/plasma-desktop.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-desktop/2c0a397d-build.20260427-122136.log
+
+**Root cause:** CMake configure failed with `Could NOT find KF6 (missing: XmlGui)`. plasma-desktop requires multiple KDE Framework libraries that were not declared as build-depends. Added kxmlgui, kdeclarative, kservice, kbookmarks, kcompletion, kitemviews, and kjobwidgets based on Arch PKGBUILD.
+
+**Fix applied:** Added 7 KDE Framework build-depends to plasma-desktop.bst.
+
+**Submodule commit:** `f4a1cad89` (kde-build-meta-local)
