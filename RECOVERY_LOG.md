@@ -540,3 +540,17 @@ undefined references from transitive dependencies:
 **Fix applied:** Re-enabled `kde/plasma/kwin.bst` build-depend (was commented out as `# - kde/plasma/kwin.bst  # Disabled: X11 dependencies`).
 
 **Submodule commit:** `e8f15a007` (kde-build-meta-local)
+
+---
+
+### [2026-04-27] - PLASMA-DESKTOP: Add X11 dependencies for kcm_mouse
+
+**Failing element:** kde/plasma/plasma-desktop.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-desktop/9d4fdde3-build.20260427-124209.log
+
+**Root cause:** CMake configure failed with `Missing X11 dependencies for kcm_mouse: xorg-libinput;X11_Xi;X11_Xinput`. plasma-desktop requires X11 input libraries for the mouse configuration module.
+
+**Fix applied:** Added `freedesktop-sdk.bst:components/xorg-lib-x11.bst`, `freedesktop-sdk.bst:components/xorg-lib-xi.bst`, and `freedesktop-sdk.bst:components/libinput.bst` to build-depends.
+
+**Submodule commit:** `627b02a98` (kde-build-meta-local)
