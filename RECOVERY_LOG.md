@@ -440,3 +440,17 @@ undefined references from transitive dependencies:
 3. Delete `virtualkeyboard.cpp` and `virtualkeyboard.h` entirely so they are not auto-discovered by `ecm_add_qml_module`
 
 **Submodule commit:** `21d77d8d5` (kde-build-meta-local), `9490249` (main)
+
+---
+
+### [2026-04-27] - PLASMA-WORKSPACE: Add libxslt build-depend for meinproc6
+
+**Failing element:** kde/plasma/plasma-workspace.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-workspace/23dde748-build.20260427-103826.log
+
+**Root cause:** `meinproc6` (from kdoctools) failed with `error while loading shared libraries: libxslt.so.1: cannot open shared object file`. kdoctools lists libxslt as a build-depend but the dependency is not propagated transitively. plasma-workspace invokes meinproc6 to process documentation files during build.
+
+**Fix applied:** Added `freedesktop-sdk.bst:components/libxslt.bst` to `plasma-workspace.bst` build-depends.
+
+**Submodule commit:** `09c7c4f9c` (kde-build-meta-local), `65fb8cb` (main)
