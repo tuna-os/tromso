@@ -610,3 +610,30 @@ undefined references from transitive dependencies:
 - Removed `-DBUILD_KCM_MOUSE_X11=OFF` flag to enable X11 mouse KCM properly
 
 **Submodule commit:** `ad23ad6e4` (kde-build-meta-local)
+
+### [2026-04-28T09:10:04.645711] - FAILURE DETECTED (PENDING)
+**Failing element(s):** kde-build-meta.bst:kde/plasma/powerdevil.bst: Running commands
+**Build log:** /var/tmp/aurora-build.log
+
+### [2026-04-28T12:15:37.180669] - FAILURE DETECTED (PENDING)
+**Failing element(s):** kde-build-meta.bst:kde/plasma/plasma-desktop.bst: Running commands
+**Build log:** /var/tmp/aurora-build.log
+
+---
+
+### [2026-04-28] - PLASMA-DESKTOP: Disable BUILD_KCM_MOUSE_X11 for missing libinput-properties.h
+
+**Failing element:** kde/plasma/plasma-desktop.bst
+
+**Build log:** /var/home/james/.cache/buildstream/logs/gnome/kde-plasma-plasma-desktop/ef051014-build.20260428-064530.log
+
+**Root cause:** Compilation of `kcms/mouse/inputbackend.cpp` failed with `fatal error: libinput-properties.h: No such file or directory`. The header `libinput-properties.h` is provided by `xf86-input-libinput` (the X11 input driver), NOT by the standard `libinput` package. The `#include <libinput-properties.h>` in inputbackend.cpp is guarded by `#if BUILD_KCM_MOUSE_X11`, so disabling this flag prevents the missing header error. The previous attempt to fix this with a pkg-config patch (changing `xorg-libinput` to `libinput`) only fixed the CMake configure step, but the actual compilation still failed because the header file itself doesn't exist in the standard libinput package.
+
+**Fix applied:**
+- Added `-DBUILD_KCM_MOUSE_X11=OFF` to cmake-local variables
+- Cleaned up duplicate `libinput.bst` dependency entry
+- Removed unused `xorg-lib-xext.bst` and `libibus.bst` entries
+
+**Submodule commit:** `9d6dbc358` (kde-build-meta-local), `a7711c5` (main)
+
+**Note:** `bst artifact delete` could not be run (bst binary not available outside containers). Stale build cache will be invalidated on next build attempt.
