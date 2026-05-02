@@ -29,6 +29,10 @@ config:
   commands:
     - mkdir /fakecap
     - |
+      # depmod treats every entry in lib/modules/ as a kernel version string;
+      # remove stray JSON files (e.g. KWin effect configs) before it runs.
+      find /layer/lib/modules/ -name "*.json" -delete 2>/dev/null || true
+    - |
       prepare-image.sh \
          --sysroot /layer \
          --initscripts /initial_scripts \
