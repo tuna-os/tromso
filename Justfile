@@ -51,7 +51,7 @@ bst-nspawn *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
     mkdir -p "${HOME}/.cache/buildstream" "${HOME}/.cargo"
-    LOG=/var/tmp/aurora-build.log
+    LOG=/tmp/aurora-build.log
 
     # Extract bst2 OCI image to temporary directory
     echo "==> Extracting bst2 container image..." | tee -a "$LOG"
@@ -81,12 +81,12 @@ bst-nspawn *ARGS:
     exit $BST_EXIT
 
 # ── Build log ─────────────────────────────────────────────────────────
-# Run build in background, log to /var/tmp/aurora-build.log, tail it
+# Run build in background, log to /tmp/aurora-build.log, tail it
 [group('build')]
 bst-build *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    LOG=/var/tmp/aurora-build.log
+    LOG=/tmp/aurora-build.log
 
     # Clear old log to keep only the most recent run
     if [ -f "$LOG" ]; then
@@ -108,7 +108,7 @@ bst-build *ARGS:
 
 [group('build')]
 log:
-    tail -f /var/tmp/aurora-build.log
+    tail -f /tmp/aurora-build.log
 
 # Launch live HTML build dashboard at http://localhost:8765
 # Downloads bst-dashboard.py from GitHub on first run; cached at ~/.cache/bst-dashboard/
@@ -124,7 +124,7 @@ dashboard:
             -o "$SCRIPT"
     fi
     python3 "$SCRIPT" \
-        --log /var/tmp/aurora-build.log \
+        --log /tmp/aurora-build.log \
         --target oci/aurora.bst \
         --project "{{justfile_directory()}}" &>/tmp/bst-dashboard.log &
     disown
@@ -166,7 +166,7 @@ dashboard-service:
       '[Service]' \
       'Type=simple' \
       'Environment=PYTHONUNBUFFERED=1' \
-      "ExecStart=/usr/bin/python3 ${JUSTDIR}/bst-dashboard.py --log /var/tmp/${IMAGE_NAME}-build.log --target oci/${IMAGE_NAME}.bst --project ${JUSTDIR}" \
+      "ExecStart=/usr/bin/python3 ${JUSTDIR}/bst-dashboard.py --log /tmp/${IMAGE_NAME}-build.log --target oci/${IMAGE_NAME}.bst --project ${JUSTDIR}" \
       'Restart=always' \
       'RestartSec=5' \
       '' \
@@ -335,9 +335,9 @@ chunkify image_ref:
     }
     trap cleanup EXIT
 
-    UPPER=$(mktemp -d -p /var/tmp)
-    WORK=$(mktemp -d -p /var/tmp)
-    MERGED=$(mktemp -d -p /var/tmp)
+    UPPER=$(mktemp -d -p /tmp)
+    WORK=$(mktemp -d -p /tmp)
+    MERGED=$(mktemp -d -p /tmp)
     $SUDO_CMD chmod 755 "$UPPER" "$WORK" "$MERGED"
     $SUDO_CMD mount -t overlay overlay \
         -o "lowerdir=${LOWER},upperdir=${UPPER},workdir=${WORK}" \
@@ -375,25 +375,3 @@ chunkify image_ref:
         $SUDO_CMD podman tag "$NEW_REF" "{{image_ref}}"
     fi
 
-
-generate-bootable-image-new:
-    sudo podman run --rm --privileged \
-        --pull=never \
-        -v /var/lib/containers:/var/lib/containers \
-        -v "$(pwd)/.build-out:/output" \
-        quay.io/centos-bootc/bootc-image-builder:latest \
-        --type qcow2 \
-        --rootfs xfs \
-        localhost/aurora:latest
-
-install-aurora-shim:
-    rm -f .build-out/kde-linux-image-test/bootable.raw
-    dd if=/dev/zero of=.build-out/kde-linux-image-test/bootable.raw bs=1M count=10240
-    sudo podman run --rm --privileged --pid=host \
-        -v /var/lib/containers/storage:/var/lib/containers/storage \
-        -v "$(pwd)/.build-out/kde-linux-image-test:/output" \
-        -v "$(pwd)/.build-out/selinux-bypass.so:/selinux-bypass.so" \
-        -e "LD_PRELOAD=/selinux-bypass.so" \
-        --security-opt label=disable \
-        "localhost/aurora-final:latest" \
-        /usr/bin/bootc install to-disk --via-loopback /output/bootable.raw --filesystem ext4 --wipe --bootloader systemd --target-imgref localhost/aurora-final:latest

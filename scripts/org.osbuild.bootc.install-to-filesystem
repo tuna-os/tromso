@@ -1,0 +1,81 @@
+#!/usr/bin/python3
+import os
+import subprocess
+import sys
+import tempfile
+
+import osbuild.api
+from osbuild.util import containers
+
+
+def main(options, inputs, paths):  # pylint: disable=too-many-branches
+    images = containers.parse_containers_input(inputs)
+    assert len(images) == 1
+    image = list(images.values())[0]
+
+    env = os.environ.copy()
+    env["BOOTC_SKIP_SELINUX_HOST_CHECK"] = "true"
+
+    with containers.container_source(image) as (_, source, _):
+        dst = paths["mounts"]
+        pargs = [
+            "bootc",
+            "install",
+            "to-filesystem",
+            "--source-imgref",
+            source,
+            "--skip-fetch-check",
+            "--generic-image",
+            "--skip-finalize",
+            "--bootloader",
+            "none",
+        ]
+
+        root_ssh_keys = options.get("root-ssh-authorized-keys", [])
+        if root_ssh_keys:
+            tmpf = tempfile.NamedTemporaryFile(prefix="bootc-ssh-auth-keys-")
+            for key in root_ssh_keys:
+                tmpf.write(key.encode("utf8") + b"\n")
+            tmpf.flush()
+            pargs.extend(["--root-ssh-authorized-keys", tmpf.name])
+
+        for karg in options.get("kernel-args", []):
+            pargs.extend(["--karg", karg])
+
+        target_imgref = options.get("target-imgref")
+        if target_imgref:
+            pargs.extend(["--target-imgref", target_imgref])
+
+        stateroot = options.get("stateroot")
+        if stateroot:
+            pargs.extend(["--stateroot", stateroot])
+
+        if "root-mount-spec" in options:
+            root_spec = options["root-mount-spec"]
+            if root_spec == "":
+                pargs.extend(["--root-mount-spec="])
+            else:
+                pargs.extend(["--root-mount-spec", root_spec])
+
+        if "boot-mount-spec" in options:
+            boot_spec = options["boot-mount-spec"]
+            if boot_spec == "":
+                pargs.extend(["--boot-mount-spec="])
+            else:
+                pargs.extend(["--boot-mount-spec", boot_spec])
+
+        if options.get("bootupd-skip-boot-uuid", False):
+            pargs.extend(["--bootupd-skip-boot-uuid"])
+        if options.get("bootloader", None):
+            pargs.extend(["--bootloader", options["bootloader"]])
+        if options.get("composefs", False):
+            pargs.extend(["--composefs-backend"])
+
+        pargs.append(dst)
+        subprocess.run(pargs, env=env, check=True)
+
+
+if __name__ == "__main__":
+    args = osbuild.api.arguments()
+    r = main(args["options"], args["inputs"], args["paths"])
+    sys.exit(r)

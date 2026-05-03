@@ -53,4 +53,9 @@ public:
     - ln -s /var/mnt /mnt
 
     - touch /etc/machine-id
-    - sh -c 'for f in /lib/modules/*/*.json /lib/modules/*/*.so /lib/modules/*/*.a; do rm -f ""; done'
+    # Remove non-module files that make depmod interpret their names as kernel versions.
+    - sh -c 'for f in /lib/modules/*/*.json /lib/modules/*/*.so /lib/modules/*/*.a; do rm -f "$f"; done'
+    # Restore sudo's setuid bit in the final composed image.
+    - chmod u+s /usr/bin/sudo || true
+    # Match Arch's kwin packaging so the greeter compositor can request realtime priority.
+    - setcap cap_sys_nice+ep /usr/bin/kwin_wayland

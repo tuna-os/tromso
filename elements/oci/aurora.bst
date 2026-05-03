@@ -5,6 +5,7 @@ build-depends:
   - kde-build-meta.bst:freedesktop-sdk.bst:components/fakecap.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/oci-builder.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/glib.bst
+  - kde-build-meta.bst:freedesktop-sdk.bst:components/sed.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:vm/prepare-image.bst
   - filename: kde-build-meta.bst:oci/kde-linux/image.bst
     config:
@@ -55,6 +56,60 @@ config:
         mkdir -p /layer/etc
         cp -a /layer/usr/etc/. /layer/etc/
         rm -rf /layer/usr/etc
+      fi
+    - |
+      # The shadow package seeds empty subordinate ID files; populate them
+      # after /usr/etc has been materialized into /etc so rootless podman in
+      # the greeter session gets a real range.
+      for dir in /layer/etc /layer/usr/share/factory/etc; do
+        mkdir -p "$dir"
+        printf '%s\n' 'sddm:100000:65536' >"$dir/subuid"
+        printf '%s\n' 'sddm:100000:65536' >"$dir/subgid"
+        chmod 0644 "$dir/subuid" "$dir/subgid"
+      done
+      # Compose/export loses the capability applied earlier in the stack, so
+      # restore it on the final filesystem that bootc installs.
+      setcap cap_sys_nice+ep /layer/usr/bin/kwin_wayland
+      setcap cap_setuid+ep /layer/usr/bin/newuidmap
+      setcap cap_setgid+ep /layer/usr/bin/newgidmap
+    - |
+      # Force an explicit font family in the SDDM/Breeze QML that renders the
+      # greeter text. Live guest testing showed this changes the framebuffer,
+      # while rebuilding font cache alone did not.
+      for login_qml in \
+        /layer/usr/share/sddm/themes/01-breeze-aurora/Login.qml \
+        /layer/usr/share/sddm/themes/breeze/Login.qml; do
+        if [ -f "$login_qml" ]; then
+          sed -i 's|^\([[:space:]]*font\.pointSize: fontSize + 1\)$|\1\
+              font.family: "Noto Sans"|' "$login_qml"
+        fi
+      done
+      action_button_qml=/layer/usr/lib/qml/org/kde/breeze/components/ActionButton.qml
+      if [ -f "$action_button_qml" ]; then
+        sed -i 's|^\([[:space:]]*font\.pointSize: Kirigami\.Theme\.defaultFont\.pointSize + 1\)$|\1\
+            font.family: "Noto Sans"|' "$action_button_qml"
+      fi
+      user_delegate_qml=/layer/usr/lib/qml/org/kde/breeze/components/UserDelegate.qml
+      if [ -f "$user_delegate_qml" ]; then
+        sed -i 's|^\([[:space:]]*font\.pointSize: wrapper\.fontSize + 4\)$|\1\
+              font.family: "Noto Sans"|' "$user_delegate_qml"
+      fi
+      session_management_qml=/layer/usr/lib/qml/org/kde/breeze/components/SessionManagementScreen.qml
+      if [ -f "$session_management_qml" ]; then
+        sed -i 's|^\([[:space:]]*font\.pointSize: root\.fontSize\)$|\1\
+                  font.family: "Noto Sans"|' "$session_management_qml"
+      fi
+      clock_qml=/layer/usr/lib/qml/org/kde/breeze/components/Clock.qml
+      if [ -f "$clock_qml" ]; then
+        sed -i 's|^\([[:space:]]*font\.pointSize: Math\.round(Kirigami\.Theme\.defaultFont\.pointSize \* 7\.2)\)$|\1\
+              font.family: "Noto Sans"|' "$clock_qml"
+        sed -i 's|^\([[:space:]]*font\.pointSize: Math\.round(Kirigami\.Theme\.defaultFont\.pointSize \* 2\.4)\)$|\1\
+              font.family: "Noto Sans"|' "$clock_qml"
+      fi
+      battery_qml=/layer/usr/lib/qml/org/kde/breeze/components/Battery.qml
+      if [ -f "$battery_qml" ]; then
+        sed -i 's|^\([[:space:]]*font\.pointSize: root\.fontSize\)$|\1\
+              font.family: "Noto Sans"|' "$battery_qml"
       fi
 
     - |

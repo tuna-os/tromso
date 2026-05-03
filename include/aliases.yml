@@ -11,4 +11,5 @@ aliases:
   freedesktop: https://gitlab.freedesktop.org/
   gnome: https://gitlab.gnome.org/GNOME/
   gnome_gitlab: https://gitlab.gnome.org/
+  tailscale_pkgs: https://pkgs.tailscale.com/stable/
   pypi: https://files.pythonhosted.org/packages/
