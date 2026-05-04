@@ -9,6 +9,9 @@ depends:
   # dosfstools: mkfs.fat required by bootc install to-disk for EFI partition
   - kde-build-meta.bst:freedesktop-sdk.bst:components/dosfstools.bst
 
+  # dconf: needed by dconf-update.service and KDE/GNOME settings infrastructure
+  - kde-build-meta.bst:core-deps/dconf.bst
+
   # System configuration: dbus units, system users, sshd, networkd DHCP
   - aurora/system-config.bst
 

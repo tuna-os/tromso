@@ -279,6 +279,25 @@ generate-bootable-image $base_dir=base_dir $filesystem=filesystem:
     sudo umount /mnt/aurora-efi /mnt/aurora-root-efi
     sudo losetup -d "$LOOP"
 
+    echo "==> Setting root password and SSH authorized_keys..."
+    LOOP2=$(sudo losetup -f --show -P "${base_dir}/bootable.raw")
+    sudo mkdir -p /mnt/aurora-root-setup
+    sudo mount "${LOOP2}p3" /mnt/aurora-root-setup
+    DEPLOY2=$(ls -d /mnt/aurora-root-setup/ostree/deploy/default/deploy/*.0 2>/dev/null | head -1)
+    # Set root password (hash for 'aurora') in the deploy root
+    ROOT_HASH=$(openssl passwd -6 'aurora')
+    sudo sed -i "s|^root:[^:]*:|root:${ROOT_HASH}:|" "${DEPLOY2}/etc/shadow"
+    # authorized_keys goes in the var overlay (/var/roothome), not deploy root
+    # because /root → /var/roothome in ostree at runtime
+    VAR_ROOT="/mnt/aurora-root-setup/ostree/deploy/default/var/roothome"
+    if [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then
+        sudo install -Dm600 -o root -g root "${HOME}/.ssh/id_ed25519.pub" "${VAR_ROOT}/.ssh/authorized_keys"
+        sudo chmod 700 "${VAR_ROOT}/.ssh"
+        echo "    SSH authorized_keys installed for root"
+    fi
+    sudo umount /mnt/aurora-root-setup
+    sudo losetup -d "$LOOP2"
+
     echo "==> Bootable disk image ready: ${base_dir}/bootable.raw"
     sync
     
