@@ -295,6 +295,89 @@ MANUAL_MAP = {
     "trash-cli":                  "SKIP: safer rm → homebrew",
     "kdialog":                    "SKIP: part of KDE apps",
     "nvme-cli":                   "gnomeos-deps/nvme-cli.bst",
+
+    # FDO-covered packages (in freedesktop-sdk, add to deps.bst to include)
+    "kmod":                       "freedesktop-sdk.bst:components/kmod.bst",
+    "lvm2":                       "freedesktop-sdk.bst:components/lvm2.bst",
+    "tpm2-tss":                   "freedesktop-sdk.bst:components/tpm2-tss.bst",
+    "e2fsprogs":                  "freedesktop-sdk.bst:components/e2fsprogs.bst",
+    "xfsprogs":                   "freedesktop-sdk.bst:components/xfsprogs.bst",
+    "dosfstools":                 "freedesktop-sdk.bst:components/dosfstools.bst",
+    "erofs-utils":                "freedesktop-sdk.bst:components/erofs-utils.bst",
+    "f2fs-tools":                 "freedesktop-sdk.bst:components/f2fs-tools.bst",
+    "sbsigntools":                "freedesktop-sdk.bst:components/sbsigntools.bst",
+    "libheif":                    "freedesktop-sdk.bst:components/libheif.bst",
+    "libjxl":                     "freedesktop-sdk.bst:components/libjxl.bst",
+    "libavif":                    "freedesktop-sdk.bst:components/libavif.bst",
+    "hunspell":                   "freedesktop-sdk.bst:components/hunspell.bst",
+    "geoclue":                    "freedesktop-sdk.bst:components/geoclue.bst",
+    "man-db":                     "freedesktop-sdk.bst:components/man-db.bst",
+    "man-pages":                  "freedesktop-sdk.bst:components/man-pages.bst",
+    "plocate":                    "freedesktop-sdk.bst:components/plocate.bst",
+    "ccid":                       "freedesktop-sdk.bst:components/ccid.bst",
+    "libva":                      "freedesktop-sdk.bst:components/libva.bst",
+    "libva-utils":                "freedesktop-sdk.bst:extensions/vainfo/libva-utils.bst",
+    "vulkan-icd-loader":          "freedesktop-sdk.bst:components/vulkan-icd-loader.bst",
+    "xorg-xwayland":              "freedesktop-sdk.bst:components/xwayland.bst",
+    "wireless-regdb":             "freedesktop-sdk.bst:components/wireless-regdb-bin.bst (in deps.bst)",
+    "edk2-ovmf":                  "freedesktop-sdk.bst:components/ovmf.bst (in deps.bst for x86_64)",
+    "sane":                       "gnomeos-deps/sane-backends.bst + sane-airscan.bst (in deps.bst)",
+    "bluez-utils":                "freedesktop-sdk.bst:components/bluez.bst (bluez-utils part of bluez)",
+    "bluez-obex":                 "freedesktop-sdk.bst:components/bluez.bst (OBEX part of bluez)",
+    "android-udev":               "gnomeos-deps/android-udev-rules.bst (in deps.bst)",
+
+    # Pipewire sub-packages — all provided by FDO pipewire-daemon
+    "pipewire-jack":              "freedesktop-sdk.bst:components/pipewire-daemon.bst (JACK compat libs included)",
+    "pipewire-alsa":              "freedesktop-sdk.bst:components/pipewire-daemon.bst",
+    "pipewire-pulse":             "freedesktop-sdk.bst:components/pipewire-daemon.bst",
+    "pipewire-libcamera":         "freedesktop-sdk.bst:components/pipewire-daemon.bst",
+    "pipewire-v4l2":              "freedesktop-sdk.bst:components/pipewire-daemon.bst",
+    "pipewire-zeroconf":          "freedesktop-sdk.bst:components/pipewire-daemon.bst",
+
+    # SKIP: DKMS kernel modules — not applicable to OCI bootc image
+    "acpi_call-dkms":             "SKIP: kernel DKMS module, not applicable to OCI",
+    "linux-apfs-rw-dkms":        "SKIP: kernel DKMS module, not applicable to OCI",
+    "nvidia-open-dkms":           "SKIP: NVIDIA DKMS, not applicable to OCI",
+    "v4l2loopback-utils":         "SKIP: DKMS virtual camera, not applicable to OCI",
+    "openrazer-daemon":           "SKIP: Razer peripheral DKMS, not applicable to OCI",
+
+    # SKIP: GPU driver variants — Mesa in FDO covers all GPU drivers
+    "libva-intel-driver":         "SKIP: VA-API Intel driver covered by Mesa in FDO",
+    "libva-mesa-driver":          "SKIP: VA-API Mesa driver covered by FDO Mesa build",
+    "libva-nvidia-driver":        "SKIP: NVIDIA-specific, not in OCI image",
+    "vulkan-intel":               "SKIP: Intel Vulkan (ANV) driver provided by FDO Mesa",
+    "vulkan-radeon":              "SKIP: AMD Vulkan (RADV) driver provided by FDO Mesa",
+    "vulkan-swrast":              "SKIP: Software rasterizer (lavapipe) in FDO Mesa",
+    "nvidia-prime":               "SKIP: NVIDIA Optimus, not applicable to OCI image",
+    "vpl-gpu-rt":                 "SKIP: Intel oneVPL GPU runtime, proprietary/x86-specific",
+
+    # SKIP: Arch meta-packages
+    "base":                       "SKIP: Arch Linux base meta-package",
+    "kde-linux":                  "SKIP: Arch KDE Linux meta-package",
+
+    # SKIP: Arch-specific / firmware
+    "linux-firmware-marvell":     "SKIP: Marvell firmware included in linux-firmware",
+    "yubikey-full-disk-encryption": "SKIP: Arch-specific full disk encryption tooling",
+    "bmusb":                      "SKIP: BlackMagic USB, rare niche hardware",
+
+    # SKIP: Virtualisation guests — not needed in OCI image
+    "open-vm-tools":              "SKIP: VMware guest tools, not applicable to OCI",
+    "virtualbox-guest-utils":     "SKIP: VirtualBox guest tools, use QEMU/KVM instead",
+    "edk2-shell":                 "SKIP: UEFI interactive shell, only for VM debugging",
+
+    # SKIP: Developer tools → use Flatpak or homebrew
+    "gammaray":                   "SKIP: KDE developer introspection tool, use Flatpak",
+    "podman-compose":             "SKIP: dev tool, use homebrew or Flatpak",
+
+    # SKIP: niche/experimental pipewire backends
+    "pipewire-ffado":             "SKIP: FireWire audio (FFADO), niche legacy hardware",
+    "pipewire-roc":               "SKIP: ROC network audio streaming, experimental",
+
+    # SKIP: Qt internal build artifact (not a separate runtime package)
+    "qt6-multimedia-ffmpeg":      "SKIP: FFmpeg backend built into qt6-multimedia element",
+
+    # SKIP: busybox not needed in full userland OCI image
+    "busybox":                    "SKIP: full userland already present in OCI image",
 }
 
 # FDO element names → the FDO component path (to auto-detect FDO coverage)
