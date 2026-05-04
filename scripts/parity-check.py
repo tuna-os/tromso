@@ -4,12 +4,16 @@ parity-check.py — Compare KDE Linux mkosi packages against Aurora BuildStream 
 
 Usage:
     python3 scripts/parity-check.py [--missing-only] [--csv] [--versions]
+    python3 scripts/parity-check.py --extra
 
 Output: table showing each KDE Linux package and whether Aurora provides it,
 plus a summary of gaps.
 
 With --versions: also shows the version in our BST element and the current
 Arch Linux package version (fetched from archlinux.org; requires internet).
+
+With --extra: reverse check — show gnomeos-deps BST elements that are NOT
+in KDE Linux mkosi, so we can audit for packages that don't belong.
 """
 
 import os
@@ -463,6 +467,186 @@ def check_package(pkg: str, bst_elements: set[str]) -> tuple[str, str]:
     return "MISSING", f"no BST element found (check FDO: {fdo_candidate})"
 
 
+# BST elements that are intentional infrastructure/glue, not package mirrors
+BST_INFRA_ELEMENTS = {
+    "deps", "deps-aarch64", "deps-devel",
+    "microcode",  # combines intel+amd ucode
+    # system configuration elements (not packages, just config/preset files)
+    "debuginfod-config", "disable-iscsi", "fake-toolbox-env",
+    "flathub-beta-config", "flathub-config",
+    "geoclue-base", "hidraw-udev", "journald-config", "ld-config",
+    "modprobe-config", "nano-default-editor", "nm-connectivity-config",
+    "pcrlock-config", "preset-all", "sysext-utils", "sysupdate-config",
+    "udev-hide-usr", "vte-config", "wpa-supplicant-config",
+    "shim-maybe",  # conditional shim loader
+    "plymouth-gnome-theme",  # config/theme file overlay
+}
+
+# gnomeos-deps packages that are known intentional Aurora additions
+# (not in mkosi because Aurora adds them on top of the KDE Linux base)
+BST_AURORA_EXTRAS = {
+    "fish",                      # better shell UX, Aurora choice
+    "noise-suppression-for-voice",  # mic noise reduction
+    "uinput",                    # controller emulation
+    "firewalld",                 # Aurora uses firewalld alongside/instead of ufw
+    "just",                      # task runner used in this project
+    "bootc",                     # OCI/bootc image tool — core of the build pipeline
+    # NVIDIA support stack
+    "nvidia-drivers", "nvidia-drivers-libs", "nvidia-drivers-modules",
+    "nvidia-container-toolkit",
+    # CJK fonts for international users
+    "noto-cjk",
+    # NM VPN plugins (Aurora ships full VPN support)
+    "NetworkManager-l2tp", "NetworkManager-openconnect",
+    "NetworkManager-openvpn", "NetworkManager-pptp", "NetworkManager-sstp",
+    "NetworkManager-strongswan", "NetworkManager-vpnc",
+    # Hardware support extras
+    "android-udev-rules", "usb-modeswitch", "alsa-ucm-conf",
+    # Smart card / security
+    "opensc", "pam-pkcs11",
+    # Scanner support
+    "sane-backends", "sane-airscan",
+    # System tools
+    "bpftop", "uresourced", "upower",
+    "qemu-user",
+    "wsdd",  # Windows service discovery (Samba-related)
+    # Snapd — inherited from gnome-build-meta for gnomeos/snapd/ path, not in aurora
+    "snapd",
+}
+
+# gnomeos-deps packages that are transitive build/runtime deps (not top-level packages)
+# These are correct to have even if mkosi doesn't list them — they're pulled in by
+# packages that ARE in mkosi.
+BST_TRANSITIVE_DEPS = {
+    # fprintd deps
+    "libfprint", "python-libfprint",
+    # iio-sensor-proxy deps
+    # android-udev-rules has no deps
+    # fcitx5 cluster deps
+    "fcitx5-chinese-addons", "fcitx5-configtool", "fcitx5-gtk", "fcitx5-qt",
+    "libime", "lua-lpeg",
+    # printing deps
+    "foomatic-db-engine", "gutenprint", "hplip", "splix",
+    # plymouth
+    "plymouth",
+    # hardware
+    "bolt",
+    # system tools
+    "lm_sensors", "smartmontools", "nvme-cli", "hdparm",
+    "pciutils", "dmidecode", "acpica",
+    # network
+    "avahi", "nss-mdns",
+    "libnl", "iw",
+    # misc
+    "squashfuse", "libsquashfs",
+    "power-profiles-daemon",
+    "thermald",
+    "xdg-desktop-portal-kde",
+    "xdg-desktop-portal",
+    # VPN backend libraries (deps of NM VPN plugins)
+    "openvpn", "openconnect", "vpnc", "vpnc-scripts",
+    "strongswan", "xl2tpd",
+    # iMobileDevice chain (iPhone USB sync support)
+    "libimobiledevice", "libplist", "libusbmuxd",
+    # Static / build-time only libs
+    "pcre2-static", "glib-static", "zlib-ng-static",
+    # Image/media processing deps
+    "imath",       # dep of openexr
+    "leptonica",   # dep of tesseract-ocr
+    "libopusenc",  # dep of opus-tools
+    # Misc runtime deps
+    "libssc",          # dep of libimobiledevice
+    "libtsm",          # terminal state machine (dep of kgx or similar)
+    "libtpms",         # dep of swtpm (TPM emulator)
+    "ayatana-ido",     # dep of libayatana-indicator
+    "libayatana-indicator",  # dep of indicator-based apps
+    "python3-zstd",    # dep of something in python stack
+    "iucode-tool",     # microcode loading tool (dep of microcode element)
+    "bindfs",          # FUSE bindfs (dep of rootless container support)
+    "nftables",        # dep of firewalld
+}
+
+
+def _run_extra_check(mkosi_pkgs: dict, bst_elements: set) -> None:
+    """
+    Reverse parity check: find gnomeos-deps BST elements that are NOT
+    in KDE Linux mkosi. Print them with a classification.
+    """
+    # Collect all mkosi package names (flat set)
+    mkosi_all: set[str] = set()
+    for pkgs in mkosi_pkgs.values():
+        mkosi_all.update(pkgs)
+
+    # Also flatten MANUAL_MAP covered/skip entries — their package names are in mkosi
+    # Build a set of package names that are explicitly mapped (means they ARE in mkosi)
+    mapped_names = set(MANUAL_MAP.keys())
+
+    # Collect gnomeos-deps .bst stem names
+    gnomeos_bst: list[str] = []
+    for elem in sorted(bst_elements):
+        if elem.startswith("gnomeos-deps/") and not elem.endswith(("/",)):
+            stem = Path(elem).stem
+            gnomeos_bst.append(stem)
+
+    RESET = "\033[0m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    RED = "\033[31m"
+    CYAN = "\033[36m"
+
+    header = f"{'BST element':<40}  {'Classification':<14}  Note"
+    sep = "-" * min(len(header) + 20, 110)
+    print(sep)
+    print("gnomeos-deps elements NOT in KDE Linux mkosi")
+    print(sep)
+    print(header)
+    print(sep)
+
+    counts = {"IN_MKOSI": 0, "INFRA": 0, "AURORA_EXTRA": 0, "TRANSITIVE": 0, "UNKNOWN": 0}
+    unknown_list = []
+
+    for stem in gnomeos_bst:
+        in_mkosi = stem in mkosi_all or stem in mapped_names
+        if in_mkosi:
+            counts["IN_MKOSI"] += 1
+            continue  # Only report elements NOT in mkosi
+
+        if stem in BST_INFRA_ELEMENTS:
+            color, label, note = CYAN, "INFRA", "BuildStream glue element, not a package"
+            counts["INFRA"] += 1
+        elif stem in BST_AURORA_EXTRAS:
+            color, label, note = GREEN, "AURORA_EXTRA", "Intentional Aurora addition beyond KDE Linux base"
+            counts["AURORA_EXTRA"] += 1
+        elif stem in BST_TRANSITIVE_DEPS:
+            color, label, note = YELLOW, "TRANSITIVE", "Dependency of a listed package"
+            counts["TRANSITIVE"] += 1
+        else:
+            color, label, note = RED, "UNKNOWN", "Not in mkosi — review if needed"
+            counts["UNKNOWN"] += 1
+            unknown_list.append(stem)
+
+        print(f"{stem:<40}  {color}{label:<14}{RESET}  {note}")
+
+    print(sep)
+    total_not_in_mkosi = counts["INFRA"] + counts["AURORA_EXTRA"] + counts["TRANSITIVE"] + counts["UNKNOWN"]
+    print(f"\ngnomeos-deps total: {len(gnomeos_bst)}  |  In mkosi: {counts['IN_MKOSI']}  |  "
+          f"Not in mkosi: {total_not_in_mkosi}")
+    print(f"  {CYAN}INFRA: {counts['INFRA']}{RESET}  "
+          f"{GREEN}AURORA_EXTRA: {counts['AURORA_EXTRA']}{RESET}  "
+          f"{YELLOW}TRANSITIVE: {counts['TRANSITIVE']}{RESET}  "
+          f"{RED}UNKNOWN: {counts['UNKNOWN']}{RESET}")
+
+    if unknown_list:
+        print(f"\n{RED}=== UNKNOWN packages — review these ==={RESET}")
+        for stem in sorted(unknown_list):
+            print(f"  {stem}")
+        print(f"\nThese {len(unknown_list)} packages are in our BST but not in KDE Linux mkosi.")
+        print("Consider: remove them, move to AURORA_EXTRAS list, or add to TRANSITIVE_DEPS.")
+    else:
+        print(f"\n{GREEN}All non-mkosi packages are accounted for.{RESET}")
+
+
+
 def main():
     parser = argparse.ArgumentParser(description="Aurora ↔ KDE Linux mkosi parity checker")
     parser.add_argument("--missing-only", action="store_true",
@@ -472,6 +656,9 @@ def main():
     parser.add_argument("--versions", action="store_true",
                         help="Show BST version and Arch Linux version for each package "
                              "(fetches from archlinux.org; requires internet)")
+    parser.add_argument("--extra", action="store_true",
+                        help="Reverse check: show gnomeos-deps BST elements NOT in KDE Linux mkosi. "
+                             "Helps identify packages that may have snuck in unnecessarily.")
     args = parser.parse_args()
 
     if not MKOSI_CONF_DIR.exists():
@@ -482,6 +669,10 @@ def main():
 
     mkosi_pkgs = parse_mkosi_packages(MKOSI_CONF_DIR)
     bst_elements = collect_bst_elements(BST_ELEMENTS_DIR)
+
+    if args.extra:
+        _run_extra_check(mkosi_pkgs, bst_elements)
+        return
 
     all_pkgs = []  # (conf_file, pkg, status, note, bst_ver, arch_ver)
     seen = set()
