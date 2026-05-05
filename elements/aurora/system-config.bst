@@ -89,7 +89,7 @@ config:
     [Unit]
     Description=OpenSSH Server Daemon
     Documentation=man:sshd(8) man:sshd_config(5)
-    After=network.target sshd-keygen.target
+    After=network.target
 
     [Service]
     Type=simple
