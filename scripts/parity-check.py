@@ -564,6 +564,14 @@ BST_TRANSITIVE_DEPS = {
     "iucode-tool",     # microcode loading tool (dep of microcode element)
     "bindfs",          # FUSE bindfs (dep of rootless container support)
     "nftables",        # dep of firewalld
+    # cryfs deps
+    "fuse2",           # FUSE2 (dep of cryfs — uses FUSE2 API)
+    "range-v3",        # dep of cryfs
+    "spdlog",          # dep of cryfs
+    # fprintd build deps (build-time only)
+    "pam-wrapper",     # build-time test dep of fprintd
+    # libappimage dep
+    "xdg-utils-cxx",   # dep of libappimage
 }
 
 
@@ -577,8 +585,16 @@ def _run_extra_check(mkosi_pkgs: dict, bst_elements: set) -> None:
     for pkgs in mkosi_pkgs.values():
         mkosi_all.update(pkgs)
 
-    # Also flatten MANUAL_MAP covered/skip entries — their package names are in mkosi
-    # Build a set of package names that are explicitly mapped (means they ARE in mkosi)
+    # Build a reverse map: BST element stem -> mkosi package name
+    # MANUAL_MAP maps {fedora_pkg_name: "gnomeos-deps/Bst-Name.bst"}
+    # We need to find BST stems that are covered by MANUAL_MAP entries.
+    bst_stem_in_mkosi: set[str] = set()
+    for fedora_pkg, bst_path in MANUAL_MAP.items():
+        if isinstance(bst_path, str) and bst_path.startswith("gnomeos-deps/"):
+            bst_stem = Path(bst_path).stem
+            bst_stem_in_mkosi.add(bst_stem)
+
+    # Also include direct Fedora package name matches (elements whose stem is identical to mkosi name)
     mapped_names = set(MANUAL_MAP.keys())
 
     # Collect gnomeos-deps .bst stem names
@@ -606,7 +622,7 @@ def _run_extra_check(mkosi_pkgs: dict, bst_elements: set) -> None:
     unknown_list = []
 
     for stem in gnomeos_bst:
-        in_mkosi = stem in mkosi_all or stem in mapped_names
+        in_mkosi = stem in mkosi_all or stem in mapped_names or stem in bst_stem_in_mkosi
         if in_mkosi:
             counts["IN_MKOSI"] += 1
             continue  # Only report elements NOT in mkosi
