@@ -34,6 +34,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 360   # GitHub default; explicit so the limit is visible
     permissions:
       contents: read
       packages: write
@@ -153,6 +154,16 @@ jobs:
             done
           done
           echo "Pushed ${IMAGE_REGISTRY}/${IMAGE_NAME}:{latest,${DATE_TAG},${{ github.sha }}}"
+
+      # ── Verify published image ────────────────────────────────────────
+      - name: Verify published image
+        if: ${{ inputs.push_image }}
+        run: |
+          sudo podman pull "${IMAGE_REGISTRY}/${IMAGE_NAME}:latest"
+          echo "Image manifest:"
+          sudo podman inspect "${IMAGE_REGISTRY}/${IMAGE_NAME}:latest" \
+            --format '{{.RepoDigests}} labels={{.Labels}}' | head -5
+          echo "✅ Image verified at ${IMAGE_REGISTRY}/${IMAGE_NAME}:latest"
 
       # ── Summary ──────────────────────────────────────────────────────
       - name: Build summary
