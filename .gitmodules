@@ -1,3 +1,0 @@
-[submodule "kde-build-meta-local"]
-	path = kde-build-meta-local
-	url = https://github.com/hanthor/kde-build-meta.git
