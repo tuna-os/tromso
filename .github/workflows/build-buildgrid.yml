@@ -95,7 +95,7 @@ jobs:
       - name: Build ${{ env.BST_TARGET }}
         run: |
           BST_FLAGS="--no-interactive --config /src/buildgrid-remote.conf \
-            --max-jobs 4 --fetchers 8" \
+            --max-jobs 8 --fetchers 24" \
           just bst build "$BST_TARGET"
 
       # ── Export OCI image ─────────────────────────────────────────────
