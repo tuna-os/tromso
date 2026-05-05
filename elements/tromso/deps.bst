@@ -59,3 +59,7 @@ depends:
   - kde-build-meta.bst:kde-linux-deps/just.bst
   # Dakota uses sudo-rs to preserve the setuid sudo binary in the final image.
   - tromso/sudo-rs.bst
+
+  # Aurora-specific KDE components
+  - tromso/kcm_ublue.bst
+  - tromso/krunner-bazaar.bst
