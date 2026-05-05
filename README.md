@@ -3,22 +3,25 @@
 Aurora is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's `projectbluefin/dakota`.
 It builds KDE Plasma 6 on top of freedesktop-sdk using a two-repo architecture.
 
+**Status: Builds successfully and boots to a working KDE Plasma 6 Wayland desktop.**
+
 ## Architecture
 
 ```
 hanthor/tromso          (this repo — top-level OCI project)
 ├── elements/
-│   ├── kde-build-meta.bst     junction → hanthor/kde-build-meta
+│   ├── kde-build-meta.bst     local junction → kde-build-meta-local/
+│   ├── aurora/                Aurora-specific layers (system-config, deps, etc.)
 │   └── oci/aurora.bst         top-level build target
 └── Justfile
 
-hanthor/kde-build-meta  (KDE .bst elements)
+kde-build-meta-local/   (KDE .bst elements, tracked as submodule)
 └── elements/kde/
-    ├── qt6/       (29 elements — qt6-qtbase, qt6-qtdeclarative, etc.)
-    ├── frameworks/ (69 elements — kcoreaddons, kio, kirigami, etc.)
-    ├── libs/      (7 elements)
-    ├── plasma/    (40 elements — plasma-workspace, kwin, sddm, etc.)
-    └── apps/      (7 elements — dolphin, konsole, kate, etc.)
+    ├── qt6/        (30 elements — qt6-qtbase, qt6-qtdeclarative, etc.)
+    ├── frameworks/  (70 elements — kcoreaddons, kio, kirigami, etc.)
+    ├── libs/        (17 elements — libkscreen, qcoro, phonon, etc.)
+    ├── plasma/      (41 elements — plasma-workspace, kwin, sddm, etc.)
+    └── apps/        (9 elements — dolphin, konsole, kate, gammaray, etc.)
 ```
 
 ## Quick Start
@@ -26,8 +29,8 @@ hanthor/kde-build-meta  (KDE .bst elements)
 ### Prerequisites
 
 - Podman
-- BuildStream 2 (via freedesktop-sdk Docker image)
-- Sufficient disk space (~50GB recommended for cache)
+- `just` (task runner)
+- Sufficient disk space (~100 GB recommended for cache)
 
 ### Build
 
@@ -35,36 +38,40 @@ hanthor/kde-build-meta  (KDE .bst elements)
 git clone https://github.com/hanthor/tromso.git
 cd tromso
 
-# Use the Justfile helper
-just bst build oci/aurora.bst
+# Background build with live log tailing
+just bst-build
+
+# Or foreground build + OCI export
+just build
 ```
 
-Or with direct podman:
+### Boot a VM for testing
 
 ```bash
-podman run --name aurora-build --privileged --device /dev/fuse --network=host \
-  -v "/var/home/james/dev/kde-linux:/src:rw" \
-  -v "/var/home/james/.cache/buildstream:/root/.cache/buildstream:rw" \
-  -w /src \
-  "registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:f89b4aef847ef040b345acceda15a850219eb8f1" \
-  bst --colors --max-jobs 16 --fetchers 32 build oci/aurora.bst
-```
-
-### Export to OCI Image
-
-```bash
-just export
-```
-
-### Generate Bootable Image
-
-```bash
+# Generate a bootable disk image (requires a completed build)
 just generate-bootable-image
+
+# Boot the image in QEMU
+just boot-vm
+
+# SSH in (password: aurora)
+ssh -p 2222 root@localhost
 ```
+
+### Useful Justfile recipes
+
+| Recipe | Description |
+|---|---|
+| `just bst-build` | Background build, logs to `/tmp/aurora-build.log` |
+| `just build` | Foreground build + OCI export |
+| `just log` | Tail the build log |
+| `just generate-bootable-image` | Create a bootable raw disk image via bootc |
+| `just boot-vm` | Boot the raw image in QEMU (SSH on port 2222, serial on 4444) |
+| `just bst <args>` | Run any arbitrary `bst` command inside the build container |
 
 ## BuildStream Cache
 
-Aurora uses a prioritized cache configuration (`bst.yml`):
+Aurora uses a prioritized cache configuration:
 
 1. **Local cache** (`grpc://192.168.0.221:11001`) — prioritized for speed
 2. **freedesktop-sdk cache** (`https://cache.freedesktop-sdk.io:11001`) — fallback
@@ -87,18 +94,14 @@ Triggers: push to `main`, manual dispatch via GitHub UI.
 
 ## Updating KDE Packages
 
-KDE package definitions live in the `hanthor/kde-build-meta` repo. To update:
+KDE package definitions live in `kde-build-meta-local/` (a local junction — no separate repo to push to).
+Changes take effect immediately since BST uses a local path junction.
 
-1. Modify `.bst` files in `hanthor/kde-build-meta`
-2. Commit and push to `master`
-3. Update the junction in `elements/kde-build-meta.bst` with new SHA256
-4. Commit to this repo
-
-See `AGENTS.md` for detailed instructions.
+See `AGENTS.md` for detailed conventions and commit workflow.
 
 ## References
 
 - **[KDE Linux](https://invent.kde.org/kde-linux/kde-linux)** — authoritative KDE package list
-- **[Project Bluefin dakota](https://github.com/projectbluefin/dakota)** — reference implementation
+- **[Project Bluefin dakota](https://github.com/projectbluefin/dakota)** — reference OCI/bootc implementation
 - **[freedesktop-sdk](https://freedesktop-sdk.io/)** — base SDK
 - **[BuildStream](https://www.buildstream.build/)** — build system
