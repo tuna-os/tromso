@@ -1,6 +1,6 @@
-name: Build Aurora (Multi-Runner)
+name: Build Tromso (Multi-Runner)
 
-# Adapted from hanthor/dakota build-dakota-aarch64.yml for Aurora KDE build
+# Adapted from hanthor/dakota build-dakota-aarch64.yml for Tromso KDE build
 # Breaks the build into 10 parallel chunks across GitHub runners
 
 on:
@@ -10,7 +10,7 @@ on:
     - cron: '0 14 * * *'
 
 env:
-  IMAGE_NAME: aurora
+  IMAGE_NAME: tromso
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
   BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:f89b4aef847ef040b345acceda15a850219eb8f1
   NUM_CHUNKS: "10"
@@ -42,9 +42,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/buildstream/sources
-          key: bst-sources-aurora-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
+          key: bst-sources-tromso-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
           restore-keys: |
-            bst-sources-aurora-${{ runner.os }}-
+            bst-sources-tromso-${{ runner.os }}-
 
       - name: Generate Build Matrix
         id: matrix
@@ -60,7 +60,7 @@ jobs:
             -v "${{ github.workspace }}/.cache/buildstream:/root/.cache/buildstream:rw" \
             -w /src \
             "$BST2_IMAGE" \
-            python3 /src/scripts/ci-build-matrix.py oci/aurora.bst \
+            python3 /src/scripts/ci-build-matrix.py oci/tromso.bst \
               "$NUM_CHUNKS" "$CORE_SPLIT" > matrix.json
 
           cat matrix.json
@@ -87,7 +87,7 @@ jobs:
       packages: write
     env:
       TARGETS: ${{ needs.planning.outputs.core_targets }}
-      BUILD_IMAGE_NAME: aurora
+      BUILD_IMAGE_NAME: tromso
     steps:
       - name: Free disk space
         uses: ublue-os/remove-unwanted-software@v9
@@ -106,9 +106,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/buildstream/sources
-          key: bst-sources-aurora-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
+          key: bst-sources-tromso-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
           restore-keys: |
-            bst-sources-aurora-${{ runner.os }}-
+            bst-sources-tromso-${{ runner.os }}-
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -117,7 +117,7 @@ jobs:
         run: |
           mkdir -p ~/.cache/buildstream
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          CORE_REF="ghcr.io/${REPO_LOWER}/cache-aurora-core:latest"
+          CORE_REF="ghcr.io/${REPO_LOWER}/cache-tromso-core:latest"
           if oras pull "$CORE_REF" -o .; then
             if [ -f cas-core.tar.zst ]; then
               zstd -d -T0 cas-core.tar.zst -o cas-core.tar
@@ -125,7 +125,7 @@ jobs:
               rm -f cas-core.tar cas-core.tar.zst
             fi
           else
-            echo "No existing Aurora core cache, starting fresh."
+            echo "No existing Tromso core cache, starting fresh."
           fi
 
       - name: Generate CI config
@@ -155,7 +155,7 @@ jobs:
       - name: Archive and Push Core CAS
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          CORE_REF="ghcr.io/${REPO_LOWER}/cache-aurora-core:latest"
+          CORE_REF="ghcr.io/${REPO_LOWER}/cache-tromso-core:latest"
           podman run --rm \
             -v "$HOME/.cache/buildstream:/input:ro" \
             -v "${{ github.workspace }}:/output:rw" \
@@ -180,7 +180,7 @@ jobs:
     env:
       TARGETS: ${{ fromJson(needs.planning.outputs.matrix_data)[matrix.chunk] }}
       CHUNK_CACHE_KEY: ${{ fromJson(needs.planning.outputs.cache_keys)[matrix.chunk] }}
-      BUILD_IMAGE_NAME: aurora
+      BUILD_IMAGE_NAME: tromso
     name: Build ${{ matrix.chunk }}
     steps:
       - name: Free disk space
@@ -200,9 +200,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/buildstream/sources
-          key: bst-sources-aurora-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
+          key: bst-sources-tromso-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
           restore-keys: |
-            bst-sources-aurora-${{ runner.os }}-
+            bst-sources-tromso-${{ runner.os }}-
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -212,7 +212,7 @@ jobs:
         if: env.CHUNK_CACHE_KEY != '' && env.CHUNK_CACHE_KEY != 'null'
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-aurora-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
+          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-tromso-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
           if oras manifest fetch "$CHUNK_REF" > /dev/null 2>&1; then
             echo "cache_hit=true" >> "$GITHUB_OUTPUT"
           else
@@ -224,7 +224,7 @@ jobs:
         run: |
           mkdir -p ~/.cache/buildstream
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          if oras pull "ghcr.io/${REPO_LOWER}/cache-aurora-core:latest" -o .; then
+          if oras pull "ghcr.io/${REPO_LOWER}/cache-tromso-core:latest" -o .; then
             if [ -f cas-core.tar.zst ]; then
               zstd -d -T0 cas-core.tar.zst -o cas-core.tar
               tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
@@ -237,7 +237,7 @@ jobs:
         continue-on-error: true
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-aurora-${{ matrix.chunk }}:latest"
+          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-tromso-${{ matrix.chunk }}:latest"
           if oras pull "$LATEST_REF" -o .; then
             if [ -f cas-${{ matrix.chunk }}.tar.zst ]; then
               mkdir -p ~/.cache/buildstream
@@ -284,8 +284,8 @@ jobs:
         if: always() && steps.cache_check.outputs.cache_hit != 'true' && steps.build.outputs.skipped != 'true' && env.CHUNK_CACHE_KEY != '' && env.CHUNK_CACHE_KEY != 'null'
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-aurora-${{ matrix.chunk }}:latest"
-          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-aurora-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
+          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-tromso-${{ matrix.chunk }}:latest"
+          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-tromso-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
           podman run --rm \
             -v "$HOME/.cache/buildstream:/input:ro" \
             -v "${{ github.workspace }}:/output:rw" \
@@ -299,7 +299,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: build-logs-aurora-${{ matrix.chunk }}
+          name: build-logs-tromso-${{ matrix.chunk }}
           path: logs/
           retention-days: 7
           if-no-files-found: ignore
@@ -313,7 +313,7 @@ jobs:
       contents: read
       packages: write
     env:
-      BUILD_IMAGE_NAME: aurora
+      BUILD_IMAGE_NAME: tromso
     steps:
       - name: Free disk space
         uses: ublue-os/remove-unwanted-software@v9
@@ -346,7 +346,7 @@ jobs:
           mkdir -p ~/.cache/buildstream
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-          if oras pull "ghcr.io/${REPO_LOWER}/cache-aurora-core:latest" -o .; then
+          if oras pull "ghcr.io/${REPO_LOWER}/cache-tromso-core:latest" -o .; then
             if [ -f cas-core.tar.zst ]; then
               zstd -d -T0 cas-core.tar.zst -o cas-core.tar
               tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
@@ -358,12 +358,12 @@ jobs:
             CACHE_KEY=$(echo "$CACHE_KEYS" | jq -r --arg c "$chunk" '.[$c] // empty')
             PULLED=false
             if [ -n "$CACHE_KEY" ]; then
-              if oras pull "ghcr.io/${REPO_LOWER}/cache-aurora-${chunk}:${CACHE_KEY}" -o .; then
+              if oras pull "ghcr.io/${REPO_LOWER}/cache-tromso-${chunk}:${CACHE_KEY}" -o .; then
                 PULLED=true
               fi
             fi
             if [ "$PULLED" = "false" ]; then
-              oras pull "ghcr.io/${REPO_LOWER}/cache-aurora-${chunk}:latest" -o . || continue
+              oras pull "ghcr.io/${REPO_LOWER}/cache-tromso-${chunk}:latest" -o . || continue
             fi
             TARBALL="cas-${chunk}.tar.zst"
             if [ -f "$TARBALL" ]; then
@@ -418,7 +418,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: final-logs-aurora
+          name: final-logs-tromso
           path: logs/
           retention-days: 7
           if-no-files-found: ignore

@@ -1,8 +1,7 @@
-name: Build Aurora (BuildGrid)
+name: Build Tromso (BuildGrid)
 
-# Builds oci/aurora.bst using the home BuildGrid cluster via Tailscale.
-# The GitHub runner joins the tailnet, dispatches compilation to Bihar workers,
-# then exports and pushes the resulting OCI image to GHCR.
+# Builds oci/tromso.bst on the home BuildGrid cluster via Tailscale,
+# then exports and pushes the OCI image to ghcr.io/hanthor/tromso.
 
 on:
   workflow_dispatch:
@@ -12,7 +11,7 @@ on:
         type: boolean
         default: true
   schedule:
-    # Daily at 06:00 UTC (before the multi-runner job at 14:00)
+    # Daily at 06:00 UTC
     - cron: '0 6 * * *'
   push:
     branches: [main]
@@ -22,120 +21,126 @@ on:
       - 'include/**'
 
 env:
-  IMAGE_NAME: aurora
+  IMAGE_NAME: tromso
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
-  BST_TARGET: oci/aurora.bst
-  BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:latest
+  BST_TARGET: oci/tromso.bst
+  BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:f89b4aef847ef040b345acceda15a850219eb8f1
   BUILDGRID_ENDPOINT: grpc://buildgrid.manatee-basking.ts.net:50051
 
 concurrency:
-  group: buildgrid-aurora-${{ github.ref }}
+  group: buildgrid-tromso-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-24.04
-    # Large runner recommended for BST cache I/O — use standard for free tier
     permissions:
       contents: read
-      packages: write  # needed for GHCR push
+      packages: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Checkout kde-build-meta-local
-        run: |
-          git clone --no-recurse-submodules https://github.com/hanthor/kde-build-meta.git kde-build-meta-local
-          git -C kde-build-meta-local checkout 8f9ee37a72f73098375d27541fc07f567a58ff5b
-
       - name: Setup Just
         uses: extractions/setup-just@v4
+
+      - name: Free disk space
+        uses: ublue-os/remove-unwanted-software@v9
+        continue-on-error: true
 
       # ── Join Tailscale ───────────────────────────────────────────────
       - name: Connect to Tailscale
         uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          # Ephemeral device — automatically removed when job ends
 
       - name: Verify BuildGrid reachable
-        run: |
-          echo "Testing BuildGrid endpoint…"
-          nc -zv buildgrid.manatee-basking.ts.net 50051 && echo "✓ BuildGrid reachable"
+        run: nc -zv buildgrid.manatee-basking.ts.net 50051 && echo "✓ BuildGrid reachable"
 
-      # ── BST source cache ─────────────────────────────────────────────
+      # ── BST setup ────────────────────────────────────────────────────
+      - name: Pull bst2 image
+        run: podman pull "$BST2_IMAGE"
+
       - name: Cache BST sources
         uses: actions/cache@v4
         with:
           path: ~/.cache/buildstream/sources
-          key: bst-sources-aurora-${{ hashFiles('elements/**/*.bst', 'junction.refs') }}
-          restore-keys: bst-sources-aurora-
-
-      - name: Pull bst2 image
-        run: podman pull "$BST2_IMAGE"
+          key: bst-sources-tromso-${{ hashFiles('elements/**/*.bst') }}
+          restore-keys: bst-sources-tromso-
 
       # ── Write BuildGrid remote execution config ──────────────────────
       - name: Write BuildGrid config
         run: |
-          cat > buildgrid-remote.conf << 'EOF'
+          mkdir -p ~/.config/buildstream
+          cat > ~/.config/buildstream/buildgrid.conf << EOF
+          scheduler:
+            on-error: continue
+            fetchers: 24
+            network-retries: 3
+          logging:
+            message-format: '[%{wallclock}][%{elapsed}][%{key}][%{element}] %{action} %{message}'
+            error-lines: 80
+          build:
+            retry-failed: true
+          cache:
+            cache-buildtrees: never
           remote-execution:
             execution-service:
-              url: ${{ env.BUILDGRID_ENDPOINT }}
+              url: ${BUILDGRID_ENDPOINT}
               instance-name: ""
             storage-service:
-              url: ${{ env.BUILDGRID_ENDPOINT }}
+              url: ${BUILDGRID_ENDPOINT}
               instance-name: ""
             action-cache-service:
-              url: ${{ env.BUILDGRID_ENDPOINT }}
+              url: ${BUILDGRID_ENDPOINT}
               instance-name: ""
           EOF
 
       # ── Build ────────────────────────────────────────────────────────
       - name: Build ${{ env.BST_TARGET }}
         run: |
-          BST_FLAGS="--no-interactive --config /src/buildgrid-remote.conf \
-            --max-jobs 8 --fetchers 24" \
+          BST_FLAGS="--no-interactive --config /root/.config/buildstream/buildgrid.conf" \
           just bst build "$BST_TARGET"
 
-      # ── Export OCI image ─────────────────────────────────────────────
+      # ── Export + push ─────────────────────────────────────────────────
       - name: Export OCI image
-        run: |
-          mkdir -p /tmp/oci-export
-          BST_FLAGS="--no-interactive" just bst artifact checkout \
-            "$BST_TARGET" --directory /tmp/oci-export
+        env:
+          BUILD_IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          OCI_IMAGE_REVISION: ${{ github.sha }}
+          OCI_IMAGE_VERSION: ${{ github.ref_name }}
+          OCI_IMAGE_CREATED: ${{ steps.timestamp.outputs.created }}
+          BST_FLAGS: --no-interactive
+        run: just export
 
-      - name: Log in to GHCR
-        if: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_image != 'false') }}
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Capture build timestamp
+        id: timestamp
+        run: echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+
+      - name: Login to GHCR
+        if: ${{ github.event_name != 'pull_request' && inputs.push_image != false }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            sudo podman login ghcr.io --username "${{ github.actor }}" --password-stdin
 
       - name: Push to GHCR
-        if: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_image != 'false') }}
+        if: ${{ github.event_name != 'pull_request' && inputs.push_image != false }}
         run: |
-          IMAGE_TAG="${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}"
           DATE_TAG=$(date -u +%Y%m%d)
-
-          # skopeo copies OCI directory layout → GHCR
-          skopeo copy \
-            oci:/tmp/oci-export \
-            "docker://${IMAGE_TAG}:${DATE_TAG}"
-
-          skopeo copy \
-            oci:/tmp/oci-export \
-            "docker://${IMAGE_TAG}:latest"
-
-          echo "Pushed ${IMAGE_TAG}:${DATE_TAG}"
-          echo "Pushed ${IMAGE_TAG}:latest"
+          for tag in latest "$DATE_TAG" "${{ github.sha }}"; do
+            sudo podman tag "${IMAGE_NAME}:latest" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
+            for attempt in 1 2 3; do
+              sudo podman push "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}" && break
+              echo "Push attempt ${attempt} failed, retrying…"; sleep 5
+            done
+          done
+          echo "Pushed ${IMAGE_REGISTRY}/${IMAGE_NAME}:{latest,${DATE_TAG},${{ github.sha }}}"
 
       # ── Summary ──────────────────────────────────────────────────────
       - name: Build summary
         if: always()
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Target**: \`$BST_TARGET\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **BuildGrid**: \`$BUILDGRID_ENDPOINT\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image**: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target**: \`${BST_TARGET}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **BuildGrid**: \`${BUILDGRID_ENDPOINT}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:latest\`" >> $GITHUB_STEP_SUMMARY
