@@ -42,8 +42,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Just
-        uses: extractions/setup-just@v4
+      - name: Install Just
+        run: sudo apt-get install -y just
 
       - name: Free disk space
         uses: ublue-os/remove-unwanted-software@v9
