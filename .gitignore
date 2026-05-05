@@ -20,3 +20,5 @@ qtbase-contents/
 aurora-rootfs*
 bootable*
 nohup.out
+kwin-fixed
+kde/
