@@ -63,6 +63,17 @@ config:
     rsvg-convert -w 128 -h 32 -o "$plymouth_dir/watermark.png" logos/aurora-banner.svg
     cp "$plymouth_dir/watermark.png" "$plymouth_dir/kinoite-watermark.png"
 
+    # Hicolor icon set — used by the installer desktop file (Icon=tromso) and
+    # the KDE application menu.  Dakota installs pre-rendered PNGs; we rasterize
+    # from distributor-logo.svg at build time so SVG is the single source of truth.
+    for size in 16 24 32 48 64 128 256 512; do
+        hicolor_dir="%{install-root}%{datadir}/icons/hicolor/${size}x${size}/apps"
+        mkdir -p "$hicolor_dir"
+        rsvg-convert -w "$size" -h "$size" -o "$hicolor_dir/tromso.png" logos/distributor-logo.svg
+    done
+    # 512px alias in pixmaps for anything that looks for tromso.png there
+    cp "%{install-root}%{datadir}/icons/hicolor/512x512/apps/tromso.png" "$pixmaps_dir/tromso.png"
+
     gzip -c logos/distributor-logo.svg >"$splash_dir/aurora_logo.svgz"
     install -Dm0644 busywidget.svgz "$splash_dir/busywidget.svgz"
     install -Dm0644 kde.svgz "$splash_dir/kde.svgz"
