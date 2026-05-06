@@ -94,7 +94,7 @@ just build
 just bst <command> <args>
 
 # Example: Run shell in a sandbox
-just bst shell oci/aurora.bst
+just bst shell oci/tromso.bst
 
 # View logs
 just log
