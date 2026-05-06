@@ -1,9 +1,0 @@
-FROM localhost/aurora:latest
-LABEL com.redhat.bootc.DefaultRootFs=xfs
-LABEL ostree.linux=/usr/lib/modules/6.19.11/vmlinuz
-LABEL ostree.initramfs=/usr/lib/modules/6.19.11/initramfs.img
-RUN mkdir -p /usr/lib/ostree && echo -e "[composefs]\nenabled = no" > /usr/lib/ostree/prepare-root.conf
-RUN mkdir -p /etc/containers && echo -e '{"default": [{"type": "insecureAcceptAnything"}]}' > /etc/containers/policy.json
-RUN mkdir -p /usr/libexec
-COPY .build-out/tools/bootupd /usr/bin/bootupd
-COPY .build-out/tools/bootupd /usr/libexec/bootupd

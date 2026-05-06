@@ -1,7 +1,0 @@
-artifacts:
-- url: grpc://100.104.213.39:8980
-  push: true
-  type: all
-- url: grpc://192.168.0.221:11001
-- url: https://cache.freedesktop-sdk.io:11001
-- url: https://gbm.gnome.org:11003
