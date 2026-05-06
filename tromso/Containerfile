@@ -16,6 +16,10 @@
 # /usr/lib/systemd/boot/efi/systemd-bootx64.efi) — no GRUB2 or shim required.
 
 ARG BASE_IMAGE=ghcr.io/hanthor/tromso:latest
+ARG BRAND_IMAGE=ghcr.io/hanthor/tromso-brand:latest
+
+# ── Stage 0: Branding OCI (icons, Plymouth watermark, installer welcome) ─────
+FROM ${BRAND_IMAGE} AS brand
 
 # ── Stage 1: Tromso reference (kernel modules source) ────────────────────────
 FROM ${BASE_IMAGE} AS tromso-ref
@@ -58,6 +62,13 @@ COPY --from=initramfs-builder /tmp/initramfs.img /tmp/initramfs.img
 RUN kernel=$(ls /usr/lib/modules | sort -V | tail -1) && \
     mv /tmp/initramfs.img "/usr/lib/modules/${kernel}/initramfs.img" && \
     echo "Replaced initramfs for kernel ${kernel}"
+
+# ── Branding layer (from hanthor/tromso-brand OCI) ───────────────────────────
+# Installs icons, pixmaps, Plymouth watermark, and installer welcome image.
+# /logos/ maps directly onto /usr/ so COPY --from=brand /logos/ /usr/ works.
+COPY --from=brand /logos/     /usr/
+COPY --from=brand /iso_files/usr/ /usr/
+RUN gtk-update-icon-cache /usr/share/icons/hicolor/ 2>/dev/null || true
 
 # ── Flatpak install layer ─────────────────────────────────────────────────────
 COPY src/flatpaks /tmp/flatpaks-list

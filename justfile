@@ -3,6 +3,7 @@ workdir := output_dir
 debug := "0"
 installer_channel := "stable"
 compression := "fast"
+brand_image := "ghcr.io/hanthor/tromso-brand:latest"
 
 # Create an XFS loopback mount at /mnt for faster VFS import.
 # Idempotent: skips if /mnt is already an XFS mount.
@@ -57,6 +58,7 @@ container target:
         --build-arg DEBUG={{debug}} \
         --build-arg INSTALLER_CHANNEL={{installer_channel}} \
         --build-arg BASE_IMAGE=$(cat {{target}}/payload_ref | tr -d '[:space:]') \
+        --build-arg BRAND_IMAGE={{brand_image}} \
         -t {{target}}-installer -f ./{{target}}/Containerfile ./{{target}}
 
 iso-builder target:
@@ -83,7 +85,7 @@ iso-sd-boot target:
         echo "WARNING: Only $(( AVAILABLE_KB / 1024 / 1024 ))GB free — ISO build needs ~20GB" >&2
     fi
 
-    just debug={{debug}} installer_channel={{installer_channel}} container {{target}}
+    just debug={{debug}} installer_channel={{installer_channel}} brand_image={{brand_image}} container {{target}}
 
     echo "=== Disk space after container build ==="
     df -h "${OUTPUT_DIR}"

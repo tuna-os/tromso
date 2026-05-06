@@ -159,26 +159,6 @@ systemctl enable live-ready.service
 # fisherman (tuna-installer backend) creates /var/fisherman-tmp
 mkdir -p /var/fisherman-tmp
 
-# ── Tromso icon ───────────────────────────────────────────────────────────────
-mkdir -p /usr/share/icons/hicolor/{16x16,24x24,32x32,48x48,64x64,128x128,256x256,512x512}/apps
-for size in 16 24 32 48 64 128 256 512; do
-  if [ -f "$SCRIPT_DIR/icons/hicolor/${size}x${size}/apps/tromso.png" ]; then
-    install -Dm644 "$SCRIPT_DIR/icons/hicolor/${size}x${size}/apps/tromso.png" \
-      "/usr/share/icons/hicolor/${size}x${size}/apps/tromso.png"
-  fi
-done
-if [ -f "$SCRIPT_DIR/icons/hicolor/512x512/apps/tromso.png" ]; then
-    install -Dm644 "$SCRIPT_DIR/icons/hicolor/512x512/apps/tromso.png" /usr/share/pixmaps/tromso.png
-fi
-gtk-update-icon-cache /usr/share/icons/hicolor/ 2>/dev/null || true
-
-# ── Installer tour images ─────────────────────────────────────────────────────
-mkdir -p /usr/share/bootc-installer/images
-if [ -f "$SCRIPT_DIR/images/tromso-welcome.png" ]; then
-    install -Dm644 "$SCRIPT_DIR/images/tromso-welcome.png" \
-        /usr/share/bootc-installer/images/tromso-welcome.png
-fi
-
 # ── Installer configuration ───────────────────────────────────────────────────
 mkdir -p /etc/bootc-installer
 cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/bootc-installer/images.json

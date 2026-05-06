@@ -24,6 +24,11 @@ on:
         required: false
         default: false
         type: boolean
+      brand_image:
+        description: 'Brand OCI image override (default: ghcr.io/hanthor/tromso-brand:latest)'
+        required: false
+        default: 'ghcr.io/hanthor/tromso-brand:latest'
+        type: string
 
 jobs:
   build-and-publish:
@@ -76,6 +81,7 @@ jobs:
         run: |
           INSTALLER_CHANNEL="${{ inputs.installer_channel || 'stable' }}"
           DEBUG_FLAG="${{ inputs.debug == true && '1' || '0' }}"
+          BRAND_IMAGE="${{ inputs.brand_image || 'ghcr.io/hanthor/tromso-brand:latest' }}"
           sudo mkdir -p /var/iso-build
           sudo chown "$USER:$(id -gn)" /mnt
           sudo $(command -v just) \
@@ -83,6 +89,7 @@ jobs:
             debug=${DEBUG_FLAG} \
             output_dir=/var/iso-build \
             workdir=/mnt \
+            brand_image=${BRAND_IMAGE} \
             iso-sd-boot tromso
           mkdir -p output
           sudo cp /var/iso-build/*.iso output/ 2>/dev/null || true
