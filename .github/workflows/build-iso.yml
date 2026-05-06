@@ -1,141 +1,39 @@
-name: Build Tromso Live ISO
+name: Trigger Tromso Live ISO Build
 
-# Builds an Anaconda installer ISO from the published GHCR image using
-# bootc-image-builder. Triggers after a successful OCI image build.
+# Dispatches a repository_dispatch to hanthor/tromso-iso to trigger the ISO
+# build after a successful OCI image build.  The actual ISO build runs in the
+# tromso-iso repo using the dakota-iso approach (dmsquash-live, systemd-boot,
+# tuna-installer).
 
 on:
   workflow_run:
     workflows: ["Build Tromso (BuildGrid)"]
     types: [completed]
     branches: [main]
-  schedule:
-    # Daily at 09:00 UTC — after the main OCI build (06:00 UTC)
-    - cron: '0 9 * * *'
   workflow_dispatch:
-    inputs:
-      image_ref:
-        description: 'OCI image reference to build ISO from'
-        type: string
-        default: 'ghcr.io/hanthor/tromso:latest'
-      skip_upload:
-        description: 'Build ISO but skip uploading as release artifact (dry run)'
-        type: boolean
-        default: false
-
-concurrency:
-  group: tromso-iso-${{ github.ref }}
-  cancel-in-progress: false
-
-env:
-  IMAGE_REF: ${{ inputs.image_ref || 'ghcr.io/hanthor/tromso:latest' }}
-  BIB_IMAGE: quay.io/centos-bootc/bootc-image-builder:latest
 
 jobs:
-  build-iso:
-    name: Build Tromso Live ISO
-    # Skip if triggered by a failed OCI build
+  trigger-iso-build:
+    name: Trigger ISO build in hanthor/tromso-iso
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
     permissions:
-      contents: write
-      packages: read
+      contents: read
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Free disk space
-        uses: ublue-os/remove-unwanted-software@v9
-        continue-on-error: true
-
-      - name: Disk space before build
-        run: df -h /
-
-      - name: Log in to GHCR
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | \
-            sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: Pull OCI image
-        run: |
-          echo "==> Pulling ${{ env.IMAGE_REF }}"
-          sudo podman pull "${{ env.IMAGE_REF }}"
-          sudo podman images
-
-      - name: Pull bootc-image-builder
-        run: sudo podman pull "${{ env.BIB_IMAGE }}"
-
-      - name: Build ISO
-        run: |
-          mkdir -p output
-          echo "==> Building ISO from ${{ env.IMAGE_REF }}"
-          sudo podman run \
-            --rm \
-            --privileged \
-            --pull=never \
-            --security-opt label=type:unconfined_t \
-            -v /var/lib/containers/storage:/var/lib/containers/storage \
-            -v "$(pwd)/output:/output" \
-            "${{ env.BIB_IMAGE }}" \
-            build \
-            --type anaconda-iso \
-            --local \
-            "${{ env.IMAGE_REF }}"
-          echo "==> ISO build complete"
-          ls -lh output/bootiso/ || ls -lh output/ || true
-
-      - name: Locate ISO
-        id: iso
-        run: |
-          ISO=$(find output -name "*.iso" | head -1)
-          if [ -z "$ISO" ]; then
-            echo "ERROR: No ISO found in output/" >&2
-            find output -type f | head -20
-            exit 1
-          fi
-          DATE=$(date -u +%Y%m%d)
-          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          NAME="tromso-live-${DATE}-${SHA}.iso"
-          echo "path=${ISO}" >> "$GITHUB_OUTPUT"
-          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
-          echo "==> Found ISO: ${ISO} ($(du -sh "${ISO}" | cut -f1))"
-
-      - name: Generate SHA256 checksum
-        id: checksum
-        run: |
-          ISO="${{ steps.iso.outputs.path }}"
-          NAME="${{ steps.iso.outputs.name }}"
-          CHECKSUM_FILE="output/${NAME}.sha256"
-          sha256sum "$ISO" | sed "s|${ISO}|${NAME}|" | tee "$CHECKSUM_FILE"
-          echo "path=${CHECKSUM_FILE}" >> "$GITHUB_OUTPUT"
-
-      - name: Disk space after build
-        if: always()
-        run: df -h /
-
-      - name: Upload ISO artifact
-        if: ${{ inputs.skip_upload != true }}
-        uses: actions/upload-artifact@v4
+      - name: Dispatch ISO build to hanthor/tromso-iso
+        uses: actions/github-script@v7
         with:
-          name: ${{ steps.iso.outputs.name }}
-          path: ${{ steps.iso.outputs.path }}
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload checksum artifact
-        if: ${{ inputs.skip_upload != true }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.iso.outputs.name }}.sha256
-          path: ${{ steps.checksum.outputs.path }}
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Build summary
-        if: always()
-        run: |
-          echo "## ISO Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Source image**: \`${{ env.IMAGE_REF }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **ISO name**: \`${{ steps.iso.outputs.name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Size**: $(du -sh ${{ steps.iso.outputs.path }} 2>/dev/null | cut -f1 || echo 'unknown')" >> $GITHUB_STEP_SUMMARY
+          github-token: ${{ secrets.ISO_DISPATCH_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'hanthor',
+              repo: 'tromso-iso',
+              event_type: 'oci-image-published',
+              client_payload: {
+                sha: context.sha,
+                ref: context.ref,
+                image: 'ghcr.io/hanthor/tromso:latest',
+              }
+            });
+            core.info('Dispatched oci-image-published to hanthor/tromso-iso');
