@@ -7,6 +7,9 @@ description: >-
   - sshd.service with Type=simple (avoids sd_notify dependency)
   - systemd-networkd DHCP config for virtio-net (ens3/eth0)
   - sysctl drop-in: disable IPv6 autoconf on non-loopback interfaces
+  - unix_chkpwd setuid so KDE screen locker PAM auth works as non-root
+  - KDE PAM service configs (kde, kde-fingerprint, kde-smartcard)
+  - kscreenlockerrc: screen lock disabled by default (auto-lock off)
 
 build-depends:
 - kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
@@ -210,8 +213,59 @@ config:
     # Aurora: no PAM namespace bindings configured
     EOF
 
+  # ── unix_chkpwd setuid ───────────────────────────────────────────────
+  # pam_unix.so calls unix_chkpwd to verify passwords when running as a
+  # non-root process (e.g. kscreenlocker_greet runs as the user, not root).
+  # Without setuid, unix_chkpwd cannot read /etc/shadow and PAM auth fails.
+  # freedesktop-sdk builds linux-pam without setuid on unix_chkpwd; this
+  # overlay installs it with 4755 (setuid + rwxr-xr-x) so the screen locker
+  # password prompt works correctly.
+  - install -Dm 4755 /usr/bin/unix_chkpwd "%{install-root}/usr/bin/unix_chkpwd"
+
+  # ── KDE PAM service configs ──────────────────────────────────────────
+  # kscreenlocker_greet uses three PAM services in order: kde-fingerprint,
+  # kde-smartcard, and kde (password fallback).  Without /etc/pam.d/kde
+  # the screen locker falls back to /etc/pam.d/other which uses pam_deny.
+  - |
+    install -Dm644 /dev/stdin "%{install-root}/etc/pam.d/kde" <<'EOF'
+    auth     include  system-auth
+    account  include  system-auth
+    password include  system-auth
+    session  include  system-auth
+    EOF
+
+  - |
+    install -Dm644 /dev/stdin "%{install-root}/etc/pam.d/kde-fingerprint" <<'EOF'
+    auth     [success=done ignore=ignore default=die] pam_fprintd.so
+    auth     required pam_deny.so
+    account  include  system-auth
+    password include  system-auth
+    session  include  system-auth
+    EOF
+
+  - |
+    install -Dm644 /dev/stdin "%{install-root}/etc/pam.d/kde-smartcard" <<'EOF'
+    auth     [success=done ignore=ignore default=die] pam_pkcs11.so
+    auth     required pam_deny.so
+    account  include  system-auth
+    password include  system-auth
+    session  include  system-auth
+    EOF
+
+  # ── KDE screen locker default: auto-lock disabled ────────────────────
+  # Ship a system-wide default kscreenlockerrc that disables the auto-lock
+  # timer.  Users can override this in their own ~/.config/kscreenlockerrc.
+  # Without this the screen locks after 5 minutes by default, which breaks
+  # first-boot experience since unix_chkpwd requires a known password.
+  - |
+    install -Dm644 /dev/stdin "%{install-root}/etc/xdg/kscreenlockerrc" <<'EOF'
+    [Daemon]
+    Autolock=false
+    LockOnResume=false
+    Timeout=0
+    EOF
+
   # ── Mask unused services ────────────────────────────────────────────
-  # Masks go in /etc/systemd/system/ which takes precedence over /usr/lib.
   # Masking in /usr/lib is insufficient because freedesktop-sdk layers can
   # overwrite it during OCI layer merging.
   - |
@@ -262,3 +316,8 @@ public:
         - '%{sysconfdir}/systemd/system/systemd-homed.service'
         - '%{sysconfdir}/systemd/system/debug-shell.service'
         - '%{sysconfdir}/systemd/system/flatpak-preinstall.service'
+        - '%{bindir}/unix_chkpwd'
+        - '%{sysconfdir}/pam.d/kde'
+        - '%{sysconfdir}/pam.d/kde-fingerprint'
+        - '%{sysconfdir}/pam.d/kde-smartcard'
+        - '%{sysconfdir}/xdg/kscreenlockerrc'
