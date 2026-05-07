@@ -17,7 +17,7 @@ variables:
 config:
   configure-commands:
   - |
-    LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu" \
+    LD_LIBRARY_PATH="/usr/lib" \
     cmake -B_builddir -H"." -G"Ninja" \
       -DCMAKE_VERBOSE_MAKEFILE=ON \
       -DCMAKE_INSTALL_PREFIX:PATH="%{prefix}" \
