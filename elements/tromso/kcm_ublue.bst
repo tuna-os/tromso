@@ -24,6 +24,9 @@ runtime-depends:
 - kde-build-meta.bst:freedesktop-sdk.bst:components/libnotify.bst
 
 config:
+  configure-commands:
+    (<):
+    - ldconfig
   install-commands:
     (>):
     - |
