@@ -3,9 +3,9 @@ description: Junction to hanthor/kde-build-meta (KDE Plasma 6 build metadata)
 
 sources:
 - kind: tar
-  url: github:hanthor/kde-build-meta/archive/0a82990.tar.gz
-  ref: 125979204137514d2a139766f8edd4bcb12d1e85c4d5d0352dd872b0b9a1f038
-  base-dir: kde-build-meta-0a82990f9461cce8dea9c0dfbc0c6081d6dc5919
+  url: github:hanthor/kde-build-meta/archive/c02274f.tar.gz
+  ref: d1746b0411bb8e1dbed98cc18fd5d596f28ef5b732e9d7e63621f9d39077366d
+  base-dir: kde-build-meta-c02274f1476219a72eca0676191be3c2447d9b9f
 
 config:
   options:
