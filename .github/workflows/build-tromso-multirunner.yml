@@ -4,10 +4,8 @@ name: Build Tromso (Multi-Runner)
 # Breaks the build into 10 parallel chunks across GitHub runners
 
 on:
+  # Disabled: use build-buildgrid.yml instead (BuildGrid is faster and more reliable)
   workflow_dispatch:
-  schedule:
-    # Daily at 14:00 UTC
-    - cron: '0 14 * * *'
 
 env:
   IMAGE_NAME: tromso
