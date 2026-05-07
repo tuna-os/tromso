@@ -1,6 +1,9 @@
 kind: cmake
 description: Aurora KRunner plugin for searching Flatpak apps via Bazaar
 
+environment:
+  LD_LIBRARY_PATH: /usr/lib
+
 build-depends:
 - kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
 - kde-build-meta.bst:freedesktop-sdk.bst:components/gettext.bst
@@ -13,16 +16,6 @@ build-depends:
 
 variables:
   cmake-local: -DBUILD_TESTING=OFF
-
-config:
-  configure-commands:
-  - |
-    LD_LIBRARY_PATH="/usr/lib" \
-    cmake -B_builddir -H"." -G"Ninja" \
-      -DCMAKE_VERBOSE_MAKEFILE=ON \
-      -DCMAKE_INSTALL_PREFIX:PATH="%{prefix}" \
-      -DCMAKE_INSTALL_LIBDIR:PATH="%{lib}" \
-      %{cmake-local}
 
 sources:
 - kind: git_repo
