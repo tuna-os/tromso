@@ -130,10 +130,8 @@ iso-sd-boot target:
         printf '[storage]\ndriver = \"vfs\"\nrunroot = \"/tmp/cs-runroot\"\ngraphroot = \"/vfs-storage\"\n' \
             > \"\${STORAGE_CONF}\"
 
-        echo 'Exporting squashed OCI image to archive...'
-        SQUASH_CTR=\$(buildah from --pull-never '"${PAYLOAD_IMAGE}"')
-        buildah commit --squash \"\${SQUASH_CTR}\" oci-archive:\${PAYLOAD_OCI}:'"${PAYLOAD_IMAGE}"'
-        buildah rm \"\${SQUASH_CTR}\"
+        echo 'Exporting OCI image to archive...'
+        skopeo copy containers-storage:'"${PAYLOAD_IMAGE}"' oci-archive:\${PAYLOAD_OCI}:'"${PAYLOAD_IMAGE}"'
         podman rmi '"${PAYLOAD_IMAGE}"' || true
 
         echo 'Importing Tromso OCI image into squashfs containers-storage...'
