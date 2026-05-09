@@ -220,7 +220,15 @@ config:
   # freedesktop-sdk builds linux-pam without setuid on unix_chkpwd; this
   # overlay installs it with 4755 (setuid + rwxr-xr-x) so the screen locker
   # password prompt works correctly.
-  - install -Dm 4755 /usr/bin/unix_chkpwd "%{install-root}/usr/bin/unix_chkpwd"
+  - |
+    if [ -x /usr/bin/unix_chkpwd ]; then
+      install -Dm 4755 /usr/bin/unix_chkpwd "%{install-root}/usr/bin/unix_chkpwd"
+    elif [ -x /usr/sbin/unix_chkpwd ]; then
+      install -Dm 4755 /usr/sbin/unix_chkpwd "%{install-root}/usr/bin/unix_chkpwd"
+    else
+      echo "unix_chkpwd not found in /usr/bin or /usr/sbin" >&2
+      exit 1
+    fi
 
   # ── KDE PAM service configs ──────────────────────────────────────────
   # kscreenlocker_greet uses three PAM services in order: kde-fingerprint,

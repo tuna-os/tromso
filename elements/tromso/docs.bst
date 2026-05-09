@@ -8,7 +8,7 @@ sources:
   ref: a40eb75e00df196d264e09cc9022f642be4304f0
 - kind: remote
   url: github_files:ublue-os/aurora-docs/releases/download/0.1/aurora.pdf
-  ref: 3647225d3334b34dfd8a759234ac7ae4113f9f342cbc76adbdd4757328c47ca5
+  ref: db6d3a8719fd1b2cf0e240411b88339159ea07496c37997c9dc54c9112762488
 
 depends:
 - kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
