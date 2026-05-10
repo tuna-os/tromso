@@ -13,6 +13,7 @@ description: >-
 
 build-depends:
 - kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- kde-build-meta.bst:freedesktop-sdk.bst:components/linux-pam.bst
 
 variables:
   strip-binaries: ''
