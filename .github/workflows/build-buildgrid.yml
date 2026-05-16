@@ -76,7 +76,7 @@ jobs:
           scheduler:
             on-error: continue
             fetchers: 32
-            builders: 2
+            builders: 12
             network-retries: 5
           logging:
             message-format: '[%{wallclock}][%{elapsed}][%{key}][%{element}] %{action} %{message}'
