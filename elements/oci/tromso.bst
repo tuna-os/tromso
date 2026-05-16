@@ -85,10 +85,10 @@ config:
       if timeout 30 mount -t overlay overlay \
            -o "lowerdir=/parent,upperdir=/layer,workdir=/ld-work" \
            /ld-merged 2>/dev/null; then
-        chroot /ld-merged ldconfig || true
+        timeout 60 chroot /ld-merged ldconfig || true
         umount /ld-merged || true
       else
-        chroot /layer ldconfig || true
+        timeout 60 chroot /layer ldconfig || true
       fi
       rm -rf /ld-merged /ld-work 2>/dev/null || true
     - |
