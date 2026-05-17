@@ -135,7 +135,7 @@ config:
       cd "%{install-root}"
       build-oci <<EOF
       mode: oci
-      gzip: zstd
+      gzip: gzip
       images:
       - os: linux
         architecture: "%{go-arch}"
