@@ -99,3 +99,4 @@ Containerfile-final
 # Misc build outputs
 scripts/org.osbuild.bootc.install-to-filesystem
 scripts/parity-check.py
+files/fakecap-manifest.tsv
