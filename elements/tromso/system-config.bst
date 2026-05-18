@@ -5,7 +5,7 @@ description: >-
     the binary but not the systemd activation units)
   - sysusers.d entries for system accounts: messagebus (dbus), sshd, rtkit, polkitd
   - sshd.service with Type=simple (avoids sd_notify dependency)
-  - systemd-networkd DHCP config for virtio-net (ens3/eth0)
+  - systemd-networkd DHCP config for virtio-net (ens3/eth0) — REPLACED by NetworkManager
   - sysctl drop-in: disable IPv6 autoconf on non-loopback interfaces
   - unix_chkpwd setuid so KDE screen locker PAM auth works as non-root
   - KDE PAM service configs (kde, kde-fingerprint, kde-smartcard)
@@ -351,23 +351,27 @@ config:
     # flatpak-preinstall: requires Flatpak infrastructure not present in base image
     ln -sf /dev/null "%{install-root}/etc/systemd/system/flatpak-preinstall.service"
 
-  # ── systemd-networkd DHCP config ────────────────────────────────────
-  # Ensures virtio-net / e1000e adapters (ens3, eth0, etc.) get an IPv4
-  # address via DHCP when the image boots in a VM or bare-metal with
-  # NetworkManager not yet configured.  NetworkManager takes precedence
-  # when it is running; this config only activates via systemd-networkd.
+  # ── NetworkManager enable ────────────────────────────────────────────
+  # NetworkManager is the standard network manager for Aurora (same as
+  # gnome-build-meta / Dakota).  systemd-networkd is explicitly disabled
+  # (as in gnome-build-meta's 80-network.preset) to avoid conflicts.
   - |
-    install -Dm644 /dev/stdin "%{install-root}/usr/lib/systemd/network/10-ens-dhcp.network" <<'EOF'
-    [Match]
-    Name=en*
-    Driver=virtio_net e1000e vmxnet3
+    install -d "%{install-root}/usr/lib/systemd/system/multi-user.target.wants"
+    ln -sf ../NetworkManager.service \
+      "%{install-root}/usr/lib/systemd/system/multi-user.target.wants/NetworkManager.service"
+    # Disable systemd-networkd so it does not conflict with NetworkManager
+    install -d "%{install-root}/etc/systemd/system"
+    ln -sf /dev/null "%{install-root}/etc/systemd/system/systemd-networkd.service"
+    ln -sf /dev/null "%{install-root}/etc/systemd/system/systemd-networkd.socket"
+    ln -sf /dev/null "%{install-root}/etc/systemd/system/systemd-networkd-wait-online.service"
 
-    [Network]
-    DHCP=yes
-
-    [DHCPv4]
-    SendHostname=yes
-    EOF
+  # ── dconf database directories ───────────────────────────────────────
+  # dconf-update.service compiles profile fragments in /etc/dconf/db/*.d/
+  # into binary databases.  These directories must exist or dconf exits
+  # with an error at boot.
+  - |
+    install -d "%{install-root}/etc/dconf/db/distro.d"
+    install -d "%{install-root}/etc/dconf/db/site.d"
 
 public:
   bst:
@@ -382,7 +386,12 @@ public:
         - '%{sysconfdir}/ssh/sshd_config'
         - '%{sysconfdir}/pam.d/sshd'
         - '%{indep-libdir}/sysusers.d/aurora-system.conf'
-        - '%{indep-libdir}/systemd/network/10-ens-dhcp.network'
+        - '%{indep-libdir}/systemd/system/multi-user.target.wants/NetworkManager.service'
+        - '%{sysconfdir}/systemd/system/systemd-networkd.service'
+        - '%{sysconfdir}/systemd/system/systemd-networkd.socket'
+        - '%{sysconfdir}/systemd/system/systemd-networkd-wait-online.service'
+        - '%{sysconfdir}/dconf/db/distro.d'
+        - '%{sysconfdir}/dconf/db/site.d'
         - '%{indep-libdir}/pam.d/other'
         - '%{indep-libdir}/pam.d/system-auth'
         - '%{indep-libdir}/pam.d/login'
