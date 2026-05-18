@@ -218,3 +218,37 @@ When you are asked to fix a build failure, add a package, or resolve an infrastr
 3. **DO** compare the working configuration in Dakota/gnome-build-meta to the Aurora configuration.
 4. **DO** apply the exact pattern or approach used in the reference repos.
 5. **DO** document the reasoning in memory or commit messages.
+
+---
+
+## ISO Installer (hanthor/tromso-iso)
+
+The live ISO installer (`hanthor/tromso-iso`) uses `tuna-installer` (fisherman backend) to install Aurora KDE Linux.  It is modeled on `projectbluefin/dakota-iso` and must stay in sync with that project's patterns.
+
+### composeFsBackend and bootupd
+
+**Always use `composeFsBackend: true` in the fisherman recipe.**
+
+When `composeFsBackend: true`:
+- fisherman exports the OCI image to an OCI layout on the TARGET DISK scratch (`/var/tmp`) before calling bootc
+- bootc receives `--composefs-backend --source-imgref oci:/var/tmp/oci-cache`  
+- The `-v /var/lib/containers:/var/lib/containers` bind-mount is **NOT** passed to the container
+- bootc does **NOT** check for `bootupd` in this code path
+- The install works without `bootupd` being present in the image (same as dakota)
+
+**Do NOT use `composeFsBackend: false`.**  That path requires `bootupd` (specifically `bootupctl`) which is not shipped in the tromso image.
+
+### OCI Layer Compression
+
+The tromso OCI image must have gzip-compressed layers for composefs to work:
+- Set `gzip: gzip` in `elements/oci/tromso.bst` (NOT `gzip: disabled`)
+- `gzip: disabled` produces uncompressed layers that cause bootc's composefs splitstream to deadlock
+- In the ISO build, force gzip re-compression when exporting: `skopeo copy --dest-compress-format gzip --dest-force-compress-format`
+
+### VFS Containers-Storage in Squashfs
+
+The squashfs embeds the tromso OCI image as VFS containers-storage.  The skopeo import into VFS **must run from inside the installer container** (not the build host) so the tar-split metadata is written in the format the live ISO can read.  See dakota-iso's justfile comment for details.
+
+### Key Reference: `/var/home/james/reference-repos/dakota-iso/`
+
+Always check dakota-iso for the correct behavior before making changes to tromso-iso.
