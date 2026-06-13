@@ -1,0 +1,33 @@
+# Tromso live ISO flatpaks
+# Installed into the live squashfs at build time.
+# Copied offline to the target by tuna-installer during installation.
+#
+# Note: org.bootcinstaller.Installer is installed separately via the GitHub
+# Releases bundle (not on Flathub) earlier in install-flatpaks.sh.
+#
+# Format: one app ID per line, resolved from the flathub remote.
+# Core browser
+org.mozilla.firefox
+
+# Flatpak management
+com.github.tchx84.Flatseal
+io.github.flattool.Warehouse
+
+# System tools
+io.missioncenter.MissionCenter
+org.gnome.Firmware
+io.gitlab.adhami3310.Impression
+
+# KDE apps not typically in the base image
+org.kde.haruna
+org.kde.merkuro
+org.kde.kasts
+org.kde.isoimagewriter
+
+# Utilities
+it.mijorus.smile
+page.tesk.Refine
+
+# GTK theming for GTK apps under KDE
+org.gtk.Gtk3theme.adw-gtk3
+org.gtk.Gtk3theme.adw-gtk3-dark

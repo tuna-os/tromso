@@ -1,0 +1,52 @@
+{
+  "log_file": "/var/log/bootc-installer.log",
+  "distro_name": "Tromso KDE Linux",
+  "distro_logo": "resource:///org/bootcinstaller/Installer/images/tromso.png",
+  "imgref": "ghcr.io/hanthor/tromso:latest",
+  "local_imgref": "containers-storage:ghcr.io/hanthor/tromso:latest",
+  "bootloader": "systemd",
+  "composeFsBackend": true,
+  "tour": {
+    "welcome": {
+      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
+      "title": "Welcome to Tromso",
+      "description": "Tromso KDE Linux — a KDE Plasma desktop built on freedesktop-sdk with bootc-powered atomic updates."
+    },
+    "features": {
+      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
+      "title": "KDE Plasma 6",
+      "description": "A complete KDE Plasma 6 desktop with Qt6, KDE Frameworks, and KDE applications."
+    },
+    "community": {
+      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
+      "title": "Atomic Updates",
+      "description": "Tromso uses bootc for image-based atomic updates. Your system stays consistent and is easy to roll back."
+    },
+    "developer": {
+      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
+      "title": "Getting Started",
+      "description": "Visit the Hanthor project page for documentation and to file issues. We fix them."
+    },
+    "completed": {
+      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
+      "title": "Ready to Install",
+      "description": "Select your disk and install Tromso KDE Linux. Welcome to the new world!"
+    }
+  },
+  "steps": {
+    "welcome": {
+      "template": "welcome",
+      "protected": true
+    },
+    "image": {
+      "template": "image",
+      "protected": true
+    },
+    "disk": {
+      "template": "disk"
+    },
+    "encryption": {
+      "template": "encryption"
+    }
+  }
+}

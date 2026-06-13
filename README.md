@@ -128,3 +128,5 @@ See `AGENTS.md` for full conventions and workflows.
 - **[gnome-build-meta](https://gitlab.gnome.org/GNOME/gnome-build-meta)** — build patterns reference
 - **[freedesktop-sdk](https://freedesktop-sdk.io/)** — base SDK
 - **[BuildStream](https://www.buildstream.build/)** — build system
+
+## ISO Builder (merged from tromso-iso)

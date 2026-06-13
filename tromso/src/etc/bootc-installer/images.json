@@ -1,0 +1,17 @@
+{
+  "default_image": "ghcr.io/hanthor/tromso:latest",
+  "fallback_flatpaks": [],
+  "images": [
+    {
+      "name": "Tromso KDE Linux",
+      "imgref": "ghcr.io/hanthor/tromso:latest",
+      "desc": "Tromso KDE Linux — KDE Plasma desktop on freedesktop-sdk",
+      "icon": "resource:///org/bootcinstaller/Installer/images/tromso.png",
+      "bootloader": "systemd",
+      "filesystem": "btrfs",
+      "composefs": true,
+      "needs_user_creation": false,
+      "flatpak_var_path": "state/os/default/var"
+    }
+  ]
+}
