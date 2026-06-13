@@ -4,7 +4,7 @@
 
 **Aurora Tromso** is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's
 [`projectbluefin/dakota`](https://github.com/projectbluefin/dakota). It builds KDE Plasma 6 on top
-of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/hanthor/tromso`.
+of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso`.
 
 **Status: Builds successfully and boots to a working KDE Plasma 6 Wayland desktop.**
 
@@ -13,11 +13,11 @@ of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/hanthor/tromso
 Aurora Tromso uses a two-repo model:
 
 ```
-hanthor/tromso          (this repo — Aurora customizations + OCI composition)
+tuna-os/tromso          (this repo — Aurora customizations + OCI composition)
 ├── elements/
 │   ├── kde-build-meta.bst    junction → hanthor/kde-build-meta
 │   ├── tromso/               Aurora Tromso-specific layers (theming, apps, overlays)
-│   └── oci/tromso.bst        top-level build target → ghcr.io/hanthor/tromso
+│   └── oci/tromso.bst        top-level build target → ghcr.io/tuna-os/tromso
 └── Justfile
 
 hanthor/kde-build-meta  (KDE .bst elements — KDE Linux base image)
@@ -44,7 +44,7 @@ Aurora Tromso.
 ### Build
 
 ```bash
-git clone https://github.com/hanthor/tromso.git
+git clone https://github.com/tuna-os/tromso.git
 cd tromso
 
 # Background build with live log tailing
@@ -94,9 +94,9 @@ The CI workflow (`.github/workflows/build-buildgrid.yml`) builds `oci/tromso.bst
 local CASD on the runner, then pushes the result to GHCR:
 
 ```
-ghcr.io/hanthor/tromso:latest
-ghcr.io/hanthor/tromso:<date>
-ghcr.io/hanthor/tromso:<git-sha>
+ghcr.io/tuna-os/tromso:latest
+ghcr.io/tuna-os/tromso:<date>
+ghcr.io/tuna-os/tromso:<git-sha>
 ```
 
 **How it works:**
