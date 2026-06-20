@@ -1,0 +1,35 @@
+# YAMLlint configuration for tromso BuildStream project
+extends: relaxed
+
+rules:
+  line-length:
+    max: 150
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+  document-start: disable
+  document-end: disable
+  trailing-spaces: enable
+  comments:
+    min-spaces-from-content: 1
+    require-starting-space: false
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+  empty-lines:
+    max: 2
+    max-start: 0
+    max-end: 1
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']
+    check-keys: false
