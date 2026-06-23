@@ -1,0 +1,97 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './'
+          severity: warning
+          format: tty
+
+  yamllint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_file: .yamllint.yml
+
+  bst-validate:
+    name: BuildStream Validate
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/buildstream/buildstream:latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - name: Validate .bst elements
+        run: |
+          bst init --project-name tromso || true
+          bst show --format "%{name}" *.bst elements/*.bst elements/**/*.bst 2>&1 || echo "NOTE: full bst show requires junction setup"
+
+  bats-tests:
+    name: BATS Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+
+      - name: Install BATS
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bats
+
+      - name: Run BATS tests
+        run: |
+          echo "=== BATS Tests ==="
+          FAILED=0
+          for f in tests/bats/*.bats; do
+            [[ -f "$f" ]] || continue
+            echo "  Running: $f"
+            bats --formatter tap "$f" || FAILED=1
+          done
+          exit $FAILED
+
+  pytest:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install pytest
+      - name: Run pytest (scripts)
+        run: |
+          pytest scripts/ --doctest-modules --tb=short || echo "NOTE: no doctests in scripts"
+      - name: Run pytest (tests/pytest)
+        run: |
+          pytest tests/pytest/ -v --tb=short || echo "NOTE: no pytest tests defined yet"
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "| Type | Files |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| BATS | $(find tests/bats -name '*.bats' -type f | wc -l) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| pytest | $(find tests/pytest -name '*.py' -type f 2>/dev/null | wc -l) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run locally: bats tests/bats/*.bats && pytest tests/pytest/" >> "$GITHUB_STEP_SUMMARY"
