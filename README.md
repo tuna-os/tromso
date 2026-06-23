@@ -48,13 +48,9 @@ git clone https://github.com/tuna-os/tromso.git
 cd tromso
 
 # Background build with live log tailing
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 just bst-build
 
 # Or foreground build + OCI export
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 just build
 ```
 
@@ -62,18 +58,12 @@ just build
 
 ```bash
 # Generate a bootable disk image (requires a completed build)
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 just generate-bootable-image
 
 # Boot the image in QEMU
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 just boot-vm
 
 # SSH in (password: aurora)
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ssh -p 2222 root@localhost
 ```
 
@@ -115,25 +105,17 @@ After committing there, update the junction ref in `elements/kde-build-meta.bst`
 
 ```bash
 # 1. Commit + push kde-build-meta
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 cd /path/to/kde-build-meta
 TMPDIR=/var/tmp git commit -m "..."
 git push origin master
 
 # 2. Get new SHA and hash
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 SHA=$(git rev-parse --short=7 HEAD)
 curl -sL https://github.com/hanthor/kde-build-meta/archive/${SHA}.tar.gz | tee /tmp/kbm.tar.gz | sha256sum
 
 # 3. Update elements/kde-build-meta.bst with new url/ref/base-dir
 
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-
 # 4. Commit tromso
-
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 cd /path/to/tromso
 TMPDIR=/var/tmp git commit -m "Update junction to kde-build-meta ${SHA}"
 ```
