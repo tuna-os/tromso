@@ -1,7 +1,7 @@
 name: Build Tromso (CASD)
 
 # Builds oci/tromso.bst with local CASD on the runner,
-# then exports and pushes the OCI image to ghcr.io/hanthor/tromso.
+# then exports and pushes the OCI image to ghcr.io/tuna-os/tromso.
 
 on:
   workflow_dispatch:

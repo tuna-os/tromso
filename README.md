@@ -15,7 +15,7 @@ Aurora Tromso uses a two-repo model:
 ```
 tuna-os/tromso          (this repo — Aurora customizations + OCI composition)
 ├── elements/
-│   ├── kde-build-meta.bst    junction → hanthor/kde-build-meta
+│   ├── kde-build-meta.bst    junction → tuna-os/kde-build-meta
 │   ├── tromso/               Aurora Tromso-specific layers (theming, apps, overlays)
 │   └── oci/tromso.bst        top-level build target → ghcr.io/tuna-os/tromso
 └── Justfile

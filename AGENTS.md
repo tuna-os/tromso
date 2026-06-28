@@ -3,7 +3,7 @@
 Aurora is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's `projectbluefin/dakota`.
 It builds KDE Plasma 6 on top of freedesktop-sdk using two repos:
 
-- **`hanthor/tromso`** — top-level OCI project (this repo)
+- **`tuna-os/tromso`** — top-level OCI project (this repo)
 - **`hanthor/kde-build-meta`** — KDE `.bst` elements (junctioned in)
 
 ---
@@ -221,9 +221,9 @@ When you are asked to fix a build failure, add a package, or resolve an infrastr
 
 ---
 
-## ISO Installer (hanthor/tromso-iso)
+## ISO Installer (tuna-os/tromso-iso)
 
-The live ISO installer (`hanthor/tromso-iso`) uses `tuna-installer` (fisherman backend) to install Aurora KDE Linux.  It is modeled on `projectbluefin/dakota-iso` and must stay in sync with that project's patterns.
+The live ISO installer (`tuna-os/tromso-iso`) uses `tuna-installer` (fisherman backend) to install Aurora KDE Linux.  It is modeled on `projectbluefin/dakota-iso` and must stay in sync with that project's patterns.
 
 ### composeFsBackend and bootupd
 

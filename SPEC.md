@@ -11,7 +11,7 @@ The project uses a two-repo model:
 
 | Repo | Role |
 |------|------|
-| [`hanthor/tromso`](https://github.com/hanthor/tromso) | This repo — Aurora-specific layers, OCI composition, CI |
+| [`tuna-os/tromso`](https://github.com/tuna-os/tromso) | This repo — Aurora-specific layers, OCI composition, CI |
 | [`hanthor/kde-build-meta`](https://github.com/hanthor/kde-build-meta) | KDE `.bst` elements — Qt6, Frameworks, Plasma, Apps, base image |
 
 Reference sources used during development:
@@ -28,7 +28,7 @@ Reference sources used during development:
 ## Repository Structure
 
 ```
-hanthor/tromso (this repo)
+tuna-os/tromso (this repo)
 ├── project.conf                  # BuildStream project config (name: aurora)
 ├── Justfile                      # Build recipes (bst, build, boot-vm, etc.)
 ├── include/
@@ -99,7 +99,7 @@ freedesktop-sdk (base SDK)
             └── oci/kde-linux/   # KDE Linux base image
                     └── tromso/deps.bst      # Aurora additions
                             └── oci/tromso.bst  # Final OCI image
-                                    └── ghcr.io/hanthor/tromso:latest
+                                    └── ghcr.io/tuna-os/tromso:latest
 ```
 
 The build is fully reproducible: all sources are pinned by git ref or tarball SHA256.
@@ -181,7 +181,7 @@ GitHub Actions runner
   → bst2 container pull (pinned image SHA)
   → just bst build oci/tromso.bst     (local CASD build)
   → just export                        (exports OCI tarball)
-  → skopeo push ghcr.io/hanthor/tromso:latest
+  → skopeo push ghcr.io/tuna-os/tromso:latest
 ```
 
 Triggers: push to `main` (elements/**, project.conf, include/**), daily at 06:00 UTC, manual dispatch.
