@@ -2,8 +2,8 @@
   "log_file": "/var/log/bootc-installer.log",
   "distro_name": "Tromso KDE Linux",
   "distro_logo": "resource:///org/bootcinstaller/Installer/images/tromso.png",
-  "imgref": "ghcr.io/hanthor/tromso:latest",
-  "local_imgref": "containers-storage:ghcr.io/hanthor/tromso:latest",
+  "imgref": "ghcr.io/tuna-os/tromso:latest",
+  "local_imgref": "containers-storage:ghcr.io/tuna-os/tromso:latest",
   "bootloader": "systemd",
   "composeFsBackend": true,
   "tour": {
@@ -25,7 +25,7 @@
     "developer": {
       "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
       "title": "Getting Started",
-      "description": "Visit the Hanthor project page for documentation and to file issues. We fix them."
+      "description": "Visit the TunaOS project page for documentation and to file issues. We fix them."
     },
     "completed": {
       "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
