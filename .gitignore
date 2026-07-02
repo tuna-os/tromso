@@ -33,8 +33,13 @@ kwin-local
 kde/
 patched-repos/
 
+# AI agent runtime artifacts (not project content)
+.claude/
+.gemini/
+.antigravitycli/
+.pi/
+
 # AI session logs
-.claude/sessions/
 copilot-session-*.md
 nohup.out
 
