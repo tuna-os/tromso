@@ -9,17 +9,17 @@ variables:
 
 environment:
   IMAGE_NAME: "aurora"
-  IMAGE_VENDOR: "hanthor"
-  IMAGE_REF: "ostree-image-signed:docker://ghcr.io/hanthor/tromso"
+  IMAGE_VENDOR: "tuna-os"
+  IMAGE_REF: "ostree-image-signed:docker://ghcr.io/tuna-os/tromso"
   IMAGE_FLAVOR: "main"
   IMAGE_TAG: "latest"
   VERSION_ID: "0"
   IMAGE_VERSION: "0"
   IMAGE_PRETTY_NAME: "Aurora Tromso"
-  HOME_URL: "https://github.com/hanthor/tromso"
-  DOCUMENTATION_URL: "https://github.com/hanthor/tromso"
-  SUPPORT_URL: "https://github.com/hanthor/tromso/issues"
-  BUG_SUPPORT_URL: "https://github.com/hanthor/tromso/issues"
+  HOME_URL: "https://github.com/tuna-os/tromso"
+  DOCUMENTATION_URL: "https://github.com/tuna-os/tromso"
+  SUPPORT_URL: "https://github.com/tuna-os/tromso/issues"
+  BUG_SUPPORT_URL: "https://github.com/tuna-os/tromso/issues"
   ID: "aurora"
 
 config:

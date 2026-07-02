@@ -148,11 +148,11 @@ config:
             'com.github.containers.toolbox': 'true'
             'org.opencontainers.image.title': 'Aurora Tromso'
             'org.opencontainers.image.description': 'Aurora Tromso KDE Plasma desktop, layered on KDE Linux'
-            'org.opencontainers.image.vendor': 'Hanthor'
+            'org.opencontainers.image.vendor': 'TunaOS'
             'org.opencontainers.image.licenses': 'Apache-2.0'
-            'org.opencontainers.image.url': 'https://github.com/hanthor/tromso'
-            'org.opencontainers.image.source': 'https://github.com/hanthor/tromso'
+            'org.opencontainers.image.url': 'https://github.com/tuna-os/tromso'
+            'org.opencontainers.image.source': 'https://github.com/tuna-os/tromso'
             'containers.bootc': '1'
         index-annotations:
-          'org.opencontainers.image.ref.name': 'ghcr.io/hanthor/tromso:latest'
+          'org.opencontainers.image.ref.name': 'ghcr.io/tuna-os/tromso:latest'
       EOF
