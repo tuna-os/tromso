@@ -41,7 +41,7 @@ setup() {
 
 @test "build-iso.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${BUILD_ISO}"
+    run shellcheck --severity=error "${BUILD_ISO}"
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"

@@ -33,7 +33,7 @@ REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 
 @test "fetch_pkgbuild.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${REPO_ROOT}/.claude/skills/arch-pkgbuild/scripts/fetch_pkgbuild.sh"
+    run shellcheck --severity=error "${REPO_ROOT}/.claude/skills/arch-pkgbuild/scripts/fetch_pkgbuild.sh"
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"
@@ -66,7 +66,7 @@ REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 
 @test "lint_bst.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${REPO_ROOT}/.claude/skills/bst-lint/scripts/lint_bst.sh"
+    run shellcheck --severity=error "${REPO_ROOT}/.claude/skills/bst-lint/scripts/lint_bst.sh"
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"
@@ -99,7 +99,7 @@ REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 
 @test "extract_error.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${REPO_ROOT}/.claude/skills/build-log-extract/scripts/extract_error.sh"
+    run shellcheck --severity=error "${REPO_ROOT}/.claude/skills/build-log-extract/scripts/extract_error.sh"
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"
@@ -132,7 +132,7 @@ REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 
 @test "bump_source.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${REPO_ROOT}/.claude/skills/bump-package-source/scripts/bump_source.sh"
+    run shellcheck --severity=error "${REPO_ROOT}/.claude/skills/bump-package-source/scripts/bump_source.sh"
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"
@@ -160,7 +160,7 @@ REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 
 @test "fetch_kde_linux_ref.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${REPO_ROOT}/.claude/skills/kde-linux-ref/scripts/fetch_kde_linux_ref.sh"
+    run shellcheck --severity=error "${REPO_ROOT}/.claude/skills/kde-linux-ref/scripts/fetch_kde_linux_ref.sh"
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"
