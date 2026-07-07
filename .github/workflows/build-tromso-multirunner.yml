@@ -1,10 +1,14 @@
 name: Build Tromso (Multi-Runner)
 
-# Adapted from hanthor/dakota build-dakota-aarch64.yml for Tromso KDE build
 # Breaks the build into 10 parallel chunks across GitHub runners
 
 on:
-  # Disabled: use build-buildgrid.yml instead (BuildGrid is faster and more reliable)
+  push:
+    branches: [main]
+    paths:
+      - 'elements/**'
+      - 'project.conf'
+      - 'include/**'
   workflow_dispatch:
 
 env:
