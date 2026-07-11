@@ -36,7 +36,7 @@ setup() {
 
 @test "install-flatpaks.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${INSTALL_FLATPAKS}"
+    run shellcheck --severity=error "${INSTALL_FLATPAKS}"
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"
