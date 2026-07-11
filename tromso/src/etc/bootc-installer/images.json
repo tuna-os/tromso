@@ -1,10 +1,10 @@
 {
-  "default_image": "ghcr.io/hanthor/tromso:latest",
+  "default_image": "ghcr.io/tuna-os/tromso:latest",
   "fallback_flatpaks": [],
   "images": [
     {
       "name": "Tromso KDE Linux",
-      "imgref": "ghcr.io/hanthor/tromso:latest",
+      "imgref": "ghcr.io/tuna-os/tromso:latest",
       "desc": "Tromso KDE Linux — KDE Plasma desktop on freedesktop-sdk",
       "icon": "resource:///org/bootcinstaller/Installer/images/tromso.png",
       "bootloader": "systemd",
