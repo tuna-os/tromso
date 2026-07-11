@@ -10,15 +10,6 @@ on:
         description: 'Push OCI image to GHCR'
         type: boolean
         default: true
-  schedule:
-    # Daily at 06:00 UTC
-    - cron: '0 6 * * *'
-  push:
-    branches: [main]
-    paths:
-      - 'elements/**'
-      - 'project.conf'
-      - 'include/**'
 
 env:
   IMAGE_NAME: tromso

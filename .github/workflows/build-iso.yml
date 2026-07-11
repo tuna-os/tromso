@@ -2,7 +2,7 @@ name: Build and Publish Tromsø Live ISO
 
 on:
   workflow_run:
-    workflows: ["Build Tromso (BuildGrid)"]
+    workflows: ["Build Tromso (Multi-Runner)"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
