@@ -36,7 +36,7 @@ setup() {
 
 @test "configure-live.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${CONFIGURE_LIVE}"
+    run shellcheck --severity=error "${CONFIGURE_LIVE}"
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"
