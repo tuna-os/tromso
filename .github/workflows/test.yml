@@ -16,19 +16,19 @@ jobs:
     name: ShellCheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4  # v4
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: './'
-          severity: warning
+          severity: error
           format: tty
 
   yamllint:
     name: YAML Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4  # v4
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
         with:
@@ -40,7 +40,7 @@ jobs:
     container:
       image: quay.io/buildstream/buildstream:latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4  # v4
       - name: Validate .bst elements
         run: |
           bst init --project-name tromso || true
@@ -50,7 +50,7 @@ jobs:
     name: BATS Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4  # v4
 
       - name: Install BATS
         run: |
@@ -72,7 +72,7 @@ jobs:
     name: Python Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901abe5b8200bef0e37dffb14cc0ad4d7e # v4
+      - uses: actions/checkout@v4  # v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

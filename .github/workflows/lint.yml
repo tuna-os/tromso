@@ -42,7 +42,7 @@ jobs:
             tromso/src/build-iso.sh
             tromso/src/configure-live.sh
             tromso/src/install-flatpaks.sh
-          severity: warning
+          severity: error
 
   yamllint:
     name: yamllint
