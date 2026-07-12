@@ -38,7 +38,7 @@ jobs:
     name: BuildStream Validate
     runs-on: ubuntu-latest
     container:
-      image: quay.io/buildstream/buildstream:latest
+      image: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
     steps:
       - uses: actions/checkout@v4  # v4
       - name: Validate .bst elements
