@@ -29,7 +29,7 @@ Reference sources used during development:
 
 ```
 tuna-os/tromso (this repo)
-├── project.conf                  # BuildStream project config (name: aurora)
+├── project.conf                  # BuildStream project config (name: tromso)
 ├── Justfile                      # Build recipes (bst, build, boot-vm, etc.)
 ├── include/
 │   └── aliases.yml               # URL aliases (kde:, github:, etc.)
