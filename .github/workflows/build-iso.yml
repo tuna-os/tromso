@@ -40,6 +40,9 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+
       - name: Determine channel
         id: channel
         run: |
@@ -63,7 +66,7 @@ jobs:
           tool-cache: true
 
       - name: Install dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y just podman buildah rclone mtools xorriso skopeo
+        run: sudo apt-get update -qq && sudo apt-get install -y podman buildah rclone mtools xorriso skopeo
 
       - name: Log in to GHCR
         run: echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin

@@ -52,6 +52,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+
       - name: Ensure screenshots branch exists
         continue-on-error: true
         env:
@@ -78,7 +81,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            just podman buildah skopeo mtools xorriso squashfs-tools \
+            podman buildah skopeo mtools xorriso squashfs-tools \
             qemu-system-x86 qemu-utils ovmf socat sshpass imagemagick -qq
 
       - name: Log in to GHCR
@@ -95,7 +98,7 @@ jobs:
           sudo mkdir -p /var/iso-build
           mkdir -p output
           # debug=1 enables SSH in the live session for the install step below.
-          sudo just \
+          sudo "$(command -v just)" \
             debug=1 \
             installer_channel=${{ matrix.installer_channel }} \
             output_dir=/var/iso-build \
