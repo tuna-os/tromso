@@ -163,3 +163,13 @@ token wipe: `gh api -X POST orgs/tuna-os/actions/runners/registration-token`
 then `./config.sh --unattended --replace --url https://github.com/tuna-os
 --token <T> --name kanpur --labels kanpur,vm --work /work` inside the
 container (RUNNER_ALLOW_RUNASROOT=1).
+
+## Rollback
+
+`rollback-stable.yml` (dispatch-only, **dry_run defaults to true**) is the
+inverse of promotion: verifies the target `:<sha>` image exists, then
+`skopeo copy --preserve-digests` onto `:stable` (+ a dated
+`stable-rollback-*` tag) and force-pushes the stable branch to the same
+commit so branch and tag never diverge. Shares the promote concurrency
+group so it cannot race a promotion. Dakota-pattern notes: once signing
+lands, add a cosign-verify step before the retag.

@@ -77,3 +77,11 @@ jobs:
         uses: docker://rhysd/actionlint:latest
         with:
           args: -color
+
+  renovate-config:
+    name: Renovate Config Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate renovate.json
+        run: npx --yes --package renovate -- renovate-config-validator renovate.json
