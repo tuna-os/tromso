@@ -98,7 +98,7 @@ kde-linux-packages.txt
 patches/
 
 # Old local-build Containerfiles
-Containerfile
+/Containerfile
 Containerfile-final
 
 # Misc build outputs
