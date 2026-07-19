@@ -55,6 +55,8 @@ def get_build_plan(target: str, arch: str | None = None, plan_file: str | None =
             name = parts[0].strip()
             state = parts[1].strip()
             full_key = parts[2].strip() if len(parts) > 2 else ""
+            if not name:
+                raise ValueError("empty element name")
             if state != "cached":
                 elements.append({"name": name, "state": state, "key": full_key})
         except (ValueError, IndexError):
