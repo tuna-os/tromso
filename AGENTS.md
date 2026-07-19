@@ -252,3 +252,9 @@ The squashfs embeds the tromso OCI image as VFS containers-storage.  The skopeo 
 ### Key Reference: `/var/home/james/reference-repos/dakota-iso/`
 
 Always check dakota-iso for the correct behavior before making changes to tromso-iso.
+
+## CI & ISO pipeline
+
+See `docs/ci-and-iso-pipeline.md` for the multi-runner build architecture,
+live-ISO pipeline, LUKS e2e test, source-update automation, and the running
+CI troubleshooting log (append to it while debugging CI).
