@@ -194,16 +194,22 @@ cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/bootc-installer/images.jso
 cp "$SCRIPT_DIR/etc/bootc-installer/recipe.json" /etc/bootc-installer/recipe.json
 touch /etc/bootc-installer/live-iso-mode
 
+# tuna-installer frontends read /etc/tuna-installer/ (INSTALLER-FRONTENDS.md):
+# images.json catalog override + offline-stores listing embedded OCI store roots.
+mkdir -p /etc/tuna-installer
+cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/tuna-installer/images.json
+echo '/var/lib/containers/storage' > /etc/tuna-installer/offline-stores
+
 # ── Installer autostart ───────────────────────────────────────────────────────
-# XDG autostart works on KDE Plasma; the installer launches automatically.
-INSTALLER_APP_ID="org.bootcinstaller.Installer"
-[[ "${INSTALLER_CHANNEL:-stable}" == "dev" ]] && INSTALLER_APP_ID="org.bootcinstaller.Installer.Devel"
+# org.tunaos.InstallerKde is installed from the tuna-os remote by
+# install-flatpaks.sh. XDG autostart works on KDE Plasma.
+INSTALLER_APP_ID="org.tunaos.InstallerKde"
 
 mkdir -p /etc/xdg/autostart
 cat > /etc/xdg/autostart/tuna-installer.desktop << DTEOF
 [Desktop Entry]
 Name=Tromso Installer
-Exec=flatpak run --env=VANILLA_CUSTOM_RECIPE=/run/host/etc/bootc-installer/recipe.json ${INSTALLER_APP_ID}
+Exec=flatpak run ${INSTALLER_APP_ID}
 Icon=tromso
 Type=Application
 X-KDE-autostart-phase=2
@@ -215,7 +221,7 @@ cat > /usr/share/applications/tromso-installer.desktop << DTEOF
 [Desktop Entry]
 Name=Tromso Installer
 Comment=Install Tromso KDE Linux to your computer
-Exec=flatpak run --env=VANILLA_CUSTOM_RECIPE=/run/host/etc/bootc-installer/recipe.json ${INSTALLER_APP_ID}
+Exec=flatpak run ${INSTALLER_APP_ID}
 Icon=tromso
 Type=Application
 Categories=System;
@@ -223,14 +229,18 @@ NoDisplay=false
 DTEOF
 
 # ── Polkit rules for live installer ──────────────────────────────────────────
-INSTALLER_APP_DIR=$(find /var/lib/flatpak/app/${INSTALLER_APP_ID} -name fisherman -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true)
-if [ -n "$INSTALLER_APP_DIR" ]; then
+# Frontends escalate via `flatpak-spawn --host pkexec /usr/local/bin/fisherman`;
+# expose the flatpak-bundled binary there.
+FISHERMAN_BIN=$(find /var/lib/flatpak/app/${INSTALLER_APP_ID} -path '*/files/bin/fisherman' -type f 2>/dev/null | head -1)
+if [ -n "$FISHERMAN_BIN" ]; then
     mkdir -p /usr/local/bin
-    ln -sf "${INSTALLER_APP_DIR}/fisherman" /usr/local/bin/fisherman
+    ln -sf "${FISHERMAN_BIN}" /usr/local/bin/fisherman
+else
+    echo "WARNING: fisherman not found inside ${INSTALLER_APP_ID}" >&2
 fi
 
 mkdir -p /usr/share/polkit-1/actions
-cat > /usr/share/polkit-1/actions/org.bootcinstaller.Installer.policy << 'POLICYEOF'
+cat > /usr/share/polkit-1/actions/org.tunaos.Installer.policy << 'POLICYEOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE policyconfig PUBLIC
   "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"

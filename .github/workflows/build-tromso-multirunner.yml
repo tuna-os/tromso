@@ -1,6 +1,7 @@
 name: Build Tromso (Multi-Runner)
 
-# Breaks the build into 10 parallel chunks across GitHub runners
+# Splits the BuildStream build into parallel chunks across free GitHub
+# runners, sharing CAS state between jobs via GHCR-hosted tarballs.
 
 on:
   push:
@@ -9,26 +10,40 @@ on:
       - 'elements/**'
       - 'project.conf'
       - 'include/**'
+      - 'buildstream-ci.conf'
+      - 'scripts/ci-build-matrix.py'
+      - '.github/workflows/build-tromso-multirunner.yml'
   schedule:
     # Daily at 06:00 UTC
     - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      push_image:
+        description: 'Push OCI image to GHCR'
+        type: boolean
+        default: true
+      num_chunks:
+        description: 'Number of parallel dependency chunks'
+        type: string
+        default: '10'
 
 env:
   IMAGE_NAME: tromso
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  BST_TARGET: oci/tromso.bst
   BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
-  NUM_CHUNKS: "10"
+  NUM_CHUNKS: ${{ inputs.num_chunks || '10' }}
   CORE_SPLIT: "200"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.sha }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # ── Phase 1: Plan ────────────────────────────────────────────────────
   planning:
     runs-on: ubuntu-24.04
+    timeout-minutes: 90
     outputs:
       matrix_keys: ${{ steps.matrix.outputs.matrix_keys }}
       matrix_data: ${{ steps.matrix.outputs.matrix_data }}
@@ -47,15 +62,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/buildstream/sources
-          key: bst-sources-tromso-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
+          key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
           restore-keys: |
-            bst-sources-tromso-${{ runner.os }}-
+            bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-
 
       - name: Generate Build Matrix
         id: matrix
         env:
           BST_FLAGS: --no-interactive
-          BUILD_IMAGE_NAME: ${{ env.IMAGE_NAME }}
         run: |
           mkdir -p .cache/buildstream logs
 
@@ -65,7 +79,7 @@ jobs:
             -v "${{ github.workspace }}/.cache/buildstream:/root/.cache/buildstream:rw" \
             -w /src \
             "$BST2_IMAGE" \
-            python3 /src/scripts/ci-build-matrix.py oci/tromso.bst \
+            python3 /src/scripts/ci-build-matrix.py "$BST_TARGET" \
               "$NUM_CHUNKS" "$CORE_SPLIT" > matrix.json
 
           cat matrix.json
@@ -92,7 +106,6 @@ jobs:
       packages: write
     env:
       TARGETS: ${{ needs.planning.outputs.core_targets }}
-      BUILD_IMAGE_NAME: tromso
     steps:
       - name: Free disk space
         uses: ublue-os/remove-unwanted-software@v9
@@ -111,9 +124,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/buildstream/sources
-          key: bst-sources-tromso-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
+          key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
           restore-keys: |
-            bst-sources-tromso-${{ runner.os }}-
+            bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-
 
       - name: Login to GHCR
         run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -124,7 +137,7 @@ jobs:
         run: |
           mkdir -p ~/.cache/buildstream
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          CORE_REF="ghcr.io/${REPO_LOWER}/cache-tromso-core:latest"
+          CORE_REF="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest"
           if oras pull "$CORE_REF" -o .; then
             if [ -f cas-core.tar.zst ]; then
               zstd -d -T0 cas-core.tar.zst -o cas-core.tar
@@ -132,37 +145,20 @@ jobs:
               rm -f cas-core.tar cas-core.tar.zst
             fi
           else
-            echo "No existing Tromso core cache, starting fresh."
+            echo "No existing ${IMAGE_NAME} core cache, starting fresh."
           fi
-
-      - name: Generate CI config
-        run: |
-          mkdir -p logs
-          cat > buildstream-ci.conf <<'BSTCONF'
-          scheduler:
-            on-error: continue
-            fetchers: 12
-            builders: 1
-            network-retries: 3
-          logging:
-            message-format: '[%{wallclock}][%{elapsed}][%{key}][%{element}] %{action} %{message}'
-            error-lines: 80
-          build:
-            max-jobs: 0
-            retry-failed: True
-          cache:
-            cache-buildtrees: never
-          BSTCONF
 
       - name: Build Core
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
-        run: just bst --log-file /src/logs/build-core.log build $TARGETS
+        run: |
+          mkdir -p logs
+          just bst --log-file /src/logs/build-core.log build $TARGETS
 
       - name: Archive and Push Core CAS
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          CORE_REF="ghcr.io/${REPO_LOWER}/cache-tromso-core:latest"
+          CORE_REF="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest"
           podman run --rm \
             -v "$HOME/.cache/buildstream:/input:ro" \
             -v "${{ github.workspace }}:/output:rw" \
@@ -170,6 +166,14 @@ jobs:
             sh -c "tar -cf /output/cas-core.tar -C /input --exclude 'cas/staging' --exclude 'cas/tmp' . || [ \$? -eq 1 ]"
           zstd -T0 --rm cas-core.tar -o cas-core.tar.zst
           oras push "$CORE_REF" cas-core.tar.zst:application/vnd.buildstream.cas.tar.zst
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs-${{ env.IMAGE_NAME }}-core
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore
 
   # ── Phase 3: Dependency chunks (parallel) ───────────────────────────
   build_deps:
@@ -187,7 +191,6 @@ jobs:
     env:
       TARGETS: ${{ fromJson(needs.planning.outputs.matrix_data)[matrix.chunk] }}
       CHUNK_CACHE_KEY: ${{ fromJson(needs.planning.outputs.cache_keys)[matrix.chunk] }}
-      BUILD_IMAGE_NAME: tromso
     name: Build ${{ matrix.chunk }}
     steps:
       - name: Free disk space
@@ -207,9 +210,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/buildstream/sources
-          key: bst-sources-tromso-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
+          key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
           restore-keys: |
-            bst-sources-tromso-${{ runner.os }}-
+            bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-
 
       - name: Login to GHCR
         run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -221,7 +224,7 @@ jobs:
         if: env.CHUNK_CACHE_KEY != '' && env.CHUNK_CACHE_KEY != 'null'
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-tromso-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
+          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
           if oras manifest fetch "$CHUNK_REF" > /dev/null 2>&1; then
             echo "cache_hit=true" >> "$GITHUB_OUTPUT"
           else
@@ -233,7 +236,7 @@ jobs:
         run: |
           mkdir -p ~/.cache/buildstream
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          if oras pull "ghcr.io/${REPO_LOWER}/cache-tromso-core:latest" -o .; then
+          if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest" -o .; then
             if [ -f cas-core.tar.zst ]; then
               zstd -d -T0 cas-core.tar.zst -o cas-core.tar
               tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
@@ -246,7 +249,7 @@ jobs:
         continue-on-error: true
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-tromso-${{ matrix.chunk }}:latest"
+          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-${{ matrix.chunk }}:latest"
           if oras pull "$LATEST_REF" -o .; then
             if [ -f cas-${{ matrix.chunk }}.tar.zst ]; then
               mkdir -p ~/.cache/buildstream
@@ -256,26 +259,6 @@ jobs:
             fi
           fi
 
-      - name: Generate CI config
-        if: steps.cache_check.outputs.cache_hit != 'true'
-        run: |
-          mkdir -p logs
-          cat > buildstream-ci.conf <<'BSTCONF'
-          scheduler:
-            on-error: continue
-            fetchers: 12
-            builders: 1
-            network-retries: 3
-          logging:
-            message-format: '[%{wallclock}][%{elapsed}][%{key}][%{element}] %{action} %{message}'
-            error-lines: 80
-          build:
-            max-jobs: 0
-            retry-failed: True
-          cache:
-            cache-buildtrees: never
-          BSTCONF
-
       - name: Build Chunk
         id: build
         if: steps.cache_check.outputs.cache_hit != 'true'
@@ -283,7 +266,7 @@ jobs:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
         run: |
           [ -z "$TARGETS" ] && { echo "skipped=true" >> "$GITHUB_OUTPUT"; exit 0; }
-          mkdir -p ~/.cache/buildstream
+          mkdir -p ~/.cache/buildstream logs
           for i in 1 2 3; do
             just bst --log-file /src/logs/build-${{ matrix.chunk }}.log build $TARGETS && break
             echo "Retry $i/3..."; sleep 10
@@ -293,8 +276,8 @@ jobs:
         if: always() && steps.cache_check.outputs.cache_hit != 'true' && steps.build.outputs.skipped != 'true' && env.CHUNK_CACHE_KEY != '' && env.CHUNK_CACHE_KEY != 'null'
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-tromso-${{ matrix.chunk }}:latest"
-          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-tromso-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
+          LATEST_REF="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-${{ matrix.chunk }}:latest"
+          CHUNK_REF="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-${{ matrix.chunk }}:${CHUNK_CACHE_KEY}"
           podman run --rm \
             -v "$HOME/.cache/buildstream:/input:ro" \
             -v "${{ github.workspace }}:/output:rw" \
@@ -308,7 +291,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: build-logs-tromso-${{ matrix.chunk }}
+          name: build-logs-${{ env.IMAGE_NAME }}-${{ matrix.chunk }}
           path: logs/
           retention-days: 7
           if-no-files-found: ignore
@@ -318,23 +301,16 @@ jobs:
     needs: [planning, build_deps]
     if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-24.04
+    timeout-minutes: 360
     permissions:
       contents: read
       packages: write
-    env:
-      BUILD_IMAGE_NAME: tromso
     steps:
       - name: Free disk space
         uses: ublue-os/remove-unwanted-software@v9
         continue-on-error: true
 
       - uses: actions/checkout@v4
-
-      - name: Checkout chunkah
-        uses: actions/checkout@v4
-        with:
-          repository: coreos/chunkah
-          path: chunkah
 
       - run: podman pull "$BST2_IMAGE"
 
@@ -357,7 +333,7 @@ jobs:
           mkdir -p ~/.cache/buildstream
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-          if oras pull "ghcr.io/${REPO_LOWER}/cache-tromso-core:latest" -o .; then
+          if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest" -o .; then
             if [ -f cas-core.tar.zst ]; then
               zstd -d -T0 cas-core.tar.zst -o cas-core.tar
               tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
@@ -369,12 +345,12 @@ jobs:
             CACHE_KEY=$(echo "$CACHE_KEYS" | jq -r --arg c "$chunk" '.[$c] // empty')
             PULLED=false
             if [ -n "$CACHE_KEY" ]; then
-              if oras pull "ghcr.io/${REPO_LOWER}/cache-tromso-${chunk}:${CACHE_KEY}" -o .; then
+              if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-${chunk}:${CACHE_KEY}" -o .; then
                 PULLED=true
               fi
             fi
             if [ "$PULLED" = "false" ]; then
-              oras pull "ghcr.io/${REPO_LOWER}/cache-tromso-${chunk}:latest" -o . || continue
+              oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-${chunk}:latest" -o . || continue
             fi
             TARBALL="cas-${chunk}.tar.zst"
             if [ -f "$TARBALL" ]; then
@@ -385,29 +361,16 @@ jobs:
           done
           du -sh ~/.cache/buildstream
 
-      - name: Generate CI config
-        run: |
-          mkdir -p logs
-          cat > buildstream-ci.conf <<'BSTCONF'
-          scheduler:
-            on-error: continue
-            fetchers: 12
-            builders: 1
-            network-retries: 3
-          logging:
-            message-format: '[%{wallclock}][%{elapsed}][%{key}][%{element}] %{action} %{message}'
-            error-lines: 80
-          build:
-            max-jobs: 0
-            retry-failed: True
-          cache:
-            cache-buildtrees: never
-          BSTCONF
-
       - name: Build Final Target
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
-        run: just bst --log-file /src/logs/build-final.log build ${{ needs.planning.outputs.final_target }}
+        run: |
+          mkdir -p logs
+          just bst --log-file /src/logs/build-final.log build ${{ needs.planning.outputs.final_target }}
+
+      - name: Capture build timestamp
+        id: timestamp
+        run: echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Export OCI image
         id: export
@@ -416,6 +379,7 @@ jobs:
           BUILD_IMAGE_NAME: ${{ env.IMAGE_NAME }}
           OCI_IMAGE_REVISION: ${{ github.sha }}
           OCI_IMAGE_VERSION: latest
+          OCI_IMAGE_CREATED: ${{ steps.timestamp.outputs.created }}
         run: |
           just export
           echo "image_ref=${{ env.IMAGE_NAME }}:latest" >> "$GITHUB_OUTPUT"
@@ -429,12 +393,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: final-logs-tromso
+          name: final-logs-${{ env.IMAGE_NAME }}
           path: logs/
           retention-days: 7
           if-no-files-found: ignore
 
       - name: Login to GHCR (podman)
+        if: ${{ github.ref == 'refs/heads/main' && inputs.push_image != false }}
         run: |
           echo "$GITHUB_TOKEN" | \
             sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
@@ -442,14 +407,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to GHCR
+        if: ${{ github.ref == 'refs/heads/main' && inputs.push_image != false }}
         run: |
-          sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
-            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
-            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          for tag in latest "${{ github.sha }}"; do
+          DATE_TAG=$(date -u +%Y%m%d)
+          for tag in latest "$DATE_TAG" "${{ github.sha }}"; do
+            sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
+              "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
             for i in 1 2 3; do
               sudo podman push "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
               echo "Retry $i..."; sleep 5
             done
           done
+
+      - name: Build summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target**: \`${BST_TARGET}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:latest\`" >> $GITHUB_STEP_SUMMARY

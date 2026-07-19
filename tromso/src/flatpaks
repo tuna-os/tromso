@@ -2,8 +2,8 @@
 # Installed into the live squashfs at build time.
 # Copied offline to the target by tuna-installer during installation.
 #
-# Note: org.bootcinstaller.Installer is installed separately via the GitHub
-# Releases bundle (not on Flathub) earlier in install-flatpaks.sh.
+# Note: the org.tunaos.InstallerKde frontend is installed separately from the
+# tuna-os flatpak remote earlier in install-flatpaks.sh; do not list it here.
 #
 # Format: one app ID per line, resolved from the flathub remote.
 # Core browser

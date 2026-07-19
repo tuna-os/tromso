@@ -1,0 +1,164 @@
+name: Track BuildStream Sources
+
+# Auto-bump .bst source refs (dakota's track-bst-sources pattern, simplified):
+#   elements  — repo-local elements (elements/tromso, elements/gnomeos-deps),
+#               tracked together into one PR, safe to automerge once CI passes
+#   junctions — kde-build-meta, tracked atomically into
+#               a separate PR that needs a human eye (base bumps can rebuild
+#               the world)
+#
+# Renovate cannot parse .bst files, so this workflow is the .bst counterpart
+# to renovate.json.
+#
+# Note: PRs created with the default GITHUB_TOKEN do not trigger CI workflows.
+# Set a BOT_TOKEN repo secret (PAT or GitHub App token) to get CI on the PRs.
+
+on:
+  schedule:
+    # Daily at 03:00 UTC, before the 05:00 build
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      group:
+        description: 'Which element group to track'
+        type: choice
+        default: 'elements'
+        options: [all, elements, junctions]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: track-bst-sources
+  cancel-in-progress: false
+
+env:
+  BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
+
+jobs:
+  track:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: elements
+            paths: "elements/tromso elements/gnomeos-deps"
+            branch: auto/track-elements
+            title: "chore(deps): track element sources"
+            automerge: true
+          - group: junctions
+            paths: "elements/kde-build-meta.bst"
+            branch: auto/track-junctions
+            title: "chore(deps): track kde-build-meta junction"
+            automerge: false
+    name: Track ${{ matrix.group }}
+    steps:
+      - name: Should this group run?
+        id: gate
+        run: |
+          GROUP="${{ github.event.inputs.group || 'elements' }}"
+          if [ "$GROUP" = "all" ] || [ "$GROUP" = "${{ matrix.group }}" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Setup Just
+        if: steps.gate.outputs.run == 'true'
+        uses: extractions/setup-just@v4
+
+      - name: Pull BuildStream container image
+        if: steps.gate.outputs.run == 'true'
+        run: podman pull "$BST2_IMAGE"
+
+      - name: Track sources
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          TARGETS=""
+          for p in ${{ matrix.paths }}; do
+            if [ -d "$p" ]; then
+              for f in "$p"/*.bst; do
+                TARGETS="$TARGETS ${f#elements/}"
+              done
+            else
+              TARGETS="$TARGETS ${p#elements/}"
+            fi
+          done
+          echo "Tracking:$TARGETS"
+          BST_FLAGS=--no-interactive just bst source track $TARGETS
+
+      - name: Check for changes
+        if: steps.gate.outputs.run == 'true'
+        id: changes
+        run: |
+          if git diff --quiet -- elements/; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No source updates."
+          else
+            # bst source track can normalize ref format without changing the
+            # underlying commit; treat identical SHA sets as no-change.
+            CHANGED=false
+            for f in $(git diff --name-only -- elements/); do
+              OLD_SHAS=$(git show "HEAD:$f" 2>/dev/null | grep -oP '^\s*ref:\s+\K\S+' | grep -oP '[0-9a-f]{40}$' | sort || true)
+              NEW_SHAS=$(grep -oP '^\s*ref:\s+\K\S+' "$f" | grep -oP '[0-9a-f]{40}$' | sort || true)
+              if [ -z "$OLD_SHAS" ] || [ "$OLD_SHAS" != "$NEW_SHAS" ]; then
+                CHANGED=true
+                break
+              fi
+            done
+            if [ "$CHANGED" = "true" ]; then
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+              git diff --stat -- elements/
+            else
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+              echo "Only ref-format normalization — skipping PR."
+            fi
+          fi
+
+      - name: Create PR
+        if: steps.gate.outputs.run == 'true' && steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ matrix.branch }}"
+          TITLE="${{ matrix.title }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
+          git add elements/
+          git commit -m "$TITLE"
+          git push --force-with-lease origin "$BRANCH"
+
+          {
+            echo "Automated \`bst source track\` for group **${{ matrix.group }}**."
+            echo ""
+            echo '```'
+            git show --stat --format= HEAD
+            echo '```'
+            echo ""
+            if [ "${{ matrix.automerge }}" = "true" ]; then
+              echo "Safe to merge once CI is green."
+            else
+              echo "⚠️ Junction bump — review before merging (can rebuild the world)."
+            fi
+          } > /tmp/pr-body.md
+
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --title "$TITLE" --body-file /tmp/pr-body.md
+            echo "Updated existing PR #$EXISTING"
+          else
+            gh pr create --title "$TITLE" --body-file /tmp/pr-body.md --base main --head "$BRANCH"
+          fi
