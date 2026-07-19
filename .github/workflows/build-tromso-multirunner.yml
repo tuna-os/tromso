@@ -116,7 +116,9 @@ jobs:
             bst-sources-tromso-${{ runner.os }}-
 
       - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Restore Core Cache from GHCR
         run: |
@@ -210,7 +212,9 @@ jobs:
             bst-sources-tromso-${{ runner.os }}-
 
       - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check GHCR for cached chunk
         id: cache_check
@@ -341,7 +345,9 @@ jobs:
         uses: oras-project/setup-oras@v1
 
       - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download and Merge CAS Chunks
         env:
@@ -430,8 +436,10 @@ jobs:
 
       - name: Login to GHCR (podman)
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | \
+          echo "$GITHUB_TOKEN" | \
             sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to GHCR
         run: |
