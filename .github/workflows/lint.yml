@@ -67,3 +67,13 @@ jobs:
               brackets:
                 level: warning
                 max-spaces-inside: 1
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint on workflows
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color
