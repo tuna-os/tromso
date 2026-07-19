@@ -53,6 +53,12 @@ depends:
   # System infrastructure (hardware enablement)
   - tromso/hardware-enablement.bst
 
+  # Boot splash: plymouth (auto-included in the initramfs by kde-build-meta's
+  # 50-plymouth module once /usr/bin/plymouth exists) + KDE Linux breeze-bgrt
+  # theme. Gives a branded splash and a graphical LUKS passphrase prompt.
+  - kde-build-meta.bst:core-deps/plymouth.bst
+  - tromso/plymouth-theme.bst
+
   # Developer tooling (Aurora ships these in addition to base)
   - kde-build-meta.bst:freedesktop-sdk.bst:components/buildstream2.bst
   - kde-build-meta.bst:freedesktop-sdk.bst:components/debuginfod.bst
