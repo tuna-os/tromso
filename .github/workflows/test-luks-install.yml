@@ -15,7 +15,8 @@ on:
     branches: [main]
     paths:
       - 'tromso/**'
-      - 'justfile'
+      - 'Justfile'
+      - 'iso.justfile'
       - 'scripts/luks-install-qemu.sh'
       - 'scripts/fisherman-install.sh'
       - '.github/workflows/test-luks-install.yml'

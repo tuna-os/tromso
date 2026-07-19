@@ -5,7 +5,8 @@ on:
     branches: [main]
     paths:
       - 'tromso/**'
-      - 'justfile'
+      - 'Justfile'
+      - 'iso.justfile'
       - '.github/workflows/build-iso.yml'
   workflow_run:
     # Rebuild the ISO whenever a fresh OCI image lands on GHCR.
