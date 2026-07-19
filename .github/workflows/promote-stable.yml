@@ -1,0 +1,86 @@
+name: Promote main to stable
+
+# Release bookmark automation (dakota-style): verifies the newest nightly
+# build + ISO on main both succeeded, then fast-forwards the `stable` branch
+# to that commit and dispatches the stable build.
+#
+# Why the explicit dispatch: pushes made with GITHUB_TOKEN do not trigger
+# event workflows, but workflow_dispatch via the API does — and the ISO
+# build then chains off it via workflow_run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Promote even if the health checks fail'
+        type: boolean
+        default: false
+  schedule:
+    # Weekly on Tuesday 09:00 UTC (after Monday's LUKS e2e)
+    - cron: '0 9 * * 2'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: promote-stable
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Health check — latest nightly build + ISO green on main
+        id: health
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          check() {
+            local wf="$1"
+            local run
+            run=$(gh run list --workflow "$wf" --branch main --limit 10 \
+                    --json conclusion,status,headSha \
+                    --jq '[.[] | select(.status == "completed")][0]')
+            [ -n "$run" ] || { echo "no completed runs of $wf"; return 1; }
+            local concl sha
+            concl=$(echo "$run" | jq -r .conclusion)
+            sha=$(echo "$run" | jq -r .headSha)
+            echo "$wf: $concl @ $sha"
+            [ "$concl" = "success" ] || return 1
+            echo "$sha"
+          }
+          set +e
+          BUILD_SHA=$(check "Build Tromso (Multi-Runner)" | tail -1)
+          BUILD_OK=$?
+          ISO_OK=1
+          check "Build and Publish Tromsø Live ISO" >/dev/null && ISO_OK=0
+          set -e
+          if [ $BUILD_OK -ne 0 ] || [ $ISO_OK -ne 0 ]; then
+            if [ "${{ inputs.force }}" = "true" ]; then
+              echo "Health checks failed but force=true — promoting HEAD of main."
+              BUILD_SHA=$(git rev-parse origin/main)
+            else
+              echo "::error::Health checks failed (build ok=$BUILD_OK, iso ok=$ISO_OK); not promoting. Use force=true to override."
+              exit 1
+            fi
+          fi
+          echo "sha=${BUILD_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Fast-forward stable to the verified commit
+        run: |
+          SHA="${{ steps.health.outputs.sha }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "Promoting ${SHA} to stable"
+          git push origin "${SHA}:refs/heads/stable" --force
+          echo "stable → ${SHA}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dispatch stable build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run "Build Tromso (Multi-Runner)" --ref stable

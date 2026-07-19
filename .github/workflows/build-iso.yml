@@ -12,7 +12,7 @@ on:
     # Rebuild the ISO whenever a fresh OCI image lands on GHCR.
     workflows: ["Build Tromso (Multi-Runner)"]
     types: [completed]
-    branches: [main]
+    branches: [main, stable]
   workflow_dispatch:
     inputs:
       skip_upload:
@@ -37,6 +37,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Determine channel
+        id: channel
+        run: |
+          BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
+          if [ "$BRANCH" = "stable" ]; then
+            echo "name=stable" >> "$GITHUB_OUTPUT"
+            echo "payload_tag=stable" >> "$GITHUB_OUTPUT"
+            echo "r2_prefix=tromso/stable" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=nightly" >> "$GITHUB_OUTPUT"
+            echo "payload_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "r2_prefix=tromso" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Point ISO payload at channel image
+        run: echo "ghcr.io/tuna-os/tromso:${{ steps.channel.outputs.payload_tag }}" > tromso/payload_ref
 
       - name: Free disk space
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
@@ -91,10 +110,10 @@ jobs:
         run: |
           ISO="${{ steps.iso.outputs.path }}"
           DATED="${{ steps.iso.outputs.dated }}"
-          rclone copyto --log-level INFO --checksum --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/tromso/${DATED}"
-          rclone copyto --log-level INFO --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/tromso/tromso-live-latest.iso"
+          rclone copyto --log-level INFO --checksum --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}"
+          rclone copyto --log-level INFO --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso"
           rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/tromso/${{ steps.checksum.outputs.name }}"
+            "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
           echo "https://download.tunaos.org/tromso/tromso-live-latest.iso"
         continue-on-error: true
 

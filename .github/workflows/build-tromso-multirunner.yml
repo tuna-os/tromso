@@ -5,7 +5,7 @@ name: Build Tromso (Multi-Runner)
 
 on:
   push:
-    branches: [main]
+    branches: [main, stable]
     paths:
       - 'elements/**'
       - 'project.conf'
@@ -399,7 +399,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Login to GHCR (podman)
-        if: ${{ github.ref == 'refs/heads/main' && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
         run: |
           echo "$GITHUB_TOKEN" | \
             sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
@@ -407,10 +407,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to GHCR
-        if: ${{ github.ref == 'refs/heads/main' && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
         run: |
           DATE_TAG=$(date -u +%Y%m%d)
-          for tag in latest "$DATE_TAG" "${{ github.sha }}"; do
+          # Channels: main = nightly trunk (also owns :latest); stable = release bookmark
+          if [ "${{ github.ref }}" = "refs/heads/stable" ]; then
+            TAGS="stable stable-${DATE_TAG} ${{ github.sha }}"
+          else
+            TAGS="latest nightly nightly-${DATE_TAG} ${{ github.sha }}"
+          fi
+          for tag in $TAGS; do
             sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
               "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
             for i in 1 2 3; do

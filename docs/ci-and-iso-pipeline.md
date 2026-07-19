@@ -95,3 +95,25 @@ desktop) are published to the `ci-screenshots` branch and PR comments.
 
 Keep appending to this table while iterating on CI (see the org `ci-fix-loop`
 skill; format proven in tuna-os/tunaos `docs/ci-troubleshooting.md`).
+
+## Channels: nightly (main) and stable
+
+- **main** is the nightly trunk: the daily scheduled multi-runner build
+  publishes `:latest`, `:nightly`, `:nightly-YYYYMMDD`, `:<sha>`; the ISO
+  lands at R2 `tromso/`.
+- **stable** is a release bookmark branch: `promote-stable.yml` (weekly cron
+  + dispatch, `force=true` to override) verifies the newest nightly build and
+  ISO both succeeded, force-pushes that commit to `stable`, and dispatches
+  the stable build → `:stable`, `:stable-YYYYMMDD` tags and an ISO under R2
+  `tromso/stable/`. The stable ISO embeds the `:stable` payload
+  (payload_ref is rewritten per-channel in build-iso.yml).
+- Tracking/renovate PRs only ever target main; stable moves exclusively via
+  promotion.
+
+## Release-linked sources
+
+Local elements track upstream **release tags** (globs like `v[0-9]*`), not
+dev branches, so the daily `bst source track` lands releases. Exceptions
+that intentionally track branches: rolling content repos (aurora common,
+docs, wallpapers / xfwl4 dev repos) and junctions (pinned branch). Never pin
+`track:` to one exact tag — tracking can then never move it.

@@ -48,5 +48,5 @@ config:
 sources:
 - kind: git_repo
   url: github:ledif/kcm_ublue.git
-  track: v0.6.1
+  track: v[0-9]*
   ref: 75cc31f81f5284bef7a31ff9b8219aae612dff0d
