@@ -43,6 +43,11 @@ jobs:
       - name: Setup Just
         uses: extractions/setup-just@v4
 
+      - name: Expose just to sudo/root
+        # Recipes call `just` recursively and run under sudo; root's
+        # secure_path won't see the runner tool cache.
+        run: sudo ln -sf "$(command -v just)" /usr/local/bin/just
+
       - name: Determine channel
         id: channel
         run: |
