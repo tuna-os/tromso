@@ -37,7 +37,8 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Long builds must never be cancelled by the next schedule/push — queue instead.
+  cancel-in-progress: false
 
 jobs:
   # ── Phase 1: Plan ────────────────────────────────────────────────────
@@ -153,9 +154,13 @@ jobs:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
         run: |
           mkdir -p logs
-          just bst --log-file /src/logs/build-core.log build $TARGETS
+          # Bounded well inside the job timeout so the CAS push below always
+          # runs — a job-level timeout cancels the job and throws away the
+          # entire build.
+          timeout 270m just bst --log-file /src/logs/build-core.log build $TARGETS
 
       - name: Archive and Push Core CAS
+        if: always()
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           CORE_REF="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest"
@@ -267,10 +272,16 @@ jobs:
         run: |
           [ -z "$TARGETS" ] && { echo "skipped=true" >> "$GITHUB_OUTPUT"; exit 0; }
           mkdir -p ~/.cache/buildstream logs
-          for i in 1 2 3; do
-            just bst --log-file /src/logs/build-${{ matrix.chunk }}.log build $TARGETS && break
-            echo "Retry $i/3..."; sleep 10
-          done
+          # Bounded well inside the job timeout so the salvage push below
+          # always runs (a job-level timeout cancels the job and loses ~6h of
+          # work; this burned hundreds of runner-hours before 2026-07-19).
+          # No retry wrapper: buildstream-ci.conf already sets retry-failed
+          # and network-retries, and the old loop returned 0 on total failure,
+          # which would have published a bogus exact-key cache tag.
+          rc=0
+          timeout 270m just bst --log-file /src/logs/build-${{ matrix.chunk }}.log build $TARGETS || rc=$?
+          [ "$rc" -eq 124 ] && echo "::warning::chunk hit the 270m build budget — partial CAS will be salvaged"
+          exit $rc
 
       - name: Push Chunk CAS to GHCR
         if: always() && steps.cache_check.outputs.cache_hit != 'true' && steps.build.outputs.skipped != 'true' && env.CHUNK_CACHE_KEY != '' && env.CHUNK_CACHE_KEY != 'null'
@@ -366,7 +377,7 @@ jobs:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
         run: |
           mkdir -p logs
-          just bst --log-file /src/logs/build-final.log build ${{ needs.planning.outputs.final_target }}
+          timeout 300m just bst --log-file /src/logs/build-final.log build ${{ needs.planning.outputs.final_target }}
 
       - name: Capture build timestamp
         id: timestamp
