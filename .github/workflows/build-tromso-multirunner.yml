@@ -36,7 +36,7 @@ jobs:
       core_targets: ${{ steps.matrix.outputs.core_targets }}
       final_target: ${{ steps.matrix.outputs.final_target }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - run: podman pull "$BST2_IMAGE"
 
@@ -98,7 +98,7 @@ jobs:
         uses: ublue-os/remove-unwanted-software@v9
         continue-on-error: true
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: podman pull "$BST2_IMAGE"
 
       - name: Setup Just
@@ -194,7 +194,7 @@ jobs:
         uses: ublue-os/remove-unwanted-software@v9
         continue-on-error: true
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: podman pull "$BST2_IMAGE"
 
       - name: Setup Just
@@ -328,10 +328,10 @@ jobs:
         uses: ublue-os/remove-unwanted-software@v9
         continue-on-error: true
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Checkout chunkah
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: coreos/chunkah
           path: chunkah
