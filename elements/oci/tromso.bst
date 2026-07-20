@@ -2,12 +2,12 @@ kind: script
 description: Aurora KDE Linux OCI image (layered on KDE Linux OS)
 
 build-depends:
-  - kde-build-meta.bst:freedesktop-sdk.bst:components/fakecap.bst
-  - kde-build-meta.bst:freedesktop-sdk.bst:components/oci-builder.bst
-  - kde-build-meta.bst:freedesktop-sdk.bst:components/glib.bst
-  - kde-build-meta.bst:freedesktop-sdk.bst:components/sed.bst
-  - kde-build-meta.bst:freedesktop-sdk.bst:vm/prepare-image.bst
-  - filename: kde-build-meta.bst:oci/kde-linux/image.bst
+  - freedesktop-sdk.bst:components/fakecap.bst
+  - freedesktop-sdk.bst:components/oci-builder.bst
+  - freedesktop-sdk.bst:components/glib.bst
+  - freedesktop-sdk.bst:components/sed.bst
+  - freedesktop-sdk.bst:vm/prepare-image.bst
+  - filename: oci/kde-linux/image.bst
     config:
       location: /parent
   - filename: oci/layers/tromso.bst

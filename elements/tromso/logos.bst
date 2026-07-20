@@ -14,9 +14,9 @@ sources:
   ref: 86e865eec31c48ca7002e4588b81f3916ce75af6a0d8a0d7056d9516a5b68f1e
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/gzip.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/librsvg.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:components/gzip.bst
+- freedesktop-sdk.bst:components/librsvg.bst
 
 variables:
   strip-binaries: ""

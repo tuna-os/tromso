@@ -10,28 +10,24 @@ of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso
 
 ## Architecture
 
-Aurora Tromso uses a two-repo model:
+Aurora Tromso is a single repo — all KDE/Plasma/freedesktop-sdk `.bst` elements
+live directly in `elements/`, consolidated in from the former `tuna-os/kde-build-meta`
+junctioned repo (now archived) to remove a class of junction-nesting bugs and
+separate-repo staleness tracking:
 
 ```
-tuna-os/tromso          (this repo — Aurora customizations + OCI composition)
+tuna-os/tromso
 ├── elements/
-│   ├── kde-build-meta.bst    junction → tuna-os/kde-build-meta
-│   ├── tromso/               Aurora Tromso-specific layers (theming, apps, overlays)
+│   ├── kde/                  qt6 (~30), frameworks (~70), libs (~17), plasma (~41), apps (~9)
+│   ├── kde-linux-deps/       KDE-Linux-specific system dependencies
+│   ├── kde-linux-system/     image/initramfs/repart config
+│   ├── core-deps/, core/     shared core OS dependencies
+│   ├── freedesktop-sdk.bst   external junction (still a real junction — freedesktop-sdk
+│   │                         is genuinely upstream, unlike the retired kde-build-meta one)
+│   ├── tromso/                Aurora Tromso-specific layers (theming, apps, overlays)
 │   └── oci/tromso.bst        top-level build target → ghcr.io/tuna-os/tromso
 └── Justfile
-
-hanthor/kde-build-meta  (KDE .bst elements — KDE Linux base image)
-└── elements/kde/
-    ├── qt6/        (~30 elements — qt6-qtbase, qt6-qtdeclarative, etc.)
-    ├── frameworks/  (~70 elements — kcoreaddons, kio, kirigami, etc.)
-    ├── libs/        (~17 elements — libkscreen, qcoro, phonon, etc.)
-    ├── plasma/      (~41 elements — plasma-workspace, kwin, sddm, etc.)
-    └── apps/        (~9 elements — dolphin, kate, okular, gammaray, etc.)
 ```
-
-`kde-build-meta` mirrors the role of `gnome-build-meta` in the GNOME ecosystem — it builds a
-complete KDE Linux desktop that can be used standalone or as the base for derived images like
-Aurora Tromso.
 
 ## Quick Start
 
@@ -100,32 +96,15 @@ Triggers: push to `main` (element changes), daily at 06:00 UTC, manual dispatch.
 
 ## Updating KDE Packages
 
-KDE package `.bst` definitions live in [`hanthor/kde-build-meta`](https://github.com/hanthor/kde-build-meta).
-After committing there, update the junction ref in `elements/kde-build-meta.bst`:
-
-```bash
-# 1. Commit + push kde-build-meta
-cd /path/to/kde-build-meta
-TMPDIR=/var/tmp git commit -m "..."
-git push origin master
-
-# 2. Get new SHA and hash
-SHA=$(git rev-parse --short=7 HEAD)
-curl -sL https://github.com/hanthor/kde-build-meta/archive/${SHA}.tar.gz | tee /tmp/kbm.tar.gz | sha256sum
-
-# 3. Update elements/kde-build-meta.bst with new url/ref/base-dir
-
-# 4. Commit tromso
-cd /path/to/tromso
-TMPDIR=/var/tmp git commit -m "Update junction to kde-build-meta ${SHA}"
-```
+KDE package `.bst` definitions live directly in `elements/kde/`, `elements/kde-linux-deps/`,
+etc. — edit them in place and commit, same as any other element. No separate repo or junction
+update step.
 
 See `AGENTS.md` for full conventions and workflows.
 
 ## References
 
-- **[KDE Linux](https://invent.kde.org/kde-linux/kde-linux)** — authoritative KDE package list
-- **[hanthor/kde-build-meta](https://github.com/hanthor/kde-build-meta)** — KDE .bst elements
+- **[KDE Linux](https://invent.kde.org/kde-linux/kde-linux)** — the real official KDE Linux project (mkosi + Arch, not BuildStream); tromso tracks its package selection as a reference point, not its build tooling
 - **[Project Bluefin dakota](https://github.com/projectbluefin/dakota)** — reference OCI/bootc implementation
 - **[gnome-build-meta](https://gitlab.gnome.org/GNOME/gnome-build-meta)** — build patterns reference
 - **[freedesktop-sdk](https://freedesktop-sdk.io/)** — base SDK

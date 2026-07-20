@@ -1,10 +1,15 @@
 # Aurora KDE Linux — Agent Context
 
 Aurora is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's `projectbluefin/dakota`.
-It builds KDE Plasma 6 on top of freedesktop-sdk using two repos:
-
-- **`tuna-os/tromso`** — top-level OCI project (this repo)
-- **`hanthor/kde-build-meta`** — KDE `.bst` elements (junctioned in)
+It builds KDE Plasma 6 on top of freedesktop-sdk. All KDE/Plasma/freedesktop-sdk
+`.bst` elements live directly in this repo's `elements/` tree (`kde/`,
+`kde-linux-deps/`, `kde-linux-system/`, `core-deps/`, `core/`,
+`freedesktop-sdk.bst`, `patches/`, `files/`, `keys/`) — consolidated in from
+the former `tuna-os/kde-build-meta` junctioned repo (itself a BuildStream
+port of GNOME OS's `gnome-build-meta` scaffolding rebranded for KDE, not an
+official KDE project) to eliminate a class of junction-nesting bugs and
+separate-repo staleness tracking. `tuna-os/kde-build-meta` is retired/archived;
+there is no longer a second repo or junction to keep in sync.
 
 ---
 
@@ -49,33 +54,13 @@ If bootc build fails in the containerized BuildStream environment:
 
 ---
 
-## Two-Repo Model
+## Single-Repo Model
 
-All KDE package definitions live in `hanthor/kde-build-meta`.
-After committing there, update the junction in this repo (`elements/kde-build-meta.bst`):
-
-```bash
-# 1. Commit + push kde-build-meta
-cd /var/home/james/dev/kde-build-meta
-TMPDIR=/var/tmp git commit -m "..."
-git push origin master
-
-# 2. Get new tarball SHA256 (must re-download after push — GitHub tarballs are non-deterministic)
-SHA=$(git rev-parse --short=7 HEAD)
-curl -sL https://github.com/hanthor/kde-build-meta/archive/${SHA}.tar.gz | tee /tmp/kbm.tar.gz | sha256sum
-tar tzf /tmp/kbm.tar.gz | head -1   # get base-dir
-
-# 3. Update elements/kde-build-meta.bst with new url, ref, base-dir
-
-# 4. Commit tromso
-cd /var/home/james/dev/kde-linux
-TMPDIR=/var/tmp git commit -m "Update junction to kde-build-meta ${SHA} (...)"
-```
-
-**CRITICAL**: Always use `TMPDIR=/var/tmp` for git commits — `/tmp` is full.
-**CRITICAL**: Always use short SHA (7 chars) in GitHub archive URLs for stability.
-**CRITICAL**: GitHub archive SHA256 changes each request — compute it fresh after every push.
-**CRITICAL**: `base-dir` must match the exact directory name extracted from the tarball (full SHA in name).
+All KDE/Plasma/freedesktop-sdk package definitions live directly in this
+repo's `elements/` tree — edit them in place, same as any other element.
+No separate repo, no junction, no tarball-ref update dance. `freedesktop-sdk`
+itself remains a real external junction (`elements/freedesktop-sdk.bst`) and
+is tracked/updated the normal way (`bst source track`).
 
 ---
 
@@ -192,7 +177,7 @@ If the VM hangs or boots to an emergency shell with "Ordering cycle found" messa
 To ensure the system boots to a KDE login:
 1. **Explicit Enablement**: SDDM must be explicitly enabled in `elements/tromso/system-config.bst` by creating symlinks for `display-manager.service` and adding `sddm.service` to `graphical.target.wants`.
 2. **Default Target**: The default systemd target should be symlinked to `graphical.target`.
-3. **Dependencies**: SDDM requires `accountsservice` (`kde-build-meta.bst:core-deps/accountsservice.bst`) to list users and manage sessions. Ensure it is in `elements/tromso/deps.bst`.
+3. **Dependencies**: SDDM requires `accountsservice` (`core-deps/accountsservice.bst`) to list users and manage sessions. Ensure it is in `elements/tromso/deps.bst`.
 4. **Software Rendering**: In virtualized environments (libvirt/QEMU), SDDM may fail to start with GPU errors. Add a systemd drop-in for `sddm.service` setting `Environment=QT_QUICK_BACKEND=software` to use the software rasterizer.
 
 ### Linker Cache (`ldconfig`)
@@ -221,9 +206,13 @@ When you are asked to fix a build failure, add a package, or resolve an infrastr
 
 ---
 
-## ISO Installer (tuna-os/tromso-iso)
+## ISO Installer
 
-The live ISO installer (`tuna-os/tromso-iso`) uses `tuna-installer` (fisherman backend) to install Aurora KDE Linux.  It is modeled on `projectbluefin/dakota-iso` and must stay in sync with that project's patterns.
+The live ISO's installer uses `tuna-installer` (fisherman backend) to install
+Aurora KDE Linux. The ISO pipeline (`Containerfile`, `iso.justfile`,
+`build-iso.yml`) lives directly in this repo — `tuna-os/tromso-iso` was the
+former separate repo for this and is now archived/retired. It was modeled on
+`projectbluefin/dakota-iso` and the patterns below still apply.
 
 ### composeFsBackend and bootupd
 
@@ -270,6 +259,8 @@ CI troubleshooting log (append to it while debugging CI).
 - `tests/pytest/test_iso_invariants.py` encodes shipped bug classes; when
   you fix a CI/ISO bug, add an invariant for it there and a row to
   docs/ci-and-iso-pipeline.md.
-- Upstream watch: KDE Linux is migrating to BuildStream at
-  invent.kde.org/packaging/kde-buildstream — long-term junction target
-  (issue #85).
+- Upstream watch: `invent.kde.org/packaging/kde-buildstream` is a real but
+  very early (2 weeks old at last check) independent effort toward an
+  official KDE BuildStream project — not a migration target yet, revisit
+  later (issue #85). Note official KDE Linux itself (`invent.kde.org/kde-linux/kde-linux`)
+  uses mkosi+Arch, not BuildStream at all.

@@ -2,10 +2,10 @@ kind: manual
 description: Aurora-layer packaging for the Glow CLI from upstream source
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:components/go.bst
+- freedesktop-sdk.bst:components/go.bst
 
 depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:
   strip-binaries: ""

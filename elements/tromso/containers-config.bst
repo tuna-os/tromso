@@ -7,7 +7,7 @@ description: Install /etc/containers/policy.json (insecureAcceptAnything default
   in the final OCI image.
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:
   strip-binaries: ''
