@@ -39,6 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
+      # BuildStream's CAS stager needs a real FUSE device; a plain container
+      # job has neither /dev/fuse nor CAP_SYS_ADMIN by default.
+      options: --privileged --device /dev/fuse
     steps:
       - uses: actions/checkout@v7
       - name: Validate full element graph

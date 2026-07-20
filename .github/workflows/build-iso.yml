@@ -40,14 +40,6 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Setup Just
-        uses: extractions/setup-just@v4
-
-      - name: Expose just to sudo/root
-        # Recipes call `just` recursively and run under sudo; root's
-        # secure_path won't see the runner tool cache.
-        run: sudo ln -sf "$(command -v just)" /usr/local/bin/just
-
       - name: Determine channel
         id: channel
         run: |
@@ -66,9 +58,19 @@ jobs:
         run: echo "ghcr.io/tuna-os/tromso:${{ steps.channel.outputs.payload_tag }}" > tromso/payload_ref
 
       - name: Free disk space
+        # Must run before Setup Just: tool-cache:true wipes the runner tool
+        # cache, which deletes the just binary setup-just just installed.
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
         with:
           tool-cache: true
+
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+
+      - name: Expose just to sudo/root
+        # Recipes call `just` recursively and run under sudo; root's
+        # secure_path won't see the runner tool cache.
+        run: sudo ln -sf "$(command -v just)" /usr/local/bin/just
 
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y podman buildah rclone mtools xorriso skopeo
