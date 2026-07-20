@@ -1,0 +1,14 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -70,8 +70,8 @@ if(UNIX AND NOT APPLE)
+         find_package(KF6PulseAudioQt REQUIRED)
+     endif()
++    find_package(PkgConfig QUIET REQUIRED)
+     find_package(QtWaylandScanner REQUIRED)
+     find_package(Wayland 1.9 REQUIRED Client)
+     find_package(Qt6 REQUIRED COMPONENTS WaylandClient)
+     find_package(WaylandProtocols REQUIRED)
+     pkg_check_modules(XkbCommon IMPORTED_TARGET xkbcommon)
+-    find_package(PkgConfig QUIET REQUIRED)
+     pkg_check_modules(DBus REQUIRED IMPORTED_TARGET dbus-1)

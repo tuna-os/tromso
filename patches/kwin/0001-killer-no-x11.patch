@@ -1,0 +1,10 @@
+--- a/src/helpers/CMakeLists.txt
++++ b/src/helpers/CMakeLists.txt
+@@ -1,3 +1,6 @@
+-add_subdirectory(killer)
++option(BUILD_WINDOW_KILLER "Build the window killer helper" ON)
++if(BUILD_WINDOW_KILLER)
++    add_subdirectory(killer)
++endif()
+ add_subdirectory(wayland_wrapper)
+ add_subdirectory(kwindowprop)

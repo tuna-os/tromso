@@ -1,0 +1,21 @@
+From: Copilot <noreply@github.com>
+Subject: [PATCH] lib: use libjpeg-62 bundled code when libjpeg-turbo is present
+
+libjpeg-turbo reports JPEG_VERSION=80 for API compatibility but removes
+internal struct fields (min_DCT_v_scaled_size, min_DCT_h_scaled_size,
+jpeg_width, jpeg_height) that the bundled libjpeg-80 sources reference.
+Map version 80 to the libjpeg-62 bundled code which uses the stable
+public API and is compatible with libjpeg-turbo.
+
+--- a/lib/CMakeLists.txt
++++ b/lib/CMakeLists.txt
+@@ -10,7 +10,8 @@ if (${JPEG_VERSION} LESS 80)
+ endif()
+ 
+ if (${JPEG_VERSION} EQUAL 80)
+-    set(GV_JPEG_DIR libjpeg-80)
++    # libjpeg-turbo lacks min_DCT_{v,h}_scaled_size; use stable 6.2 code
++    set(GV_JPEG_DIR libjpeg-62)
+ endif()
+ 
+ if (${JPEG_VERSION} EQUAL 90)

@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Created with Cambalache 0.94.1 -->
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.4"/>
+  <template class="DiskSelector" parent="AdwNavigationPage">
+    <property name="title">Select disk</property>
+    <child>
+      <object class="AdwStatusPage">
+        <property name="child">
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkListBox" id="DiskList"/>
+            </child>
+          </object>
+        </property>
+        <property name="description" translatable="yes">Choose the destination disk</property>
+        <property name="icon-name">drive-harddisk-symbolic</property>
+      </object>
+    </child>
+  </template>
+</interface>

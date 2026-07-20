@@ -1,0 +1,12 @@
+kind: autotools
+
+sources:
+- kind: tar
+  url: tar_https:www.lzop.org/download/lzop-1.04.tar.gz
+  ref: 7e72b62a8a60aff5200a047eea0773a8fb205caf7acbe1774d95147f305a2f41
+
+build-depends:
+- freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
+
+depends:
+- freedesktop-sdk.bst:components/lzo.bst

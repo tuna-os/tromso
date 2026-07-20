@@ -1,0 +1,12 @@
+diff --git a/plugins/notifications/CMakeLists.txt b/plugins/notifications/CMakeLists.txt
+--- a/plugins/notifications/CMakeLists.txt
++++ b/plugins/notifications/CMakeLists.txt
+@@ -9,4 +9,7 @@ target_link_libraries(kdeconnect_notifications
+ )
+ 
+ if (UNIX AND NOT APPLE)
++    if (WITH_X11)
++        target_compile_definitions(kdeconnect_notifications PRIVATE KDECONNECT_NOTIFICATIONS_X11)
++    endif()
+     target_link_libraries(kdeconnect_notifications Qt6::GuiPrivate)
+ endif()

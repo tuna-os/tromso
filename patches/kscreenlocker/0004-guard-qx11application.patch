@@ -1,0 +1,15 @@
+diff --git a/greeter/greeterapp.cpp b/greeter/greeterapp.cpp
+--- a/greeter/greeterapp.cpp
++++ b/greeter/greeterapp.cpp
+@@ -601,9 +601,11 @@ SPDX-License-Identifier: GPL-2.0-or-later
+         }
+         if (view && view->winId() && KWindowSystem::isPlatformX11()) {
+             // showing greeter view window, set property
++#if QT_CONFIG(xcb)
+             auto x11App = qGuiApp->nativeInterface<QNativeInterface::QX11Application>();
+             static Atom tag = XInternAtom(x11App->display(), "_KDE_SCREEN_LOCKER", False);
+             XChangeProperty(x11App->display(), view->winId(), tag, tag, 32, PropModeReplace, nullptr, 0);
++#endif
+         }
+         // no further processing
+         return false;

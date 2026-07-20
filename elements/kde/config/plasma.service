@@ -1,0 +1,28 @@
+[Unit]
+Description=KDE Plasma
+Alias=display-manager.service
+After=systemd-user-sessions.service
+After=plymouth-quit-wait.service
+Wants=dbus.socket
+After=dbus.socket
+After=session-c1.scope
+After=create-user.service
+Before=graphical.target
+ConditionPathExists=/dev/tty0
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/x86_64-linux-gnu/libexec/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland
+WorkingDirectory=/home/konqi
+User=konqi
+PAMName=login
+TTYPath=/dev/tty7
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+UtmpIdentifier=tty7
+UtmpMode=user
+
+[Install]
+WantedBy=graphical.target

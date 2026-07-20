@@ -1,0 +1,11 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -166,7 +166,7 @@ endif()
+ 
+ find_package(kImageAnnotator-Qt6)
+-set_package_properties(kImageAnnotator-Qt6 PROPERTIES URL "https://github.com/ksnip/kImageAnnotator" DESCRIPTION "The kImageAnnotator library provides tools to annotate" TYPE REQUIRED)
++set_package_properties(kImageAnnotator-Qt6 PROPERTIES URL "https://github.com/ksnip/kImageAnnotator" DESCRIPTION "The kImageAnnotator library provides tools to annotate" TYPE OPTIONAL)
+ if(kImageAnnotator-Qt6_FOUND)
+     find_package(kColorPicker-Qt6 REQUIRED)
+     set(KIMAGEANNOTATOR_FOUND 1)
