@@ -1,0 +1,88 @@
+kind: meson
+
+sources:
+- kind: git_repo
+  url: gnome:gtk.git
+  track: main
+  ref: 4.23.0-15-gb67affadeeefe2c2165748407539165bea626001
+
+build-depends:
+- sdk-deps/sassc.bst
+- sdk/gi-docgen.bst
+- sdk/gobject-introspection.bst
+- sdk/pygobject.bst
+- sdk/sysprof-minimal.bst
+- freedesktop-sdk.bst:components/python3-docutils.bst
+- freedesktop-sdk.bst:components/shaderc.bst
+- freedesktop-sdk.bst:components/vulkan-headers.bst
+- freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
+
+depends:
+- sdk/at-spi2-core.bst
+- sdk/gdk-pixbuf.bst
+- sdk/glib.bst
+- sdk/glycin.bst
+- sdk/graphene.bst
+- freedesktop-sdk.bst:components/gstreamer-plugins-bad.bst
+- freedesktop-sdk.bst:components/gstreamer-plugins-base.bst
+- sdk/pango.bst
+- freedesktop-sdk.bst:components/cups.bst
+- freedesktop-sdk.bst:components/gstreamer.bst
+- freedesktop-sdk.bst:components/hicolor-icon-theme.bst
+- freedesktop-sdk.bst:components/libepoxy.bst
+- freedesktop-sdk.bst:components/libxkbcommon.bst
+- freedesktop-sdk.bst:components/vulkan-icd-loader.bst
+- freedesktop-sdk.bst:components/wayland-protocols.bst
+- freedesktop-sdk.bst:components/wayland.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+
+variables:
+  meson-local: >-
+    -Dbroadway-backend=true
+    -Ddocumentation=true
+    -Dman-pages=true
+    -Dsysprof=enabled
+
+public:
+  bst:
+    split-rules:
+      devel:
+        (>):
+        # development utilities
+        - '%{bindir}/gtk-builder-tool'
+
+        # demos
+        - '%{bindir}/gtk4-demo-application'
+        - '%{bindir}/gtk4-demo'
+        - '%{bindir}/gtk4-icon-editor'
+        - '%{bindir}/gtk4-node-editor'
+        - '%{bindir}/gtk4-print-editor'
+        - '%{bindir}/gtk4-widget-factory'
+
+        - '%{datadir}/applications/org.gtk.Demo4.desktop'
+        - '%{datadir}/applications/org.gtk.gtk4.NodeEditor.desktop'
+        - '%{datadir}/applications/org.gtk.IconBrowser4.desktop'
+        - '%{datadir}/applications/org.gtk.PrintEditor4.desktop'
+        - '%{datadir}/applications/org.gtk.Shaper.desktop'
+        - '%{datadir}/applications/org.gtk.WidgetFactory4.desktop'
+        - '%{datadir}/metainfo/org.gtk.Demo4.appdata.xml'
+        - '%{datadir}/metainfo/org.gtk.gtk4.NodeEditor.appdata.xml'
+        - '%{datadir}/metainfo/org.gtk.IconBrowser4.appdata.xml'
+        - '%{datadir}/metainfo/org.gtk.PrintEditor4.appdata.xml'
+        - '%{datadir}/metainfo/org.gtk.WidgetFactory4.appdata.xml'
+
+        - '%{datadir}/icons/hicolor/scalable/apps/org.gtk.Demo4.svg'
+        - '%{datadir}/icons/hicolor/scalable/apps/org.gtk.gtk4.NodeEditor.Devel.svg'
+        - '%{datadir}/icons/hicolor/scalable/apps/org.gtk.gtk4.NodeEditor.svg'
+        - '%{datadir}/icons/hicolor/scalable/apps/org.gtk.PrintEditor4.Devel.svg'
+        - '%{datadir}/icons/hicolor/scalable/apps/org.gtk.PrintEditor4.svg'
+        - '%{datadir}/icons/hicolor/scalable/apps/org.gtk.Shaper.Devel.svg'
+        - '%{datadir}/icons/hicolor/scalable/apps/org.gtk.Shaper.svg'
+        - '%{datadir}/icons/hicolor/scalable/apps/org.gtk.WidgetFactory4.svg'
+        - '%{datadir}/icons/hicolor/symbolic/apps/org.gtk.Demo4-symbolic.svg'
+        - '%{datadir}/icons/hicolor/symbolic/apps/org.gtk.gtk4.NodeEditor-symbolic.svg'
+        - '%{datadir}/icons/hicolor/symbolic/apps/org.gtk.PrintEditor4-symbolic.svg'
+        - '%{datadir}/icons/hicolor/symbolic/apps/org.gtk.Shaper-symbolic.svg'
+        - '%{datadir}/icons/hicolor/symbolic/apps/org.gtk.WidgetFactory4-symbolic.svg'
+
+        - '%{libdir}/libgtk-4.so'
