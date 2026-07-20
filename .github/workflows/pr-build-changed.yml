@@ -52,7 +52,7 @@ jobs:
 
       - name: Setup ORAS
         if: steps.changed.outputs.elements != ''
-        uses: oras-project/setup-oras@v1
+        uses: oras-project/setup-oras@v2
 
       - run: podman pull "$BST2_IMAGE"
         if: steps.changed.outputs.elements != ''
