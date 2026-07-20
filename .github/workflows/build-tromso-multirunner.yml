@@ -60,7 +60,7 @@ jobs:
         uses: extractions/setup-just@v4
 
       - name: Cache BuildStream sources
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/buildstream/sources
           key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
@@ -122,7 +122,7 @@ jobs:
         uses: oras-project/setup-oras@v1
 
       - name: Cache BuildStream sources
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/buildstream/sources
           key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
@@ -212,7 +212,7 @@ jobs:
         uses: oras-project/setup-oras@v1
 
       - name: Cache BuildStream sources
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/buildstream/sources
           key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ hashFiles('elements/**/*.bst') }}
