@@ -240,7 +240,7 @@ jobs:
 
       - name: Upload serial logs artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: luks-e2e-serial-logs-${{ matrix.installer_channel }}
           path: |

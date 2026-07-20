@@ -172,7 +172,7 @@ jobs:
           zstd -T0 --rm cas-core.tar -o cas-core.tar.zst
           oras push "$CORE_REF" cas-core.tar.zst:application/vnd.buildstream.cas.tar.zst
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: build-logs-${{ env.IMAGE_NAME }}-core
@@ -299,7 +299,7 @@ jobs:
           [ "${{ steps.build.outcome }}" == "success" ] && \
             oras push "$CHUNK_REF" cas-${{ matrix.chunk }}.tar.zst:application/vnd.buildstream.cas.tar.zst || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: build-logs-${{ env.IMAGE_NAME }}-${{ matrix.chunk }}
@@ -408,7 +408,7 @@ jobs:
 
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: final-logs-${{ env.IMAGE_NAME }}
           path: logs/
