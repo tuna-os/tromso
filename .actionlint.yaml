@@ -1,0 +1,15 @@
+self-hosted-runner:
+  # kanpur: the org's self-hosted validation runner (see validate-iso-kanpur.yml).
+  labels:
+    - kanpur
+    - vm
+
+# Pre-existing, low-severity shellcheck findings across several workflow
+# scripts (unquoted simple identifiers/paths in controlled contexts,
+# stylistic redirect suggestions). Not real bugs; genuine quoting issues
+# (e.g. SC2046) are fixed directly instead of ignored here.
+paths:
+  .github/workflows/*.yml:
+    ignore:
+      - 'SC2086:'
+      - 'SC2129:'

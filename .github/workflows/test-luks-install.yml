@@ -177,13 +177,13 @@ jobs:
         continue-on-error: true
         uses: actions/github-script@v7
         env:
-          LIVE_URL:          ${{ steps.screenshots.outputs.live_url }}
-          PLYMOUTH_URL:      ${{ steps.screenshots.outputs.plymouth_url }}
-          FINAL_URL:         ${{ steps.screenshots.outputs.final_url }}
-          BUILD_S:           ${{ steps.build.outputs.duration }}
-          LUKS_S:            ${{ steps.luks_test.outputs.duration }}
-          ISO_BYTES:         ${{ steps.build.outputs.iso_size }}
-          TEST_RESULT:       ${{ steps.luks_test.outcome }}
+          LIVE_URL: ${{ steps.screenshots.outputs.live_url }}
+          PLYMOUTH_URL: ${{ steps.screenshots.outputs.plymouth_url }}
+          FINAL_URL: ${{ steps.screenshots.outputs.final_url }}
+          BUILD_S: ${{ steps.build.outputs.duration }}
+          LUKS_S: ${{ steps.luks_test.outputs.duration }}
+          ISO_BYTES: ${{ steps.build.outputs.iso_size }}
+          TEST_RESULT: ${{ steps.luks_test.outcome }}
           INSTALLER_CHANNEL: ${{ matrix.installer_channel }}
         with:
           script: |
