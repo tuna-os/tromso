@@ -163,7 +163,7 @@ jobs:
             { echo "ERROR: Live environment did not reach ready state"; sudo tail -50 /tmp/serial.log; exit 1; }
 
       - name: Upload ISO as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.iso.outputs.dated }}
           path: ${{ steps.iso.outputs.path }}
@@ -171,7 +171,7 @@ jobs:
           retention-days: 7
 
       - name: Upload checksum as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: checksum-${{ steps.iso.outputs.dated }}
           path: ${{ steps.checksum.outputs.path }}
@@ -179,7 +179,7 @@ jobs:
           retention-days: 7
 
       - name: Upload boot screenshot as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: boot-screenshot-tromso
