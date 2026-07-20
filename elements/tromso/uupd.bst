@@ -10,7 +10,7 @@ depends:
 sources:
 - kind: git_repo
   url: github:ublue-os/uupd.git
-  track: main
+  track: v[0-9]*
   ref: dae8081987e3415d5f8c08fa9f4f8883a5ff6c0d
 
 variables:

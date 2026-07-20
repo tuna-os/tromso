@@ -1,3 +1,6 @@
+# ISO/live/e2e recipes live in iso.justfile (kept separate for readability)
+import "iso.justfile"
+
 # List available commands
 [group('info')]
 default:
@@ -444,3 +447,19 @@ chunkify image_ref:
         echo "==> Retagging chunked image to {{image_ref}}..."
         $SUDO_CMD podman tag "$NEW_REF" "{{image_ref}}"
     fi
+
+# ── Lint ─────────────────────────────────────────────────────────────
+[group('test')]
+lint:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    SUDO_CMD=""
+    if [ "$(id -u)" -ne 0 ]; then
+        SUDO_CMD="sudo"
+    fi
+
+    echo "==> Linting {{image_name}}:{{image_tag}} with bootc container lint..."
+    $SUDO_CMD podman run --rm --privileged --pull=never \
+        "{{image_name}}:{{image_tag}}" \
+        bootc container lint

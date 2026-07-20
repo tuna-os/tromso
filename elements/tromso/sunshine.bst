@@ -44,5 +44,5 @@ variables:
 sources:
 - kind: git_repo
   url: github:LizardByte/Sunshine.git
-  track: master
+  track: v[0-9]*
   ref: bdef150c6b3341cdd3048795c37257161d8afff7

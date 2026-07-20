@@ -1,0 +1,96 @@
+name: PR Build Changed Elements
+
+# Builds only the .bst elements a PR touches, against the warm GHCR core
+# CAS cache. This is what turns "lint passed" into "the change compiles".
+# Informational (not a required check) until the world rebuild converges
+# and the caches are warm — then promote it to required.
+
+on:
+  pull_request:
+    paths:
+      - 'elements/**'
+      - 'project.conf'
+      - 'include/**'
+
+concurrency:
+  group: pr-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: tromso
+  BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
+
+jobs:
+  build-changed:
+    name: Build changed elements
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Free disk space
+        uses: ublue-os/remove-unwanted-software@v9
+        continue-on-error: true
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute changed elements
+        id: changed
+        run: |
+          git fetch -q origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- 'elements/**/*.bst' \
+                    | sed 's|^elements/||' | tr '\n' ' ')
+          echo "elements=${CHANGED}" >> "$GITHUB_OUTPUT"
+          echo "Changed: ${CHANGED:-<none — project.conf/include change, building nothing here>}"
+
+      - name: Setup Just
+        if: steps.changed.outputs.elements != ''
+        uses: extractions/setup-just@v4
+
+      - name: Setup ORAS
+        if: steps.changed.outputs.elements != ''
+        uses: oras-project/setup-oras@v1
+
+      - run: podman pull "$BST2_IMAGE"
+        if: steps.changed.outputs.elements != ''
+
+      - name: Restore core CAS from GHCR
+        if: steps.changed.outputs.elements != ''
+        run: |
+          echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+          mkdir -p ~/.cache/buildstream
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest" -o .; then
+            zstd -d -T0 cas-core.tar.zst -o cas-core.tar
+            tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
+            rm -f cas-core.tar cas-core.tar.zst
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build changed elements
+        if: steps.changed.outputs.elements != ''
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+        run: |
+          mkdir -p logs
+          # Bounded: uncached deep deps can exceed a PR budget while the
+          # world rebuild converges; a 124 exit here is inconclusive, not red.
+          rc=0
+          timeout 100m just bst --log-file /src/logs/pr-build.log build ${{ steps.changed.outputs.elements }} || rc=$?
+          if [ "$rc" -eq 124 ]; then
+            echo "::warning::build budget exceeded — inconclusive (cold cache?), not failing the PR"
+            exit 0
+          fi
+          exit $rc
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr-build-logs
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore

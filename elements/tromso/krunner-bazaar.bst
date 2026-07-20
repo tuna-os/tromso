@@ -20,5 +20,5 @@ variables:
 sources:
 - kind: git_repo
   url: github:bazaar-org/krunner-bazaar.git
-  track: v1.3.0
+  track: v[0-9]*
   ref: dbed96fa4c2e709c38432eb63e58289636f01b33

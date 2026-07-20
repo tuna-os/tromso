@@ -1,0 +1,81 @@
+name: Rollback :stable
+
+# One-button rollback when a promoted stable is bad (dakota pattern,
+# simplified — no cosign yet, see the signing issue). Dispatch-only and
+# dry_run by default: humans opt in to moving tags.
+#
+#   1. Verify ghcr.io/tuna-os/tromso:<target_sha> exists.
+#   2. skopeo copy --preserve-digests it onto :stable (+ dated rollback tag).
+#   3. Force-push the stable branch to the target commit so the branch and
+#      the tag never diverge.
+#
+# Shares the promote-stable concurrency group so it cannot race a promotion.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: 'Full commit SHA to roll back to (must have a ghcr :<sha> image tag — find candidates via: gh run list --workflow "Build Tromso (Multi-Runner)" --branch stable --status success)'
+        required: true
+        type: string
+      reason:
+        description: 'Why (logged in the step summary)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Only verify and report; move nothing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: promote-stable
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify target image exists
+        run: |
+          echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
+          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" --format 'target digest: {{.Digest}}'
+          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:stable" --format 'current stable digest: {{.Digest}}' || echo "no :stable yet"
+          git cat-file -e "${{ inputs.target_sha }}^{commit}" || { echo "::error::SHA not a commit in this repo"; exit 1; }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Roll back image tags
+        if: ${{ !inputs.dry_run }}
+        run: |
+          DATE_TAG=$(date -u +%Y%m%d-%H%M)
+          sudo skopeo copy --preserve-digests \
+            "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" \
+            "docker://ghcr.io/tuna-os/tromso:stable"
+          sudo skopeo copy --preserve-digests \
+            "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" \
+            "docker://ghcr.io/tuna-os/tromso:stable-rollback-${DATE_TAG}"
+
+      - name: Move stable branch
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git push origin "${{ inputs.target_sha }}:refs/heads/stable" --force
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Rollback ${{ inputs.dry_run && '(DRY RUN)' || '' }}"
+            echo "- target: \`${{ inputs.target_sha }}\`"
+            echo "- reason: ${{ inputs.reason }}"
+            echo "- actor: ${{ github.actor }}"
+          } >> "$GITHUB_STEP_SUMMARY"

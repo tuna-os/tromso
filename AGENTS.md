@@ -252,3 +252,24 @@ The squashfs embeds the tromso OCI image as VFS containers-storage.  The skopeo 
 ### Key Reference: `/var/home/james/reference-repos/dakota-iso/`
 
 Always check dakota-iso for the correct behavior before making changes to tromso-iso.
+
+## CI & ISO pipeline
+
+See `docs/ci-and-iso-pipeline.md` for the multi-runner build architecture,
+live-ISO pipeline, LUKS e2e test, source-update automation, and the running
+CI troubleshooting log (append to it while debugging CI).
+
+## CI gate rules (hard-won)
+
+- Never add `paths:` filters to workflows whose jobs are required checks —
+  a non-reporting required check deadlocks automerge.
+- Renaming a required job means updating the branch-protection contexts in
+  the same PR, or automerge waits forever on the stale name.
+- Never wrap a gate in `|| echo` — bst-validate and pytest were silently
+  dead for months that way.
+- `tests/pytest/test_iso_invariants.py` encodes shipped bug classes; when
+  you fix a CI/ISO bug, add an invariant for it there and a row to
+  docs/ci-and-iso-pipeline.md.
+- Upstream watch: KDE Linux is migrating to BuildStream at
+  invent.kde.org/packaging/kde-buildstream — long-term junction target
+  (issue #85).
