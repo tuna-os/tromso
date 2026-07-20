@@ -1,0 +1,69 @@
+diff --git a/components/keyboardlayout/CMakeLists.txt b/components/keyboardlayout/CMakeLists.txt
+index b21428651e..db9f0d927c 100644
+--- a/components/keyboardlayout/CMakeLists.txt
++++ b/components/keyboardlayout/CMakeLists.txt
+@@ -4,12 +4,10 @@ set_source_files_properties(org.kde.KeyboardLayouts.xml
+         PROPERTIES INCLUDE layoutnames.h)
+ 
+ qt_add_dbus_interface(keyboardlayoutplugin_SRCS "org.kde.KeyboardLayouts.xml" keyboard_layout_interface)
+-qt_add_dbus_interface(keyboardlayoutplugin_SRCS "${KWIN_VIRTUALKEYBOARD_INTERFACE}" virtualkeyboard_interface)
+ 
+ target_sources(keyboardlayoutplugin PRIVATE
+     keyboardlayout.cpp keyboardlayout.h
+     layoutnames.cpp layoutnames.h
+-    virtualkeyboard.cpp virtualkeyboard.h
+     ${keyboardlayoutplugin_SRCS}
+ )
+ 
+diff --git a/components/keyboardlayout/virtualkeyboard.cpp b/components/keyboardlayout/virtualkeyboard.cpp
+deleted file mode 100644
+index e4a43f6a12..0000000000
+--- a/components/keyboardlayout/virtualkeyboard.cpp
++++ /dev/null
+@@ -1,14 +0,0 @@
+-/*
+-    SPDX-FileCopyrightText: 2021 Aleix Pol Gonzalez <aleixpol@kde.org>
+-
+-    SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
+-*/
+-
+-#include "virtualkeyboard.h"
+-
+-KwinVirtualKeyboardInterface::KwinVirtualKeyboardInterface()
+-    : OrgKdeKwinVirtualKeyboardInterface(QStringLiteral("org.kde.KWin"), QStringLiteral("/VirtualKeyboard"), QDBusConnection::sessionBus())
+-{
+-}
+-
+-#include "moc_virtualkeyboard.cpp"
+diff --git a/components/keyboardlayout/virtualkeyboard.h b/components/keyboardlayout/virtualkeyboard.h
+deleted file mode 100644
+index 0541daa5d2..0000000000
+--- a/components/keyboardlayout/virtualkeyboard.h
++++ /dev/null
+@@ -1,26 +0,0 @@
+-/*
+-    SPDX-FileCopyrightText: 2021 Aleix Pol Gonzalez <aleixpol@kde.org>
+-
+-    SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
+-*/
+-
+-#pragma once
+-
+-#include <qqmlregistration.h>
+-
+-#include "virtualkeyboard_interface.h"
+-
+-class KwinVirtualKeyboardInterface : public OrgKdeKwinVirtualKeyboardInterface
+-{
+-    Q_OBJECT
+-    QML_NAMED_ELEMENT(KWinVirtualKeyboard)
+-    QML_SINGLETON
+-
+-    Q_PROPERTY(bool active READ active WRITE setActive NOTIFY activeChanged)
+-    Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
+-    Q_PROPERTY(bool visible READ visible NOTIFY visibleChanged)
+-    Q_PROPERTY(bool available READ available NOTIFY availableChanged)
+-    Q_PROPERTY(bool activeClientSupportsTextInput READ activeClientSupportsTextInput NOTIFY activeClientSupportsTextInputChanged)
+-public:
+-    KwinVirtualKeyboardInterface();
+-};

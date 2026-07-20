@@ -1,0 +1,20 @@
+[Unit]
+Description=Disable encryption
+AssertPathExists=/etc/initrd-release
+ConditionSecurity=!tpm2
+ConditionKernelCommandLine=!root=live:gnomeos
+DefaultDependencies=no
+Conflicts=shutdown.target
+After=initrd-usr-fs.target
+Before=systemd-repart.service
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/cp -rT /sysusr/usr/lib/repart.d /run/repart.d
+ExecStart=/usr/bin/sed -i '/^Encrypt=/d' /run/repart.d/50-root.conf
+ExecStart=/usr/bin/touch /run/recovery-password
+
+[Install]
+WantedBy=initrd.target

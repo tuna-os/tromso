@@ -1,0 +1,11 @@
+diff --git a/generators/dvi/generator_dvi.cpp b/generators/dvi/generator_dvi.cpp
+--- a/generators/dvi/generator_dvi.cpp
++++ b/generators/dvi/generator_dvi.cpp
+@@ -366,7 +366,7 @@ Okular::FontInfo::List DviGenerator::fontsForPage(int pageNumber)
+                 name = QStringLiteral("%1 (%2), %3%").arg(font->fontname, font->getFullFontName(), QString::number(zoom));
+             }
+ #else
+-            name = QString("%1, %2%").arg(font->fontname).arg(zoom);
++            name = QStringLiteral("%1, %2%").arg(font->fontname).arg(zoom);
+ #endif
+             of.setName(name);

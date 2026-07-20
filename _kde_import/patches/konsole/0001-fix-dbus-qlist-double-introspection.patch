@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Copilot <223556219+Copilot@users.noreply.github.com>
+Date: Sat, 2 May 2026 21:10:00 +0000
+Subject: [PATCH] Fix D-Bus introspection for QList<double>
+
+Move the QList<double> metatype declaration into ViewManager.h so
+qdbuscpp2xml sees it while generating the Window interface XML.
+Without that, the generated signatures for getSplitProportions() and
+resizeSplits() are empty and qdbusxml2cpp fails to parse them.
+---
+ src/ViewManager.cpp | 2 --
+ src/ViewManager.h   | 2 ++
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/ViewManager.cpp b/src/ViewManager.cpp
+index 29882fe1..ed67ec1d 100644
+--- a/src/ViewManager.cpp
++++ b/src/ViewManager.cpp
+@@ -37,8 +37,6 @@ using namespace Konsole;
+ 
+ int ViewManager::lastManagerId = 0;
+ 
+-Q_DECLARE_METATYPE(QList<double>);
+-
+ ViewManager::ViewManager(QObject *parent, KActionCollection *collection)
+     : QObject(parent)
+     , _viewContainer(nullptr)
+diff --git a/src/ViewManager.h b/src/ViewManager.h
+index 2c6b2c7d..28d1dc58 100644
+--- a/src/ViewManager.h
++++ b/src/ViewManager.h
+@@ -19,6 +19,8 @@
+ 
+ class KActionCollection;
+ class KConfigGroup;
+ 
++Q_DECLARE_METATYPE(QList<double>)
++
+ namespace Konsole
+ {
+ class ColorScheme;
+-- 
+2.49.0

@@ -1,0 +1,15 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -64,10 +64,10 @@ endif()
+ find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS
+                     Archive Auth CoreAddons Crash DBusAddons Declarative GlobalAccel GuiAddons
+                     Holidays I18n IconThemes IdleTime ItemModels KCMUtils KDED KIO NewStuff
+                     Notifications Package Parts Prison Runner StatusNotifierItem
+-                    Svg TextEditor TextWidgets Wallet ColorScheme
+-                    OPTIONAL_COMPONENTS DocTools)
++                    Svg Wallet ColorScheme
++                    OPTIONAL_COMPONENTS DocTools TextEditor TextWidgets)
+ find_package(Plasma ${PROJECT_DEP_VERSION} REQUIRED)
+ find_package(PlasmaQuick ${PROJECT_DEP_VERSION} REQUIRED)
+ find_package(KWayland ${PROJECT_DEP_VERSION} REQUIRED)
+ find_package(PlasmaActivities ${PROJECT_DEP_VERSION} REQUIRED)

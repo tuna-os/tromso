@@ -1,0 +1,4 @@
+enable graphical.target
+disable create-user.service
+disable plasma.service
+enable sddm.service

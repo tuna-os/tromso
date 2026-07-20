@@ -1,0 +1,16 @@
+diff --git a/src/plugins/QuickCommands/quickcommandswidget.cpp b/src/plugins/QuickCommands/quickcommandswidget.cpp
+--- a/src/plugins/QuickCommands/quickcommandswidget.cpp
++++ b/src/plugins/QuickCommands/quickcommandswidget.cpp
+@@ -313,7 +313,11 @@ void QuickCommandsWidget::runShellCheck()
+     }
+ 
+     QTemporaryFile file;
+-    file.open();
++    if (!file.open()) {
++        ui->warning->setPlainText(i18n("Failed to create a temporary file for shellcheck"));
++        ui->tabWidget->setTabText(1, i18n("Warnings (*)"));
++        return;
++    }
+ 
+     QTextStream ts(&file);
+     ts << "#!/bin/bash\n";

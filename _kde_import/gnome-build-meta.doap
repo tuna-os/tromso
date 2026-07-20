@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:foaf="http://xmlns.com/foaf/0.1/"
+         xmlns:gnome="http://api.gnome.org/doap-extensions#"
+         xmlns="http://usefulinc.com/ns/doap#">
+
+  <name xml:lang="en">gnome-build-meta</name>
+  <shortdesc xml:lang="en">GNOME Build Metadata</shortdesc>
+  <description xml:lang="en">GNOME Build Metadata</description>
+  <homepage rdf:resource="https://gitlab.gnome.org/GNOME/gnome-build-meta/" />
+  <mailing-list rdf:resource="https://mail.gnome.org/mailman/listinfo/release-team" />
+  <download-page rdf:resource="https://download.gnome.org/teams/releng/" />
+  <bug-database rdf:resource="https://gitlab.gnome.org/GNOME/gnome-build-meta/" />
+
+  <category rdf:resource="http://api.gnome.org/doap-extensions#core" />
+  <programming-language>YAML</programming-language>
+
+  <maintainer>
+    <foaf:Person>
+      <foaf:name>Javier Jardón</foaf:name>
+      <foaf:mbox rdf:resource="mailto:jjardon@gnome.org" />
+      <gnome:userid>jjardon</gnome:userid>
+    </foaf:Person>
+  </maintainer>
+  <maintainer>
+    <foaf:Person>
+      <foaf:name>Abderrahim Kitouni</foaf:name>
+      <foaf:mbox rdf:resource="mailto:akitouni@gnome.org" />
+      <gnome:userid>akitouni</gnome:userid>
+    </foaf:Person>
+  </maintainer>
+    <maintainer>
+    <foaf:Person>
+      <foaf:name>Jordan Petridis</foaf:name>
+      <foaf:mbox rdf:resource="mailto:jpetridis@gnome.org" />
+      <gnome:userid>jpetridis</gnome:userid>
+    </foaf:Person>
+  </maintainer>
+  <maintainer>
+    <foaf:Person>
+      <foaf:name>Matthias Clasen</foaf:name>
+      <foaf:mbox rdf:resource="mailto:mclasen@redhat.com"/>
+      <gnome:userid>matthiasc</gnome:userid>
+    </foaf:Person>
+  </maintainer>
+  <maintainer>
+    <foaf:Person>
+      <foaf:name>Jeremy Bicha</foaf:name>
+      <foaf:mbox rdf:resource="mailto:jbicha@ubuntu.com"/>
+      <gnome:userid>jbicha</gnome:userid>
+    </foaf:Person>
+  </maintainer>
+  <maintainer>
+    <foaf:Person>
+      <foaf:name>Adrian Vovk</foaf:name>
+      <foaf:mbox rdf:resource="mailto:adrian@vovk.family"/>
+      <gnome:userid>adrianvovk</gnome:userid>
+    </foaf:Person>
+  </maintainer>
+
+</Project>

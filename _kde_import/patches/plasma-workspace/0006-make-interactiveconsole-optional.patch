@@ -1,0 +1,13 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -448,7 +448,9 @@
+ add_subdirectory(menu)
+ add_subdirectory(donationmessage)
+
+-add_subdirectory(interactiveconsole)
++if (KF6TextEditor_FOUND AND KF6TextWidgets_FOUND)
++  add_subdirectory(interactiveconsole)
++endif()
+
+ # This ensures pressing the eject button on a CD drive ejects the disc
+ # It listens to the Solid::OpticalDrive::ejectPressed signal that is only

@@ -1,0 +1,11 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -137,7 +137,7 @@ set_package_properties(Canberra PROPERTIES
+     PURPOSE "Needed to preview notification sounds"
+     TYPE REQUIRED)
+
+-find_package(Breeze ${PROJECT_DEP_VERSION} CONFIG)
++find_package(Breeze ${PROJECT_DEP_VERSION} QUIET)
+ set_package_properties(Breeze PROPERTIES
+                        TYPE OPTIONAL
+                        PURPOSE "For setting the default window decoration plugin")

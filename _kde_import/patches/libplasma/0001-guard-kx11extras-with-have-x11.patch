@@ -1,0 +1,79 @@
+diff --git a/src/plasma/private/blureffectwatcher.cpp b/src/plasma/private/blureffectwatcher.cpp
+index bb985fa..945acbf 100644
+--- a/src/plasma/private/blureffectwatcher.cpp
++++ b/src/plasma/private/blureffectwatcher.cpp
+@@ -136,6 +136,11 @@ bool BlurEffectWatcher::fetchEffectActive() const
+     }
+     return false;
+ }
++#else
++bool BlurEffectWatcher::nativeEventFilter(const QByteArray &, void *, qintptr *)
++{
++    return false;
++}
+ #endif
+ 
+ bool BlurEffectWatcher::isEffectActive() const
+diff --git a/src/plasma/private/blureffectwatcher_p.h b/src/plasma/private/blureffectwatcher_p.h
+index dd3d744..257d8ad 100644
+--- a/src/plasma/private/blureffectwatcher_p.h
++++ b/src/plasma/private/blureffectwatcher_p.h
+@@ -12,7 +12,8 @@
+ 
+ #include <QAbstractNativeEventFilter>
+ 
+-#include <xcb/xcb.h>
+-
+ #include <config-plasma.h>
++#if HAVE_X11
++#include <xcb/xcb.h>
++#endif
+ 
+@@ -30,9 +32,7 @@ public:
+     bool isEffectActive() const;
+ 
+ protected:
+-#if HAVE_X11
+     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *) override;
+-#endif
+ 
+ Q_SIGNALS:
+     void effectChanged(bool on);
+diff --git a/src/plasma/private/theme_p.cpp b/src/plasma/private/theme_p.cpp
+index 6e0e258..f6b1a4c 100644
+--- a/src/plasma/private/theme_p.cpp
++++ b/src/plasma/private/theme_p.cpp
+@@ -17,7 +17,9 @@
+ #include <KSharedConfig>
+ #include <KWindowEffects>
+ #include <KWindowSystem>
++#if HAVE_X11
+ #include <KX11Extras>
++#endif
+ 
+ namespace Plasma
+ {
+@@ -92,9 +94,11 @@ ThemePrivate::ThemePrivate(QObject *parent)
+     , apiMinor(0)
+     , apiRevision(0)
+ {
++#if HAVE_X11
+     if (KWindowSystem::isPlatformX11()) {
+         compositingActive = KX11Extras::self()->compositingActive();
+     }
++#endif
+ 
+     kSvgImageSet = std::unique_ptr<KSvg::ImageSet>(new KSvg::ImageSet);
+     kSvgImageSet->setBasePath(QStringLiteral(PLASMA_RELATIVE_DATA_INSTALL_DIR "/desktoptheme/"));
+@@ -135,9 +139,11 @@ ThemePrivate::ThemePrivate(QObject *parent)
+         scheduleThemeChangeNotification();
+     });
+ 
++#if HAVE_X11
+     if (KWindowSystem::isPlatformX11()) {
+         connect(KX11Extras::self(), &KX11Extras::compositingChanged, selectorsUpdateTimer, qOverload<>(&QTimer::start));
+     }
++#endif
+     updateKSvgSelectors();
+ }
+ 

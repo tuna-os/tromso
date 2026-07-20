@@ -1,0 +1,169 @@
+name: Track BuildStream Sources
+
+# Daily `bst source track` PRs so the KDE stack keeps moving without manual
+# ref bumps (same pattern as tuna-os/tromso and tuna-os/xfce-linux; original
+# in projectbluefin/dakota). One PR per element group so a broken bump in
+# plasma doesn't block qt6 updates.
+#
+# Note: PRs created with the default GITHUB_TOKEN do not trigger CI
+# workflows. Set a BOT_TOKEN repo secret (PAT or GitHub App token) to get CI
+# on the PRs. Each job runs a post-track `bst show` as a minimum sanity gate.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      group:
+        description: 'Which element group to track'
+        type: choice
+        default: 'all'
+        options: [all, qt6, frameworks, plasma, apps-libs, deps, junction]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: track-bst-sources
+  cancel-in-progress: false
+
+jobs:
+  track:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - group: qt6
+            paths: "elements/kde/qt6"
+            branch: auto/track-qt6
+            title: "chore(deps): track qt6 sources"
+          - group: frameworks
+            paths: "elements/kde/frameworks"
+            branch: auto/track-frameworks
+            title: "chore(deps): track KDE Frameworks sources"
+          - group: plasma
+            paths: "elements/kde/plasma"
+            branch: auto/track-plasma
+            title: "chore(deps): track Plasma sources"
+          - group: apps-libs
+            paths: "elements/kde/apps elements/kde/libs"
+            branch: auto/track-apps-libs
+            title: "chore(deps): track KDE apps + libs sources"
+          - group: deps
+            paths: "elements/core-deps elements/kde-linux-deps"
+            branch: auto/track-deps
+            title: "chore(deps): track core/kde-linux deps sources"
+          - group: junction
+            paths: "elements/freedesktop-sdk.bst"
+            branch: auto/track-fdsdk-junction
+            title: "chore(deps): track freedesktop-sdk junction"
+    name: Track ${{ matrix.group }}
+    steps:
+      - name: Should this group run?
+        id: gate
+        run: |
+          GROUP="${{ github.event.inputs.group || 'all' }}"
+          if [ "$GROUP" = "all" ] || [ "$GROUP" = "${{ matrix.group }}" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Setup Just
+        if: steps.gate.outputs.run == 'true'
+        uses: extractions/setup-just@v4
+
+      - name: Track sources
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          TARGETS=""
+          for p in ${{ matrix.paths }}; do
+            if [ -d "$p" ]; then
+              for f in "$p"/*.bst; do
+                TARGETS="$TARGETS ${f#elements/}"
+              done
+            else
+              TARGETS="$TARGETS ${p#elements/}"
+            fi
+          done
+          echo "Tracking:$TARGETS"
+          BST_FLAGS=--no-interactive just bst source track $TARGETS
+
+      - name: Sanity check — project still parses
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          BST_FLAGS=--no-interactive just bst show --deps none kde/deps.bst > /dev/null
+          echo "bst show OK"
+
+      - name: Check for changes
+        if: steps.gate.outputs.run == 'true'
+        id: changes
+        run: |
+          if git diff --quiet -- elements/; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No source updates."
+          else
+            # Ignore pure ref-format normalization (same underlying SHAs)
+            CHANGED=false
+            for f in $(git diff --name-only -- elements/); do
+              OLD_SHAS=$(git show "HEAD:$f" 2>/dev/null | grep -oP '^\s*ref:\s+\K\S+' | grep -oP '[0-9a-f]{40}$' | sort || true)
+              NEW_SHAS=$(grep -oP '^\s*ref:\s+\K\S+' "$f" | grep -oP '[0-9a-f]{40}$' | sort || true)
+              if [ -z "$OLD_SHAS" ] || [ "$OLD_SHAS" != "$NEW_SHAS" ]; then
+                CHANGED=true
+                break
+              fi
+            done
+            if [ "$CHANGED" = "true" ]; then
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+              git diff --stat -- elements/
+            else
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+              echo "Only ref-format normalization — skipping PR."
+            fi
+          fi
+
+      - name: Create PR
+        if: steps.gate.outputs.run == 'true' && steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ matrix.branch }}"
+          TITLE="${{ matrix.title }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
+          git add elements/
+          git commit -m "$TITLE"
+          git push --force-with-lease origin "$BRANCH"
+
+          {
+            echo "Automated \`bst source track\` for group **${{ matrix.group }}**."
+            echo ""
+            echo '```'
+            git show --stat --format= HEAD
+            echo '```'
+            echo ""
+            echo "Consumers: tuna-os/tromso junctions this repo (git_repo, track: master) —"
+            echo "merging here flows into tromso's next junction-track PR."
+          } > /tmp/pr-body.md
+
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --title "$TITLE" --body-file /tmp/pr-body.md
+            echo "Updated existing PR #$EXISTING"
+          else
+            gh pr create --title "$TITLE" --body-file /tmp/pr-body.md --base master --head "$BRANCH"
+          fi

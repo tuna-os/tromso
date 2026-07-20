@@ -1,0 +1,15 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -127,7 +127,10 @@ if (Qt6Gui_VERSION VERSION_GREATER_EQUAL "6.10.0")
+ endif()
+
+ find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS I18n DBusAddons IconThemes Notifications
+-    KIO ColorScheme Service Solid Kirigami People WindowSystem GuiAddons Crash ItemModels WidgetsAddons)
++    KIO ColorScheme Service Solid Kirigami WindowSystem GuiAddons Crash ItemModels WidgetsAddons)
++
++find_package(KF6People ${KF_MIN_VERSION})
++set_package_properties(KF6People PROPERTIES TYPE OPTIONAL)
+
+ if (WIN32)
+     get_filename_component(WINDOWS_KITS_DIR

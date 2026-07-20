@@ -1,0 +1,24 @@
+diff --git a/ksldapp.h b/ksldapp.h
+--- a/ksldapp.h
++++ b/ksldapp.h
+@@ -431,7 +431,7 @@
+     /**
+      * @brief Whether the application is running on X11.
+      */
+-    bool m_isX11;
++    bool m_isX11 = false;
+ 
+     /**
+      * @brief Whether the application is running on Wayland.
+diff --git a/ksldapp.cpp b/ksldapp.cpp
+--- a/ksldapp.cpp
++++ b/ksldapp.cpp
+@@ -97,7 +97,9 @@
+     , m_greeterEnv(QProcessEnvironment::systemEnvironment())
+     , m_powerManagementInhibition(new PowerManagementInhibition(this))
+ {
++#ifdef HAVE_X11
+     m_isX11 = X11Info::isPlatformX11();
++#endif
+     m_isWayland = QCoreApplication::instance()->property("platformName").toString().startsWith(QLatin1String("wayland"), Qt::CaseInsensitive);
+ }
