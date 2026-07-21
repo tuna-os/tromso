@@ -1,0 +1,45 @@
+name: CodeQL
+
+# Scoped to Python — this repo is primarily YAML/shell/BuildStream element
+# definitions, not a large application codebase. Covers scripts/ and
+# tests/pytest/.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**.py'
+      - 'tests/pytest/**.py'
+      - '.github/workflows/codeql.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/**.py'
+      - 'tests/pytest/**.py'
+      - '.github/workflows/codeql.yml'
+  schedule:
+    # Weekly on Monday 07:30 UTC
+    - cron: '30 7 * * 1'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze (python)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
