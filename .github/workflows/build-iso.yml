@@ -110,7 +110,7 @@ jobs:
 
       - name: Install cosign
         if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign ISO (cosign keyless)
         id: sign

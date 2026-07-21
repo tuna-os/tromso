@@ -450,7 +450,7 @@ jobs:
 
       - name: Install cosign
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign image (cosign keyless)
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
