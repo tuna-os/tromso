@@ -461,7 +461,7 @@ jobs:
       - name: Trivy image scan
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
           format: sarif
