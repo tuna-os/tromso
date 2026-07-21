@@ -5,11 +5,11 @@ sources:
 - kind: git_repo
   url: github:get-aurora-dev/common.git
   track: main
-  ref: a40eb75e00df196d264e09cc9022f642be4304f0
+  ref: v2026.07-8-g570f59395b1ce144e423846928cb130c550d2ddc
 - kind: git_module
   url: github:get-aurora-dev/branding/
   path: branding
-  ref: a2609104f6b20da64a29b002b7bf0428b466e251
+  ref: 0063d5ca18e2b7dfddd8af05af86e63604dbb737
 
 depends:
 - freedesktop-sdk.bst:components/sed.bst
