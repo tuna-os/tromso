@@ -33,6 +33,7 @@ jobs:
     permissions:
       contents: read
       packages: read
+      id-token: write # cosign keyless signing (Sigstore/Fulcio OIDC)
 
     steps:
       - name: Checkout
@@ -107,6 +108,22 @@ jobs:
           echo "path=output/${DATED}-CHECKSUM" >> "$GITHUB_OUTPUT"
           echo "name=${DATED}-CHECKSUM" >> "$GITHUB_OUTPUT"
 
+      - name: Install cosign
+        if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign ISO (cosign keyless)
+        id: sign
+        if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
+        run: |
+          ISO="${{ steps.iso.outputs.path }}"
+          cosign sign-blob --yes \
+            --output-signature "${ISO}.sig" \
+            --output-certificate "${ISO}.cert" \
+            "$ISO"
+          echo "sig_path=${ISO}.sig" >> "$GITHUB_OUTPUT"
+          echo "cert_path=${ISO}.cert" >> "$GITHUB_OUTPUT"
+
       - name: Upload ISO to Cloudflare R2
         if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
         env:
@@ -124,6 +141,10 @@ jobs:
           rclone copyto --log-level INFO --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso"
           rclone copyto --log-level INFO --s3-no-check-bucket \
             "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
+          rclone copyto --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.sig"
+          rclone copyto --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.cert"
           echo "https://download.tunaos.org/tromso/tromso-live-latest.iso"
         continue-on-error: true
 
