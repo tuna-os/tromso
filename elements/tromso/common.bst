@@ -8,7 +8,7 @@ sources:
   ref: a40eb75e00df196d264e09cc9022f642be4304f0
 - kind: git_module
   url: github:get-aurora-dev/branding/
-  path: aurora-branding
+  path: branding
   ref: a2609104f6b20da64a29b002b7bf0428b466e251
 
 depends:
@@ -34,12 +34,12 @@ config:
       mkdir -p "%{install-root}%{sysconfdir}"
       cp -r system_files/shared/etc/./ "%{install-root}%{sysconfdir}/"
     fi
-    if [ -d aurora-branding/system_files/etc ]; then
+    if [ -d branding/system_files/etc ]; then
       mkdir -p "%{install-root}%{sysconfdir}"
-      cp -r aurora-branding/system_files/etc/./ "%{install-root}%{sysconfdir}/"
+      cp -r branding/system_files/etc/./ "%{install-root}%{sysconfdir}/"
     fi
-    if [ -d aurora-branding/system_files/usr ]; then
-      cp -r aurora-branding/system_files/usr/./ "%{install-root}%{prefix}/"
+    if [ -d branding/system_files/usr ]; then
+      cp -r branding/system_files/usr/./ "%{install-root}%{prefix}/"
     fi
     main_qml="%{install-root}%{datadir}/sddm/themes/01-breeze-aurora/Main.qml"
     if [ -f "$main_qml" ]; then
