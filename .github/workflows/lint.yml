@@ -43,6 +43,10 @@ jobs:
             tromso/src/configure-live.sh
             tromso/src/install-flatpaks.sh
           severity: error
+          # files/ is kde-build-meta-derived: dracut module fragments and
+          # profile.d snippets meant to be sourced, not executed — they
+          # intentionally have no shebang (SC2148 doesn't apply to them).
+          ignore_paths: files
 
   yamllint:
     name: yamllint

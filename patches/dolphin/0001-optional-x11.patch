@@ -1,0 +1,16 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ff7c2d9..45213dc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -63,7 +63,10 @@ if (Qt6Gui_VERSION VERSION_GREATER_EQUAL "6.10.0")
+ endif()
+ 
+ if (UNIX AND NOT APPLE AND NOT HAIKU)
+-    set(HAVE_X11 TRUE)
++    find_package(X11)
++    if (X11_FOUND)
++        set(HAVE_X11 TRUE)
++    endif()
+ endif()
+ 
+ find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS

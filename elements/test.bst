@@ -1,7 +1,7 @@
 kind: manual
 description: small test element
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 sources:
 - kind: local
   path: files/test.txt

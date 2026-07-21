@@ -3,7 +3,7 @@ description: Filesystem for KDE Linux OCI image
 
 build-depends:
   - oci/kde-linux/stack.bst
-  - kde-build-meta.bst:oci/kde-linux/manifest.bst
+  - oci/kde-linux/manifest.bst
 
 config:
   include:

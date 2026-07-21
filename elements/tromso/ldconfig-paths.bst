@@ -2,7 +2,7 @@ kind: script
 description: Ensure runtime linker searches /usr/lib for Qt6 libraries
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:
   strip-binaries: ''

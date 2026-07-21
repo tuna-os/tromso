@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000003 Mon Sep 17 00:00:00 2001
+From: Aurora Build <aurora@tromso>
+Subject: [PATCH 3/3] Guard KX11Extras in plasmawindow.cpp with HAVE_X11
+
+--- a/src/plasmaquick/plasmawindow.cpp	2026-04-22 09:35:46.379542511 +0530
++++ b/src/plasmaquick/plasmawindow.cpp	2026-04-22 09:35:46.401561381 +0530
+@@ -5,6 +5,7 @@
+ 
+ #include "plasmawindow.h"
+ 
++#include "config-plasma.h"
+ #include "dialogbackground_p.h"
+ #include "dialogshadows_p.h"
+ 
+@@ -13,7 +14,9 @@
+ 
+ #include <KWindowEffects>
+ #include <KWindowSystem>
++#if HAVE_X11
+ #include <KX11Extras>
++#endif
+ 
+ #include <Plasma/Theme>
+ 
+@@ -143,6 +146,7 @@
+ {
+     // EWMH states that the state is reset every hide
+     // Qt supports external factors setting state before the next show
++#if HAVE_X11
+     if (KWindowSystem::isPlatformX11()) {
+         KX11Extras::setState(winId(), NET::SkipTaskbar | NET::SkipPager | NET::SkipSwitcher);
+     }
+@@ -149,3 +153,4 @@
++#endif
+     QQuickWindow::showEvent(e);
+ }
+ 
+@@ -171,7 +176,11 @@
+                                              theme.backgroundSaturation(),
+                                              mask);
+ 
++#if HAVE_X11
+     if (!KWindowSystem::isPlatformX11() || KX11Extras::compositingActive()) {
++#else
++    if (true) {
++#endif
+         q->setMask(QRegion());
+     } else {
+         q->setMask(mask);

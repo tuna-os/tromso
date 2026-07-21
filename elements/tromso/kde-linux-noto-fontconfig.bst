@@ -2,7 +2,7 @@ kind: script
 description: Prefer KDE Linux Noto font defaults for generic font families
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:
   strip-binaries: ''

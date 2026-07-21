@@ -1,37 +1,37 @@
 kind: stack
 
 depends:
-# Custom versions of os-release and useradd — must come BEFORE kde-build-meta.bst:kde/deps.bst
-- kde-build-meta.bst:oci/integration/os-release.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:vm/config/useradd-ostree.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/composefs.bst
-- kde-build-meta.bst:kde/deps.bst
+# Custom versions of os-release and useradd — must come BEFORE kde/deps.bst
+- oci/integration/os-release.bst
+- freedesktop-sdk.bst:vm/config/useradd-ostree.bst
+- freedesktop-sdk.bst:components/composefs.bst
+- kde/deps.bst
 
 # OS-related config (reused from gnomeos, not KDE-specific)
-- kde-build-meta.bst:kde-linux-system/fwupd-efi-signed-maybe.bst
-- kde-build-meta.bst:kde-linux-system/import-deployment-pub-key.bst
-- kde-build-meta.bst:kde-linux-system/public-keys.bst
-- kde-build-meta.bst:kde-linux-system/reload-sysext.bst
-- kde-build-meta.bst:kde-linux-system/replace-signed-systemd-boot.bst
-- kde-build-meta.bst:kde-linux-system/systemd-pcrlock-workaround.bst
+- kde-linux-system/fwupd-efi-signed-maybe.bst
+- kde-linux-system/import-deployment-pub-key.bst
+- kde-linux-system/public-keys.bst
+- kde-linux-system/reload-sysext.bst
+- kde-linux-system/replace-signed-systemd-boot.bst
+- kde-linux-system/systemd-pcrlock-workaround.bst
 
 # Add the kernel
-- kde-build-meta.bst:freedesktop-sdk.bst:components/linux.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/linux-firmware.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/systemd.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:bootstrap/libselinux.bst
-- kde-build-meta.bst:kde-linux-system/initramfs/signed-modules.bst
-- kde-build-meta.bst:oci/initramfs.bst
+- freedesktop-sdk.bst:components/linux.bst
+- freedesktop-sdk.bst:components/linux-firmware.bst
+- freedesktop-sdk.bst:components/systemd.bst
+- freedesktop-sdk.bst:bootstrap/libselinux.bst
+- kde-linux-system/initramfs/signed-modules.bst
+- oci/initramfs.bst
 
 # bootc for image-based updates
-- kde-build-meta.bst:kde-linux-deps/bootc.bst
-- kde-build-meta.bst:oci/integration/bootc-config.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/ostree.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/composefs.bst
+- kde-linux-deps/bootc.bst
+- oci/integration/bootc-config.bst
+- freedesktop-sdk.bst:components/ostree.bst
+- freedesktop-sdk.bst:components/composefs.bst
 
-- kde-build-meta.bst:freedesktop-sdk.bst:vm/config/sudo-nopasswd.bst
+- freedesktop-sdk.bst:vm/config/sudo-nopasswd.bst
 
-- kde-build-meta.bst:oci/integration/lvm2-enable-activation.bst
+- oci/integration/lvm2-enable-activation.bst
 
 public:
   bst:

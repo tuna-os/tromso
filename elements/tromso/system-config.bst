@@ -12,8 +12,8 @@ description: >-
   - kscreenlockerrc: screen lock disabled by default (auto-lock off)
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/linux-pam.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:components/linux-pam.bst
 
 variables:
   strip-binaries: ''

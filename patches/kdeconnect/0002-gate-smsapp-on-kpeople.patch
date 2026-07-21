@@ -1,0 +1,15 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -157,7 +157,9 @@ add_subdirectory(app)
+ add_subdirectory(indicator)
+ add_subdirectory(urlhandler)
+ add_subdirectory(nautilus-extension)
+ add_subdirectory(fileitemactionplugin)
+-add_subdirectory(smsapp)
++if (TARGET KF6::People)
++    add_subdirectory(smsapp)
++endif()
+
+ if(NOT WIN32 AND NOT APPLE)
+     add_subdirectory(kio)

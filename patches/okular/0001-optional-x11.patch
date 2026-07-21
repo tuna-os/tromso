@@ -1,0 +1,50 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -208,7 +208,10 @@ if(NOT WIN32 AND NOT ANDROID AND NOT APPLE AND NOT HAIKU)
+         URL "https://invent.kde.org/plasma/plasma-activities"
+         PURPOSE "Required for Activities integration."
+     )
+-    set(HAVE_X11 TRUE)
++    find_package(X11)
++    if (X11_FOUND)
++        set(HAVE_X11 TRUE)
++    endif()
+ else()
+     set(HAVE_X11 FALSE)
+ endif()
+diff --git a/shell/shell.cpp b/shell/shell.cpp
+--- a/shell/shell.cpp
++++ b/shell/shell.cpp
+@@ -29,7 +29,7 @@
+ #include <KRecentFilesAction>
+ #include <KSharedConfig>
+ #include <KStandardAction>
+-#if !defined(Q_OS_WIN) && !defined(Q_OS_OSX) && !defined(Q_OS_HAIKU)
++#if HAVE_X11 && !defined(Q_OS_WIN) && !defined(Q_OS_OSX) && !defined(Q_OS_HAIKU)
+ #include <KStartupInfo>
+ #include <KWindowInfo>
+ #endif
+@@ -455,7 +455,7 @@ bool Shell::canOpenDocs(int numDocs, int desktop)
+         return false;
+     }
+ 
+-#if !defined(Q_OS_WIN) && !defined(Q_OS_OSX) && !defined(Q_OS_HAIKU)
++#if HAVE_X11 && !defined(Q_OS_WIN) && !defined(Q_OS_OSX) && !defined(Q_OS_HAIKU)
+     const KWindowInfo winfo(window()->effectiveWinId(), NET::WMDesktop);
+     if (winfo.desktop() != desktop) {
+         return false;
+@@ -728,9 +728,13 @@ void Shell::tryRaise(const QString &startupId)
+ {
+ #if !defined(Q_OS_WIN) && !defined(Q_OS_OSX) && !defined(Q_OS_HAIKU)
+     if (KWindowSystem::isPlatformWayland()) {
+         KWindowSystem::setCurrentXdgActivationToken(startupId);
++#if HAVE_X11
+     } else if (KWindowSystem::isPlatformX11()) {
+         KStartupInfo::setNewStartupId(window()->windowHandle(), startupId.toUtf8());
++#endif
++    } else {
++        Q_UNUSED(startupId);
+     }
+ #else
+     Q_UNUSED(startupId);

@@ -1,0 +1,18 @@
+--- a/components/shellprivate/CMakeLists.txt
++++ b/components/shellprivate/CMakeLists.txt
+@@ -21,7 +21,6 @@
+         KF6::NewStuffWidgets
+         KF6::WindowSystem
+         Plasma::Activities
+-        KF6::TextWidgets
+         KF6::Package
+ )
+
+@@ -28,3 +27,7 @@
++
++if (KF6TextWidgets_FOUND)
++    target_link_libraries(plasmashellprivateplugin PRIVATE KF6::TextWidgets)
++endif()
+ ecm_finalize_qml_module(plasmashellprivateplugin)
+
+ install(FILES

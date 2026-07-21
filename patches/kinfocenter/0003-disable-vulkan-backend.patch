@@ -1,0 +1,30 @@
+--- a/kcms/CMakeLists.txt
++++ b/kcms/CMakeLists.txt
+@@ -1,7 +1,12 @@
+ add_subdirectory(helpers)
+ 
+ add_subdirectory( about-distro )
+-add_subdirectory(vulkan)
++
++option(ENABLE_VULKAN_BACKEND "Enable Vulkan backend" ON)
++if(ENABLE_VULKAN_BACKEND)
++    add_subdirectory(vulkan)
++endif()
++
+ add_subdirectory(kwinsupportinfo)
+ add_subdirectory(cpu)
+ add_subdirectory(wayland)
+--- a/kcms/about-distro/src/CMakeLists.txt
++++ b/kcms/about-distro/src/CMakeLists.txt
+@@ -1,7 +1,10 @@
+ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Version.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/Version.h)
+ include_directories(${CMAKE_CURRENT_BINARY_DIR})
+ 
+ add_subdirectory(opengl-helper)
+-add_subdirectory(vulkan-helper)
++
++if(ENABLE_VULKAN_BACKEND)
++    add_subdirectory(vulkan-helper)
++endif()
+ 
+ set(kcm_SRCS

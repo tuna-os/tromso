@@ -8,13 +8,13 @@ public:
     - /usr/lib/debug/usr/bin/sudo.debug
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:components/rust.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/linux-pam.bst
+- freedesktop-sdk.bst:components/rust.bst
+- freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
+- freedesktop-sdk.bst:components/linux-pam.bst
 
 depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/linux-pam.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:components/linux-pam.bst
 
 config:
   build-commands:

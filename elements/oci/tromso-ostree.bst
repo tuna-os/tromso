@@ -2,8 +2,8 @@ kind: script
 description: Orchestrated OSTree repository with ORPHANED commit for bootc
 
 build-depends:
-  - kde-build-meta.bst:freedesktop-sdk.bst:vm/prepare-image.bst
-  - kde-build-meta.bst:freedesktop-sdk.bst:components/ostree.bst
+  - freedesktop-sdk.bst:vm/prepare-image.bst
+  - freedesktop-sdk.bst:components/ostree.bst
   - filename: oci/kde-linux/filesystem.bst
     config:
       location: /sysroot

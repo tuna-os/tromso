@@ -1,0 +1,349 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index cac2223..15c9db8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -83,16 +83,24 @@ find_package(
+         Prison
+         Crash
+ )
+-if (NOT TARGET KF6::PrisonScanner ) 
+-    message(SEND_ERROR "Prison built without required PrisonScanner component")
++set(SPECTACLE_ENABLE_QR_SCAN OFF)
++if (TARGET KF6::PrisonScanner)
++    set(SPECTACLE_ENABLE_QR_SCAN ON)
++else()
++    add_compile_definitions(SPECTACLE_NO_QR_SCAN)
+ endif()
+ 
+ find_package(Wayland REQUIRED COMPONENTS Client)
+ find_package(PlasmaWaylandProtocols REQUIRED)
+ find_package(LayerShellQt REQUIRED)
+ find_package(KPipeWire)
+-find_package(OpenCV 4.7 REQUIRED core imgproc)
+-find_package(PkgConfig REQUIRED)
++option(SPECTACLE_ENABLE_OCR "Build OCR support" ON)
++if(SPECTACLE_ENABLE_OCR)
++    find_package(OpenCV 4.7 REQUIRED core imgproc)
++    find_package(PkgConfig REQUIRED)
++else()
++    add_compile_definitions(SPECTACLE_NO_OCR)
++endif()
+ 
+ set_package_properties(KPipeWire PROPERTIES DESCRIPTION
+     "Used to record pipewire streams into a file"
+@@ -108,7 +116,9 @@ set_package_properties(KQuickImageEditor PROPERTIES
+     PURPOSE "Add image editing capability to the screenshots"
+ )
+ 
+-pkg_check_modules(TESSERACT REQUIRED IMPORTED_TARGET tesseract)
++if(SPECTACLE_ENABLE_OCR)
++    pkg_check_modules(TESSERACT REQUIRED IMPORTED_TARGET tesseract)
++endif()
+ 
+ # optional components
+ find_package(KF6DocTools ${KF6_MIN_VERSION})
+@@ -157,7 +167,9 @@ add_subdirectory(dbus)
+ add_subdirectory(desktop)
+ add_subdirectory(icons)
+ add_subdirectory(kconf_update)
+-add_subdirectory(tests)
++if(BUILD_TESTING)
++    add_subdirectory(tests)
++endif()
+ 
+ if (KF6DocTools_FOUND)
+     add_subdirectory(doc)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 84adc11..4b2a9f9 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -93,10 +93,11 @@ ki18n_wrap_ui(spectacle
+     Gui/SettingsDialog/VideoSaveOptions.ui
+ )
+ 
+-# Needed to compile with OpenCV
+-target_compile_options (spectacle PRIVATE -fexceptions)
+-
+-target_include_directories(spectacle PUBLIC ${OpenCV_INCLUDE_DIRS})
++if(SPECTACLE_ENABLE_OCR)
++    # Needed to compile with OpenCV
++    target_compile_options(spectacle PRIVATE -fexceptions)
++    target_include_directories(spectacle PUBLIC ${OpenCV_INCLUDE_DIRS})
++endif()
+ 
+ target_link_libraries(spectacle PRIVATE
+     Qt::Concurrent
+@@ -121,17 +122,27 @@ target_link_libraries(spectacle PRIVATE
+     KF6::GuiAddons
+     KF6::KirigamiPlatform
+     KF6::StatusNotifierItem
+-    KF6::PrisonScanner
+     KF6::Crash
+     KF6::I18nQml
+     K::KPipeWireRecord
+     Wayland::Client
+     LayerShellQt::Interface
+     KQuickImageEditor
+-    ${OpenCV_LIBRARIES}
+-    PkgConfig::TESSERACT
+ )
+ 
++if(SPECTACLE_ENABLE_OCR)
++    target_link_libraries(spectacle PRIVATE
++        ${OpenCV_LIBRARIES}
++        PkgConfig::TESSERACT
++    )
++endif()
++
++if(SPECTACLE_ENABLE_QR_SCAN)
++    target_link_libraries(spectacle PRIVATE
++        KF6::PrisonScanner
++    )
++endif()
++
+ # qt_add_qml_module doesn't know how to deal with headers in subdirectories so
+ # make sure to add those so the headers can be found.
+ target_include_directories(spectacle PRIVATE
+diff --git a/src/ExportManager.cpp b/src/ExportManager.cpp
+index 64a9afd..73906f7 100644
+--- a/src/ExportManager.cpp
++++ b/src/ExportManager.cpp
+@@ -39,8 +39,10 @@
+ #include <KRecentDocument>
+ #include <KSharedConfig>
+ #include <KSystemClipboard>
++#ifndef SPECTACLE_NO_QR_SCAN
+ #include <Prison/ImageScanner>
+ #include <Prison/ScanResult>
++#endif
+ 
+ using namespace Qt::StringLiterals;
+ 
+@@ -759,6 +761,9 @@ void ExportManager::exportImage(ExportManager::Actions actions, QUrl url)
+ 
+ void ExportManager::scanQRCode()
+ {
++#ifdef SPECTACLE_NO_QR_SCAN
++    return;
++#else
+     auto scan = [this] {
+         const auto result = Prison::ImageScanner::scan(ExportManager::instance()->image());
+ 
+@@ -769,6 +774,7 @@ void ExportManager::scanQRCode()
+         }
+     };
+     auto future = QtConcurrent::run(scan);
++#endif
+ }
+ 
+ void ExportManager::exportVideo(ExportManager::Actions actions, const QUrl &inputUrl, QUrl outputUrl)
+diff --git a/src/OcrManager.cpp b/src/OcrManager.cpp
+index 84eb789..13d5234 100644
+--- a/src/OcrManager.cpp
++++ b/src/OcrManager.cpp
+@@ -28,6 +28,140 @@ using namespace Qt::StringLiterals;
+ 
+ OcrManager *OcrManager::s_instance = nullptr;
+ 
++#ifdef SPECTACLE_NO_OCR
++
++OcrWorker::OcrWorker(QObject *parent)
++    : QObject(parent)
++{
++}
++
++void OcrWorker::processImage(const QImage &, TessBaseAPI *)
++{
++    Q_EMIT imageProcessed(QString(), false);
++}
++
++OcrManager::OcrManager(QObject *parent)
++    : QObject(parent)
++    , m_tesseract(nullptr)
++    , m_worker(new OcrWorker(this))
++    , m_workerThread(std::make_unique<QThread>())
++    , m_timeoutTimer(new QTimer(this))
++    , m_status(OcrStatus::Error)
++    , m_currentLanguageCode()
++    , m_configuredLanguages()
++    , m_activeLanguages()
++    , m_shouldRestoreToConfigured(false)
++    , m_initialized(false)
++{
++    m_timeoutTimer->setSingleShot(true);
++}
++
++OcrManager::~OcrManager() = default;
++
++OcrManager *OcrManager::instance()
++{
++    if (!s_instance) {
++        s_instance = new OcrManager(qApp);
++    }
++    return s_instance;
++}
++
++bool OcrManager::isAvailable() const
++{
++    return false;
++}
++
++OcrManager::OcrStatus OcrManager::status() const
++{
++    return m_status;
++}
++
++QMap<QString, QString> OcrManager::availableLanguagesWithNames() const
++{
++    return {};
++}
++
++void OcrManager::setLanguagesByCode(const QStringList &)
++{
++}
++
++QString OcrManager::currentLanguageCode() const
++{
++    return {};
++}
++
++void OcrManager::setConfigSyncSuspended(bool suspended)
++{
++    m_configSyncSuspended = suspended;
++}
++
++bool OcrManager::isConfigSyncSuspended() const
++{
++    return m_configSyncSuspended;
++}
++
++void OcrManager::recognizeText(const QImage &)
++{
++    Q_EMIT textRecognized(QString(), QStringList(), false);
++}
++
++void OcrManager::recognizeTextWithLanguage(const QImage &, const QString &)
++{
++    Q_EMIT textRecognized(QString(), QStringList(), false);
++}
++
++void OcrManager::handleRecognitionComplete(const QString &, bool)
++{
++}
++
++bool OcrManager::validateAndApplyLanguages(const QStringList &)
++{
++    return false;
++}
++
++void OcrManager::beginRecognition(const QImage &)
++{
++}
++
++void OcrManager::initializeTesseract()
++{
++}
++
++void OcrManager::loadSavedLanguageSetting()
++{
++}
++
++void OcrManager::setStatus(OcrStatus status)
++{
++    if (m_status == status) {
++        return;
++    }
++
++    m_status = status;
++    Q_EMIT statusChanged(status);
++}
++
++bool OcrManager::isLanguageAvailable(const QString &) const
++{
++    return false;
++}
++
++bool OcrManager::setupTesseractLanguages(const QStringList &)
++{
++    return false;
++}
++
++void OcrManager::setupAvailableLanguages(const QString &)
++{
++}
++
++QString OcrManager::tesseractLangName(const QString &tesseractCode) const
++{
++    return tesseractCode;
++}
++
++#else
++
+ OcrManager::OcrManager(QObject *parent)
+     : QObject(parent)
+     , m_tesseract(nullptr)
+@@ -691,4 +825,6 @@ void OcrWorker::processImage(const QImage &image, TessBaseAPI *tesseract)
+     }
+ }
+ 
++#endif
++
+ #include "moc_OcrManager.cpp"
+diff --git a/src/OcrManager.h b/src/OcrManager.h
+index 19eeae3..a00b654 100644
+--- a/src/OcrManager.h
++++ b/src/OcrManager.h
+@@ -18,7 +18,7 @@
+ 
+ #include <memory>
+ 
+-#include <tesseract/capi.h>
++struct TessBaseAPI;
+ 
+ /**
+  * @brief Worker class for OCR processing in background thread
+diff --git a/src/Platforms/ImagePlatformKWin.cpp b/src/Platforms/ImagePlatformKWin.cpp
+index 1d93ae3..5f047b1 100644
+--- a/src/Platforms/ImagePlatformKWin.cpp
++++ b/src/Platforms/ImagePlatformKWin.cpp
+@@ -7,7 +7,9 @@
+ #include "ImagePlatformKWin.h"
+ #include "ExportManager.h"
+ #include "Geometry.h"
++#ifndef SPECTACLE_NO_OCR
+ #include "QtCV.h"
++#endif
+ #include "DebugUtils.h"
+ #include "ImageMetaData.h"
+ 
+@@ -103,11 +105,20 @@ QImage combinedImage(const QList<QImage> &images)
+     }
+     // We ceil to the next integer size up so that integer DPR images are always crisp.
+     const auto finalDpr = std::ceil(maxDpr);
++    QImage finalImage{imageRect.size().toSize() * finalDpr, finalFormat};
++    finalImage.fill(Qt::transparent);
++#ifdef SPECTACLE_NO_OCR
++    QPainter painter(&finalImage);
++    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
++    for (auto &image : images) {
++        const QRectF targetRect(ImageMetaData::logicalXY(image) * finalDpr, image.deviceIndependentSize() * finalDpr);
++        painter.drawImage(targetRect, image);
++    }
++    painter.end();
++#else
+     // An RGBA8888 based format is needed for compatibility with OpenCV.
+     // If we used an ARGB32 based format, we'd need to swap red and blue.
+     // Not sure what to do if we end up having different formats for different screens.
+-    QImage finalImage{imageRect.size().toSize() * finalDpr, finalFormat};
+-    finalImage.fill(Qt::transparent);
+     auto mainMat = QtCV::qImageToMat(finalImage);
+     for (auto &image : images) {
+         // Region Of Interest to put the image in the main image.
+@@ -127,6 +138,7 @@ QImage combinedImage(const QList<QImage> &images)
+         // Will just copy if there's no difference in size
+         cv::resize(mat, mainMat(rect), rect.size(), 0, 0, interpolation);
+     }
++#endif
+     finalImage.setDevicePixelRatio(finalDpr);
+     ImageMetaData::setSubGeometryList(finalImage, geometryList);
+     return finalImage;

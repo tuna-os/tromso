@@ -12,8 +12,8 @@ sources:
   ref: a2609104f6b20da64a29b002b7bf0428b466e251
 
 depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:components/sed.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:components/sed.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 public:
   bst:

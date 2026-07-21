@@ -11,7 +11,7 @@ sources:
   ref: 12ba7e1ef726a3d7320e7f6be370104722dbbab888d916c61b66e7d13e2ddfb4
 
 depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:
   strip-binaries: ""

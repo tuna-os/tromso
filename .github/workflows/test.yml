@@ -23,6 +23,10 @@ jobs:
           scandir: './'
           severity: error
           format: tty
+          # files/ is kde-build-meta-derived: dracut module fragments and
+          # profile.d snippets meant to be sourced, not executed — they
+          # intentionally have no shebang (SC2148 doesn't apply to them).
+          ignore_paths: files
 
   yamllint:
     name: YAML Lint

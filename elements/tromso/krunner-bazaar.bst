@@ -5,14 +5,14 @@ environment:
   LD_LIBRARY_PATH: /usr/lib
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/gettext.bst
-- kde-build-meta.bst:kde/frameworks/extra-cmake-modules.bst
-- kde-build-meta.bst:kde/qt6/qt6-qtbase.bst
-- kde-build-meta.bst:kde/frameworks/kconfig.bst
-- kde-build-meta.bst:kde/frameworks/kcoreaddons.bst
-- kde-build-meta.bst:kde/frameworks/ki18n.bst
-- kde-build-meta.bst:kde/frameworks/krunner.bst
+- freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
+- freedesktop-sdk.bst:components/gettext.bst
+- kde/frameworks/extra-cmake-modules.bst
+- kde/qt6/qt6-qtbase.bst
+- kde/frameworks/kconfig.bst
+- kde/frameworks/kcoreaddons.bst
+- kde/frameworks/ki18n.bst
+- kde/frameworks/krunner.bst
 
 variables:
   cmake-local: -DBUILD_TESTING=OFF

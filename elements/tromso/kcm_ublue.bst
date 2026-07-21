@@ -5,26 +5,26 @@ environment:
   LD_LIBRARY_PATH: /usr/lib
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
-- kde-build-meta.bst:kde/frameworks/extra-cmake-modules.bst
-- kde-build-meta.bst:kde/qt6/qt6-qtbase.bst
-- kde-build-meta.bst:kde/qt6/qt6-qtdeclarative.bst
-- kde-build-meta.bst:kde/qt6/qt6-qttools.bst
-- kde-build-meta.bst:kde/frameworks/kauth.bst
-- kde-build-meta.bst:kde/frameworks/kcodecs.bst
-- kde-build-meta.bst:kde/frameworks/kcolorscheme.bst
-- kde-build-meta.bst:kde/frameworks/kconfig.bst
-- kde-build-meta.bst:kde/frameworks/kconfigwidgets.bst
-- kde-build-meta.bst:kde/frameworks/kcoreaddons.bst
-- kde-build-meta.bst:kde/frameworks/ki18n.bst
-- kde-build-meta.bst:kde/frameworks/kcmutils.bst
-- kde-build-meta.bst:kde/frameworks/kservice.bst
-- kde-build-meta.bst:kde/frameworks/kwidgetsaddons.bst
-- kde-build-meta.bst:boards/common/libgtest.bst
+- freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
+- kde/frameworks/extra-cmake-modules.bst
+- kde/qt6/qt6-qtbase.bst
+- kde/qt6/qt6-qtdeclarative.bst
+- kde/qt6/qt6-qttools.bst
+- kde/frameworks/kauth.bst
+- kde/frameworks/kcodecs.bst
+- kde/frameworks/kcolorscheme.bst
+- kde/frameworks/kconfig.bst
+- kde/frameworks/kconfigwidgets.bst
+- kde/frameworks/kcoreaddons.bst
+- kde/frameworks/ki18n.bst
+- kde/frameworks/kcmutils.bst
+- kde/frameworks/kservice.bst
+- kde/frameworks/kwidgetsaddons.bst
+- boards/common/libgtest.bst
 
 runtime-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:components/jq.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/libnotify.bst
+- freedesktop-sdk.bst:components/jq.bst
+- freedesktop-sdk.bst:components/libnotify.bst
 
 config:
   install-commands:

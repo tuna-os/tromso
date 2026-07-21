@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1234567..abcdefg 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -92,7 +92,7 @@ if(ENABLE_TESTING)
+ endif()
+ 
+ # make plasma5support_version.h available
+-include_directories(${CMAKE_CURRENT_BINARY_DIR})
++include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR})
+ 
+ ################# list the subdirectories #################
+ 

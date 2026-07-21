@@ -1,0 +1,234 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index cac2223..b79a9a8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -91,8 +91,13 @@ find_package(Wayland REQUIRED COMPONENTS Client)
+ find_package(PlasmaWaylandProtocols REQUIRED)
+ find_package(LayerShellQt REQUIRED)
+ find_package(KPipeWire)
+-find_package(OpenCV 4.7 REQUIRED core imgproc)
+-find_package(PkgConfig REQUIRED)
++option(SPECTACLE_ENABLE_OCR "Build OCR support" ON)
++if(SPECTACLE_ENABLE_OCR)
++    find_package(OpenCV 4.7 REQUIRED core imgproc)
++    find_package(PkgConfig REQUIRED)
++else()
++    add_compile_definitions(SPECTACLE_NO_OCR)
++endif()
+ 
+ set_package_properties(KPipeWire PROPERTIES DESCRIPTION
+     "Used to record pipewire streams into a file"
+@@ -108,7 +113,9 @@ set_package_properties(KQuickImageEditor PROPERTIES
+     PURPOSE "Add image editing capability to the screenshots"
+ )
+ 
+-pkg_check_modules(TESSERACT REQUIRED IMPORTED_TARGET tesseract)
++if(SPECTACLE_ENABLE_OCR)
++    pkg_check_modules(TESSERACT REQUIRED IMPORTED_TARGET tesseract)
++endif()
+ 
+ # optional components
+ find_package(KF6DocTools ${KF6_MIN_VERSION})
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 84adc11..dfb9b6e 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -93,10 +93,11 @@ ki18n_wrap_ui(spectacle
+     Gui/SettingsDialog/VideoSaveOptions.ui
+ )
+ 
+-# Needed to compile with OpenCV
+-target_compile_options (spectacle PRIVATE -fexceptions)
+-
+-target_include_directories(spectacle PUBLIC ${OpenCV_INCLUDE_DIRS})
++if(SPECTACLE_ENABLE_OCR)
++    # Needed to compile with OpenCV
++    target_compile_options(spectacle PRIVATE -fexceptions)
++    target_include_directories(spectacle PUBLIC ${OpenCV_INCLUDE_DIRS})
++endif()
+ 
+ target_link_libraries(spectacle PRIVATE
+     Qt::Concurrent
+@@ -128,10 +129,15 @@ target_link_libraries(spectacle PRIVATE
+     Wayland::Client
+     LayerShellQt::Interface
+     KQuickImageEditor
+-    ${OpenCV_LIBRARIES}
+-    PkgConfig::TESSERACT
+ )
+ 
++if(SPECTACLE_ENABLE_OCR)
++    target_link_libraries(spectacle PRIVATE
++        ${OpenCV_LIBRARIES}
++        PkgConfig::TESSERACT
++    )
++endif()
++
+ # qt_add_qml_module doesn't know how to deal with headers in subdirectories so
+ # make sure to add those so the headers can be found.
+ target_include_directories(spectacle PRIVATE
+diff --git a/src/OcrManager.cpp b/src/OcrManager.cpp
+index 84eb789..13d5234 100644
+--- a/src/OcrManager.cpp
++++ b/src/OcrManager.cpp
+@@ -28,6 +28,140 @@ using namespace Qt::StringLiterals;
+ 
+ OcrManager *OcrManager::s_instance = nullptr;
+ 
++#ifdef SPECTACLE_NO_OCR
++
++OcrWorker::OcrWorker(QObject *parent)
++    : QObject(parent)
++{
++}
++
++void OcrWorker::processImage(const QImage &, TessBaseAPI *)
++{
++    Q_EMIT imageProcessed(QString(), false);
++}
++
++OcrManager::OcrManager(QObject *parent)
++    : QObject(parent)
++    , m_tesseract(nullptr)
++    , m_worker(new OcrWorker(this))
++    , m_workerThread(std::make_unique<QThread>())
++    , m_timeoutTimer(new QTimer(this))
++    , m_status(OcrStatus::Error)
++    , m_currentLanguageCode()
++    , m_configuredLanguages()
++    , m_activeLanguages()
++    , m_shouldRestoreToConfigured(false)
++    , m_initialized(false)
++{
++    m_timeoutTimer->setSingleShot(true);
++}
++
++OcrManager::~OcrManager() = default;
++
++OcrManager *OcrManager::instance()
++{
++    if (!s_instance) {
++        s_instance = new OcrManager(qApp);
++    }
++    return s_instance;
++}
++
++bool OcrManager::isAvailable() const
++{
++    return false;
++}
++
++OcrManager::OcrStatus OcrManager::status() const
++{
++    return m_status;
++}
++
++QMap<QString, QString> OcrManager::availableLanguagesWithNames() const
++{
++    return {};
++}
++
++void OcrManager::setLanguagesByCode(const QStringList &)
++{
++}
++
++QString OcrManager::currentLanguageCode() const
++{
++    return {};
++}
++
++void OcrManager::setConfigSyncSuspended(bool suspended)
++{
++    m_configSyncSuspended = suspended;
++}
++
++bool OcrManager::isConfigSyncSuspended() const
++{
++    return m_configSyncSuspended;
++}
++
++void OcrManager::recognizeText(const QImage &)
++{
++    Q_EMIT textRecognized(QString(), QStringList(), false);
++}
++
++void OcrManager::recognizeTextWithLanguage(const QImage &, const QString &)
++{
++    Q_EMIT textRecognized(QString(), QStringList(), false);
++}
++
++void OcrManager::handleRecognitionComplete(const QString &, bool)
++{
++}
++
++bool OcrManager::validateAndApplyLanguages(const QStringList &)
++{
++    return false;
++}
++
++void OcrManager::beginRecognition(const QImage &)
++{
++}
++
++void OcrManager::initializeTesseract()
++{
++}
++
++void OcrManager::loadSavedLanguageSetting()
++{
++}
++
++void OcrManager::setStatus(OcrStatus status)
++{
++    if (m_status == status) {
++        return;
++    }
++
++    m_status = status;
++    Q_EMIT statusChanged(status);
++}
++
++bool OcrManager::isLanguageAvailable(const QString &) const
++{
++    return false;
++}
++
++bool OcrManager::setupTesseractLanguages(const QStringList &)
++{
++    return false;
++}
++
++void OcrManager::setupAvailableLanguages(const QString &)
++{
++}
++
++QString OcrManager::tesseractLangName(const QString &tesseractCode) const
++{
++    return tesseractCode;
++}
++
++#else
++
+ OcrManager::OcrManager(QObject *parent)
+     : QObject(parent)
+     , m_tesseract(nullptr)
+@@ -691,4 +825,6 @@ void OcrWorker::processImage(const QImage &image, TessBaseAPI *tesseract)
+     }
+ }
+ 
++#endif
++
+ #include "moc_OcrManager.cpp"
+diff --git a/src/OcrManager.h b/src/OcrManager.h
+index 19eeae3..a00b654 100644
+--- a/src/OcrManager.h
++++ b/src/OcrManager.h
+@@ -18,7 +18,7 @@
+ 
+ #include <memory>
+ 
+-#include <tesseract/capi.h>
++struct TessBaseAPI;
+ 
+ /**
+  * @brief Worker class for OCR processing in background thread

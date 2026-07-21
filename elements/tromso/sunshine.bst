@@ -2,29 +2,29 @@ kind: cmake
 description: Aurora-layer packaging for Sunshine from upstream source
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
+- freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
 
 depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/avahi.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/curl.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/libcap.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/libdrm.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/libevdev.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/libnotify.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/libpulse.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/libva.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/xorg-lib-x11.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/xorg-lib-xcb.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/xorg-lib-xfixes.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/xorg-lib-xrandr.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/xorg-lib-xtst.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/openssl.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/opus.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/pipewire.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/systemd.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/vulkan-icd-loader.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/which.bst
+- freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- freedesktop-sdk.bst:components/avahi.bst
+- freedesktop-sdk.bst:components/curl.bst
+- freedesktop-sdk.bst:components/libcap.bst
+- freedesktop-sdk.bst:components/libdrm.bst
+- freedesktop-sdk.bst:components/libevdev.bst
+- freedesktop-sdk.bst:components/libnotify.bst
+- freedesktop-sdk.bst:components/libpulse.bst
+- freedesktop-sdk.bst:components/libva.bst
+- freedesktop-sdk.bst:components/xorg-lib-x11.bst
+- freedesktop-sdk.bst:components/xorg-lib-xcb.bst
+- freedesktop-sdk.bst:components/xorg-lib-xfixes.bst
+- freedesktop-sdk.bst:components/xorg-lib-xrandr.bst
+- freedesktop-sdk.bst:components/xorg-lib-xtst.bst
+- freedesktop-sdk.bst:components/openssl.bst
+- freedesktop-sdk.bst:components/opus.bst
+- freedesktop-sdk.bst:components/pipewire.bst
+- freedesktop-sdk.bst:components/systemd.bst
+- freedesktop-sdk.bst:components/vulkan-icd-loader.bst
+- freedesktop-sdk.bst:components/which.bst
 
 variables:
   strip-binaries: ""

@@ -2,11 +2,11 @@ kind: script
 description: KDE Linux OCI image (full desktop + system) — Aurora fork without bootc build
 
 build-depends:
-- kde-build-meta.bst:freedesktop-sdk.bst:components/fakecap.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:components/oci-builder.bst
-- kde-build-meta.bst:freedesktop-sdk.bst:vm/prepare-image.bst
-- kde-build-meta.bst:oci/kde-linux/init-scripts.bst
-- filename: kde-build-meta.bst:oci/platform/image.bst
+- freedesktop-sdk.bst:components/fakecap.bst
+- freedesktop-sdk.bst:components/oci-builder.bst
+- freedesktop-sdk.bst:vm/prepare-image.bst
+- oci/kde-linux/init-scripts.bst
+- filename: oci/platform/image.bst
   config:
     location: /parent
 - filename: oci/kde-linux/filesystem.bst
