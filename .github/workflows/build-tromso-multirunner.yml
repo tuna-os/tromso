@@ -316,6 +316,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # cosign keyless signing (Sigstore/Fulcio OIDC)
+      security-events: write # Trivy SARIF upload
     steps:
       - name: Free disk space
         uses: ublue-os/remove-unwanted-software@v9
@@ -424,6 +426,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to GHCR
+        id: push
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
         run: |
           DATE_TAG=$(date -u +%Y%m%d)
@@ -441,6 +444,36 @@ jobs:
               echo "Retry $i..."; sleep 5
             done
           done
+          digest=$(sudo podman inspect "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
+            --format '{{.Digest}}')
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (cosign keyless)
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        run: |
+          cosign sign --yes \
+            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
+
+      - name: Trivy image scan
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy scan results
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
 
       - name: Build summary
         if: always()
