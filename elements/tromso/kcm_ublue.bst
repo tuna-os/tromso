@@ -49,4 +49,4 @@ sources:
 - kind: git_repo
   url: github:ledif/kcm_ublue.git
   track: v[0-9]*
-  ref: 75cc31f81f5284bef7a31ff9b8219aae612dff0d
+  ref: v0.6.1-0-g75cc31f81f5284bef7a31ff9b8219aae612dff0d

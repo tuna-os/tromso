@@ -14,7 +14,7 @@ sources:
 - kind: git_repo
   url: github:charmbracelet/gum.git
   track: 'v[0-9]*.[0-9]*.[0-9]*'
-  ref: 6045525ab92f75c169d3c69596844d8748437e37
+  ref: v0.17.0-0-g6045525ab92f75c169d3c69596844d8748437e37
 
 config:
   build-commands:
