@@ -37,8 +37,8 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # Long builds must never be cancelled by the next schedule/push — queue instead.
-  cancel-in-progress: false
+  # Newer work for the same branch supersedes stale scheduled/push builds.
+  cancel-in-progress: true
 
 jobs:
   # ── Phase 1: Plan ────────────────────────────────────────────────────
@@ -199,8 +199,9 @@ jobs:
     name: Build ${{ matrix.chunk }}
     steps:
       - name: Free disk space
-        uses: ublue-os/remove-unwanted-software@v9
-        continue-on-error: true
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
 
       - uses: actions/checkout@v7
       - run: podman pull "$BST2_IMAGE"
@@ -320,8 +321,9 @@ jobs:
       security-events: write # Trivy SARIF upload
     steps:
       - name: Free disk space
-        uses: ublue-os/remove-unwanted-software@v9
-        continue-on-error: true
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
 
       - uses: actions/checkout@v7
 

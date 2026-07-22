@@ -94,3 +94,27 @@ def test_no_quiet_karg_in_elements():
         text = bst.read_text()
         if "kargs.d" in text:
             assert '"quiet"' not in text, f"{bst} adds quiet karg"
+
+
+def test_high_frequency_workflows_cancel_superseded_runs():
+    """Push bursts once left stale checks and image/ISO builds queued for
+    hours. Newer work on the same ref must replace those obsolete runs."""
+    workflows = REPO / ".github" / "workflows"
+    names = (
+        "lint.yml",
+        "test.yml",
+        "build-iso.yml",
+        "build-tromso-multirunner.yml",
+    )
+    for name in names:
+        text = (workflows / name).read_text()
+        assert "concurrency:" in text, f"{name} lacks a concurrency group"
+        assert re.search(
+            r"cancel-in-progress:\s*true", text
+        ), f"{name} queues superseded same-ref runs"
+
+    iso = (workflows / "build-iso.yml").read_text()
+    assert "github.event.workflow_run.head_branch || github.ref_name" in iso, (
+        "push and workflow_run ISO triggers must normalize to the same branch key"
+    )
+
