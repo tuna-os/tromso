@@ -141,9 +141,8 @@ jobs:
           CORE_REF="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest"
           if oras pull "$CORE_REF" -o .; then
             if [ -f cas-core.tar.zst ]; then
-              zstd -d -T0 cas-core.tar.zst -o cas-core.tar
-              tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
-              rm -f cas-core.tar cas-core.tar.zst
+              zstd -d -c -T0 cas-core.tar.zst | tar -xf - -C "$HOME/.cache/buildstream"
+              rm -f cas-core.tar.zst
             fi
           else
             echo "No existing ${IMAGE_NAME} core cache, starting fresh."
@@ -168,8 +167,7 @@ jobs:
             -v "$HOME/.cache/buildstream:/input:ro" \
             -v "${{ github.workspace }}:/output:rw" \
             "$BST2_IMAGE" \
-            sh -c "tar -cf /output/cas-core.tar -C /input --exclude 'cas/staging' --exclude 'cas/tmp' . || [ \$? -eq 1 ]"
-          zstd -T0 --rm cas-core.tar -o cas-core.tar.zst
+            sh -c "tar -cf - -C /input --exclude 'cas/staging' --exclude 'cas/tmp' . | zstd -T0 > /output/cas-core.tar.zst"
           oras push "$CORE_REF" cas-core.tar.zst:application/vnd.buildstream.cas.tar.zst
 
       - uses: actions/upload-artifact@v7
@@ -244,9 +242,8 @@ jobs:
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest" -o .; then
             if [ -f cas-core.tar.zst ]; then
-              zstd -d -T0 cas-core.tar.zst -o cas-core.tar
-              tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
-              rm -f cas-core.tar cas-core.tar.zst
+              zstd -d -c -T0 cas-core.tar.zst | tar -xf - -C "$HOME/.cache/buildstream"
+              rm -f cas-core.tar.zst
             fi
           fi
 
@@ -259,9 +256,8 @@ jobs:
           if oras pull "$LATEST_REF" -o .; then
             if [ -f cas-${{ matrix.chunk }}.tar.zst ]; then
               mkdir -p ~/.cache/buildstream
-              zstd -d -T0 cas-${{ matrix.chunk }}.tar.zst -o cas-${{ matrix.chunk }}.tar
-              tar -xf cas-${{ matrix.chunk }}.tar -C "$HOME/.cache/buildstream"
-              rm -f cas-${{ matrix.chunk }}.tar cas-${{ matrix.chunk }}.tar.zst
+              zstd -d -c -T0 cas-${{ matrix.chunk }}.tar.zst | tar -xf - -C "$HOME/.cache/buildstream"
+              rm -f cas-${{ matrix.chunk }}.tar.zst
             fi
           fi
 
@@ -294,8 +290,7 @@ jobs:
             -v "$HOME/.cache/buildstream:/input:ro" \
             -v "${{ github.workspace }}:/output:rw" \
             "$BST2_IMAGE" \
-            sh -c "tar -cf /output/cas-${{ matrix.chunk }}.tar -C /input --exclude 'cas/staging' --exclude 'cas/tmp' . || [ \$? -eq 1 ]"
-          zstd -T0 --rm cas-${{ matrix.chunk }}.tar -o cas-${{ matrix.chunk }}.tar.zst
+            sh -c "tar -cf - -C /input --exclude 'cas/staging' --exclude 'cas/tmp' . | zstd -T0 > /output/cas-${{ matrix.chunk }}.tar.zst"
           oras push "$LATEST_REF" cas-${{ matrix.chunk }}.tar.zst:application/vnd.buildstream.cas.tar.zst
           [ "${{ steps.build.outcome }}" == "success" ] && \
             oras push "$CHUNK_REF" cas-${{ matrix.chunk }}.tar.zst:application/vnd.buildstream.cas.tar.zst || true
@@ -356,9 +351,8 @@ jobs:
 
           if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest" -o .; then
             if [ -f cas-core.tar.zst ]; then
-              zstd -d -T0 cas-core.tar.zst -o cas-core.tar
-              tar -xf cas-core.tar -C "$HOME/.cache/buildstream"
-              rm -f cas-core.tar cas-core.tar.zst
+              zstd -d -c -T0 cas-core.tar.zst | tar -xf - -C "$HOME/.cache/buildstream"
+              rm -f cas-core.tar.zst
             fi
           fi
 
@@ -375,9 +369,8 @@ jobs:
             fi
             TARBALL="cas-${chunk}.tar.zst"
             if [ -f "$TARBALL" ]; then
-              zstd -d -T0 "$TARBALL" -o "cas-${chunk}.tar"
-              tar -xf "cas-${chunk}.tar" -C "$HOME/.cache/buildstream"
-              rm -f "$TARBALL" "cas-${chunk}.tar"
+              zstd -d -c -T0 "$TARBALL" | tar -xf - -C "$HOME/.cache/buildstream"
+              rm -f "$TARBALL"
             fi
           done
           du -sh ~/.cache/buildstream
