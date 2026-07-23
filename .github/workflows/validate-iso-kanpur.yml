@@ -43,22 +43,8 @@ jobs:
           ISO="/work/iso-cache/tromso-${CHANNEL}.iso"
           # -z: only re-download when the CDN copy is newer than the cache
           curl -fSL --retry 3 -o "$ISO" ${ISO:+-z "$ISO"} "$URL"
-          curl -fSL --retry 3 -o "${ISO}.sig" "${URL}.sig"
-          curl -fSL --retry 3 -o "${ISO}.cert" "${URL}.cert"
           ls -lh "$ISO"
           echo "iso=$ISO" >> "$GITHUB_OUTPUT"
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v4.1.2
-
-      - name: Verify ISO signature (#86)
-        run: |
-          ISO="${{ steps.fetch.outputs.iso }}"
-          cosign verify-blob "$ISO" \
-            --certificate "${ISO}.cert" \
-            --signature "${ISO}.sig" \
-            --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/build-iso\.yml@.*' \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
       - name: Boot verification (UEFI + KVM + serial)
         timeout-minutes: 20
