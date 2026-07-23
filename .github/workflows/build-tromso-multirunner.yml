@@ -274,8 +274,17 @@ jobs:
           # No retry wrapper: buildstream-ci.conf already sets retry-failed
           # and network-retries, and the old loop returned 0 on total failure,
           # which would have published a bogus exact-key cache tag.
+
+          # #96: some chunks have crashed the runner agent itself via disk
+          # exhaustion, with nothing in the build log to show it coming.
+          # Log free space periodically so a repeat shows whether it's a
+          # slow leak or a sudden spike, and roughly where in the build.
+          ( while true; do echo "::notice::disk free: $(df -h --output=avail / | tail -1)"; sleep 300; done ) &
+          watcher_pid=$!
+
           rc=0
           timeout 270m just bst --log-file /src/logs/build-${{ matrix.chunk }}.log build $TARGETS || rc=$?
+          kill "$watcher_pid" 2>/dev/null || true
           [ "$rc" -eq 124 ] && echo "::warning::chunk hit the 270m build budget — partial CAS will be salvaged"
           exit $rc
 
