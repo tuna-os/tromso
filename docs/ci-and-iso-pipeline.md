@@ -136,33 +136,15 @@ until the world rebuild converges, then promote to required (tromso#80).
 
 Post-merge: salvage-enabled nightly world build → ISO boot gate
 (ready-marker + screenshot artifact) → weekly LUKS install e2e
-(screenshots on the `ci-screenshots` branch + PR comments) → weekly
-real-hardware KVM boot of the published R2 ISO on the kanpur runner
-(`validate-iso-kanpur.yml`). A cloud routine ("tromso + xfce-linux CI
-babysitter", every 3 h) diagnoses completed failures from logs and pushes
-fixes.
+(screenshots on the `ci-screenshots` branch + PR comments). A cloud
+routine ("tromso + xfce-linux CI babysitter", every 3 h) diagnoses
+completed failures from logs and pushes fixes.
 
 **Rules that keep this healthy:** never add `paths:` filters to workflows
 whose jobs are required checks (a non-reporting required check deadlocks
 automerge); if a required job is renamed, update the branch-protection
 contexts in the same PR; never wrap a gate in `|| echo` (that is how
 bst-validate and pytest were silently dead for months).
-
-## kanpur self-hosted runner (validation only)
-
-Org runner `kanpur` (labels `self-hosted, kanpur, vm`) runs in a
-privileged `ubuntu:24.04` podman container on the kanpur laptop with
-/dev/kvm + /dev/fuse passed through. It exists ONLY for
-`validate-iso-kanpur.yml` — kanpur is on slow wifi and must never run
-BuildStream or ISO builds (leave `ACTIONS_RUNNER_LABEL` unset).
-
-Ops (on kanpur): container `gh-runner-kanpur`, volumes under
-`/var/srv/gh-runner/{runner,work,bst-cache}`, self-provisioning
-`runner/start.sh`, restart policy `unless-stopped`. Re-register after a
-token wipe: `gh api -X POST orgs/tuna-os/actions/runners/registration-token`
-then `./config.sh --unattended --replace --url https://github.com/tuna-os
---token <T> --name kanpur --labels kanpur,vm --work /work` inside the
-container (RUNNER_ALLOW_RUNASROOT=1).
 
 ## Rollback
 
