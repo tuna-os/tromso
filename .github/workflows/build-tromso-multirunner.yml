@@ -14,8 +14,9 @@ on:
       - 'scripts/ci-build-matrix.py'
       - '.github/workflows/build-tromso-multirunner.yml'
   schedule:
-    # Daily at 06:00 UTC
-    - cron: '0 6 * * *'
+    # Daily at 00:30 UTC (5:00 AM IST) — early morning, 1h after xfce-linux's
+    # slot to reduce org-wide runner contention (tuna-os/tromso#93).
+    - cron: '30 0 * * *'
   workflow_dispatch:
     inputs:
       push_image:
