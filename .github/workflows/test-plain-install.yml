@@ -1,0 +1,241 @@
+name: Plain Install End-to-End Test
+
+# Full plain (unencrypted) installation via fisherman, then verify the
+# installed system boots. Ported from projectbluefin/dakota-iso's
+# test-plain-install.yml, adapted to this repo's iso.justfile/scripts
+# conventions (same adaptation test-luks-install.yml already did for LUKS).
+#
+# This is the install path most users actually run and had zero e2e
+# coverage before this — see tromso#81.
+#
+# Mirrors the local recipes:
+#   just debug=1 iso-sd-boot tromso
+#   just plain-test-qemu tromso
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tromso/**'
+      - 'Justfile'
+      - 'iso.justfile'
+      - 'scripts/plain-install-qemu.sh'
+      - 'scripts/fisherman-install.sh'
+      - '.github/workflows/test-plain-install.yml'
+  workflow_dispatch:
+  schedule:
+    # Weekly on Tuesday 04:00 UTC — staggered from the LUKS e2e (Monday).
+    - cron: '0 4 * * 2'
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: write
+  actions: read
+
+concurrency:
+  group: plain-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TARGET: tromso
+
+jobs:
+  plain-e2e:
+    name: Plain E2E ${{ matrix.installer_channel }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        installer_channel: [stable]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure screenshots branch exists
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          if gh api "/repos/${REPO}/git/refs/heads/ci-screenshots" &>/dev/null; then
+            echo "ci-screenshots branch already exists"
+          else
+            echo "Creating ci-screenshots branch..."
+            DEFAULT=$(gh api "/repos/${REPO}" --jq '.default_branch')
+            SHA=$(gh api "/repos/${REPO}/git/refs/heads/${DEFAULT}" --jq '.object.sha')
+            gh api --method POST "/repos/${REPO}/git/refs" \
+              -f "ref=refs/heads/ci-screenshots" \
+              -f "sha=${SHA}"
+          fi
+
+      - name: Free disk space
+        # Must run before Setup Just: tool-cache:true wipes the runner tool
+        # cache, which deletes the just binary setup-just just installed.
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+
+      - name: Expose just to sudo/root
+        # Recipes call `just` recursively and run under sudo; root's
+        # secure_path won't see the runner tool cache.
+        run: sudo ln -sf "$(command -v just)" /usr/local/bin/just
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            podman buildah skopeo mtools xorriso squashfs-tools \
+            qemu-system-x86 qemu-utils ovmf socat sshpass imagemagick -qq
+
+      - name: Log in to GHCR
+        run: |
+          echo "$GITHUB_TOKEN" | \
+            sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build debug ISO
+        id: build
+        run: |
+          START=$(date +%s)
+          sudo mkdir -p /var/iso-build
+          mkdir -p output
+          # debug=1 enables SSH in the live session for the install step below.
+          sudo "$(command -v just)" \
+            debug=1 \
+            installer_channel=${{ matrix.installer_channel }} \
+            output_dir=/var/iso-build \
+            iso-sd-boot "$TARGET"
+          sudo cp "/var/iso-build/${TARGET}-live.iso" "output/${TARGET}-live.iso"
+          sudo chown -R "$USER:$(id -gn)" output/
+          echo "duration=$(( $(date +%s) - START ))" >> "$GITHUB_OUTPUT"
+          echo "iso_size=$(stat -c%s output/${TARGET}-live.iso 2>/dev/null || echo 0)" >> "$GITHUB_OUTPUT"
+
+      - name: Run plain end-to-end test
+        id: plain_test
+        run: |
+          START=$(date +%s)
+          just output_dir=output plain-test-qemu "$TARGET" ${{ matrix.installer_channel }}
+          echo "duration=$(( $(date +%s) - START ))" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Convert and publish screenshot
+        if: always()
+        continue-on-error: true
+        id: screenshots
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          sudo chmod a+r /tmp/plain-screenshot-final.ppm 2>/dev/null || true
+
+          convert /tmp/plain-screenshot-final.ppm /tmp/plain-final-boot.png 2>/dev/null || true
+          [[ -f /tmp/plain-final-boot.png ]] || exit 0
+
+          PATH_IN_REPO="plain-e2e/${RUN_ID}/${{ matrix.installer_channel }}/final-boot.png"
+          EXISTING_SHA=$(gh api "/repos/${REPO}/contents/${PATH_IN_REPO}?ref=ci-screenshots" \
+            --jq '.sha' 2>/dev/null || echo "")
+
+          B64_FILE=$(mktemp)
+          base64 -w0 /tmp/plain-final-boot.png > "$B64_FILE"
+
+          jq -n \
+            --arg msg "Plain E2E screenshot: final-boot (run ${RUN_ID})" \
+            --rawfile content "$B64_FILE" \
+            --arg branch "ci-screenshots" \
+            --arg sha "$EXISTING_SHA" \
+            'if $sha != "" then
+              {message: $msg, content: ($content | rtrimstr("\n")), branch: $branch, sha: $sha}
+            else
+              {message: $msg, content: ($content | rtrimstr("\n")), branch: $branch}
+            end' | \
+            gh api --method PUT "/repos/${REPO}/contents/${PATH_IN_REPO}" --input - > /dev/null
+
+          rm -f "$B64_FILE"
+          echo "final_url=https://raw.githubusercontent.com/${REPO}/ci-screenshots/${PATH_IN_REPO}" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/github-script@v9
+        env:
+          FINAL_URL: ${{ steps.screenshots.outputs.final_url }}
+          BUILD_S: ${{ steps.build.outputs.duration }}
+          PLAIN_S: ${{ steps.plain_test.outputs.duration }}
+          ISO_BYTES: ${{ steps.build.outputs.iso_size }}
+          TEST_RESULT: ${{ steps.plain_test.outcome }}
+          INSTALLER_CHANNEL: ${{ matrix.installer_channel }}
+        with:
+          script: |
+            const result  = process.env.TEST_RESULT || 'unknown';
+            const channel = process.env.INSTALLER_CHANNEL || 'unknown';
+            const pass    = result === 'success';
+            const icon    = pass ? '✅' : '❌';
+            const runUrl  = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const fmtDur = s => s ? `${Math.floor(s/60)}m ${s%60}s` : 'N/A';
+            const fmtMiB = b => b ? `${(b/1024/1024).toFixed(0)} MiB` : 'N/A';
+            const img = (url, alt) => url ? `**${alt}**\n![${alt}](${url})\n` : '';
+
+            const body = [
+              `## ${icon} Plain Install End-to-End Test (${channel}) — ${pass ? 'PASSED' : 'FAILED'}`,
+              '',
+              '| Step | Details |',
+              '|------|---------|',
+              `| ISO build | ${fmtMiB(process.env.ISO_BYTES)} · ${fmtDur(process.env.BUILD_S)} |`,
+              `| Plain E2E | ${fmtDur(process.env.PLAIN_S)} |`,
+              `| Result    | ${icon} ${result} |`,
+              '',
+              img(process.env.FINAL_URL, 'Installed system (post-install boot)'),
+              `<sub>[Workflow run](${runUrl})</sub>`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });
+
+      - name: Write job summary
+        if: always()
+        run: |
+          RESULT="${{ steps.plain_test.outcome }}"
+          ICON=$( [ "$RESULT" = "success" ] && echo "✅" || echo "❌" )
+          {
+            echo "## ${ICON} Plain Install End-to-End Test (${{ matrix.installer_channel }}) — ${RESULT}"
+            echo ""
+            echo "| Step | Value |"
+            echo "|------|-------|"
+            echo "| ISO size | $(numfmt --to=iec ${{ steps.build.outputs.iso_size }} 2>/dev/null || echo N/A) |"
+            echo "| Build time | ${{ steps.build.outputs.duration }}s |"
+            echo "| Plain test time | ${{ steps.plain_test.outputs.duration }}s |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect serial logs
+        if: always()
+        run: sudo chmod a+r /tmp/${{ env.TARGET }}-qemu-plain-*.log 2>/dev/null || true
+
+      - name: Upload serial logs artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: plain-e2e-serial-logs-${{ matrix.installer_channel }}
+          path: |
+            /tmp/tromso-qemu-plain-live-serial.log
+            /tmp/tromso-qemu-plain-installed-serial.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Fail if plain test failed
+        if: steps.plain_test.outcome == 'failure'
+        run: |
+          echo "::error::Plain install end-to-end test failed — see serial logs and screenshot above"
+          exit 1
