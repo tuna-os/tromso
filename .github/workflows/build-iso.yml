@@ -145,6 +145,14 @@ jobs:
             "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.sig"
           rclone copyto --log-level INFO --s3-no-check-bucket \
             "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.cert"
+          # Same bytes as the dated ISO, so the same signature verifies it —
+          # publish under the "latest" name too so consumers of the stable
+          # download URL (validate-iso-kanpur.yml included) have something
+          # to verify against without needing to know today's dated filename.
+          rclone copyto --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.sig"
+          rclone copyto --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.cert"
           echo "https://download.tunaos.org/tromso/tromso-live-latest.iso"
         continue-on-error: true
 

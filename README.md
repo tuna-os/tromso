@@ -102,6 +102,30 @@ update step.
 
 See `AGENTS.md` for full conventions and workflows.
 
+## Verifying Signatures
+
+OCI images and live ISOs are signed keylessly with [cosign](https://github.com/sigstore/cosign)
+via GitHub Actions OIDC (Sigstore/Fulcio) — no long-lived signing key to leak or rotate.
+
+**OCI images:**
+
+```bash
+cosign verify ghcr.io/tuna-os/tromso:latest \
+  --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/build-tromso-multirunner\.yml@.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+**Live ISOs** (`.sig`/`.cert` are published alongside each dated ISO, e.g.
+`tromso-live-<date>-<sha>.iso.sig`):
+
+```bash
+cosign verify-blob tromso-live-<date>-<sha>.iso \
+  --certificate tromso-live-<date>-<sha>.iso.cert \
+  --signature tromso-live-<date>-<sha>.iso.sig \
+  --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/build-iso\.yml@.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
 ## References
 
 - **[KDE Linux](https://invent.kde.org/kde-linux/kde-linux)** — the real official KDE Linux project (mkosi + Arch, not BuildStream); tromso tracks its package selection as a reference point, not its build tooling
