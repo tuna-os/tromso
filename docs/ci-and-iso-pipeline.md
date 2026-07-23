@@ -27,9 +27,11 @@ certificate, which is what README.md's verify instructions point at.
 
 Free GitHub runners can't hold the whole KDE build, so it's split:
 
-1. **planning** — `scripts/ci-build-matrix.py` runs `bst show` and splits
-   uncached elements into a core set (first `CORE_SPLIT`) and `NUM_CHUNKS`
-   round-robin chunks, each with a composite cache key.
+1. **planning** — bst-ci's `scripts/ci-build-matrix.py` runs `bst show` and
+   splits uncached elements into a core set (first `CORE_SPLIT`) and
+   `NUM_CHUNKS` round-robin chunks, each with a composite cache key. It's
+   checked out from bst-ci at run time — this repo no longer carries its
+   own copy.
 2. **build_core** — builds the bootstrap set, pushes the CAS as
    `ghcr.io/…/cache-tromso-core:latest` (zstd tarball via oras).
 3. **build_deps** (matrix) — each chunk restores core + its own previous CAS,
