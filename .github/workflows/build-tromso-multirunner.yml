@@ -37,8 +37,12 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # Newer work for the same branch supersedes stale scheduled/push builds.
-  cancel-in-progress: true
+  # This build regularly takes multiple hours; main gets pushed to several
+  # times a day. cancel-in-progress:true meant every push evicted whatever
+  # build was in flight, so the pipeline effectively never completed (#122).
+  # Queue instead: the next run just picks up the latest HEAD when its turn
+  # comes, rather than restarting from scratch on every intervening push.
+  cancel-in-progress: false
 
 jobs:
   # ── Phase 1: Plan ────────────────────────────────────────────────────
