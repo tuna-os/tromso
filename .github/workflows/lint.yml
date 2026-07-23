@@ -93,3 +93,36 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate renovate.json
         run: npx --yes --package renovate -- renovate-config-validator renovate.json
+
+  lint-bst:
+    name: lint .bst files
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Checkout bst-ci scripts
+        uses: actions/checkout@v7
+        with:
+          repository: tuna-os/bst-ci
+          ref: main
+          path: .bst-ci
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Lint changed .bst files
+        run: |
+          pip install pyyaml
+          git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=1
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "origin/${{ github.event.pull_request.base.ref }}"...HEAD -- '*.bst')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No .bst files changed in this PR."
+            exit 0
+          fi
+          echo "Changed .bst files:"
+          printf '  %s\n' "${files[@]}"
+          python3 .bst-ci/scripts/lint_bst.py elements --check-new "${files[@]}"
