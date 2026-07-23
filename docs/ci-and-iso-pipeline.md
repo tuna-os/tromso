@@ -18,6 +18,13 @@ elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/
 
 ### Multi-runner build (`build-tromso-multirunner.yml`)
 
+Planning + core + parallel dependency chunks (steps 1-3 below) are a
+shared reusable workflow, [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci)
+— identical across every BuildStream desktop repo except image
+name/target/chunk count. `build_final` (step 4) stays local: cosign's
+keyless signing embeds *this* workflow's identity in the Fulcio
+certificate, which is what README.md's verify instructions point at.
+
 Free GitHub runners can't hold the whole KDE build, so it's split:
 
 1. **planning** — `scripts/ci-build-matrix.py` runs `bst show` and splits
