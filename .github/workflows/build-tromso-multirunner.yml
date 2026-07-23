@@ -4,17 +4,11 @@ name: Build Tromso (Multi-Runner)
 # runners, sharing CAS state between jobs via GHCR-hosted tarballs.
 
 on:
-  push:
-    branches: [main, stable]
-    paths:
-      - 'elements/**'
-      - 'project.conf'
-      - 'include/**'
-      - 'buildstream-ci.conf'
-      - 'scripts/ci-build-matrix.py'
-      - '.github/workflows/build-tromso-multirunner.yml'
+  # No push trigger: this build takes hours and we don't need a fresh run
+  # on every commit — the daily schedule is enough. Use workflow_dispatch
+  # to build on demand.
   schedule:
-    # Daily at 00:30 UTC (5:00 AM IST) — early morning, 1h after xfce-linux's
+    # Daily at 00:30 UTC (6:00 AM IST) — early morning, 1h after xfce-linux's
     # slot to reduce org-wide runner contention (tuna-os/tromso#93).
     - cron: '30 0 * * *'
   workflow_dispatch:
