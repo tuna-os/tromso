@@ -1,0 +1,93 @@
+name: Build Staleness Check
+
+# Safety net for #106: the multi-runner build's retry-and-converge design
+# (chunk timeouts + CAS salvage) means a bad day can quietly cost more than
+# one run's worth of freshness. This surfaces that instead of letting it go
+# unnoticed.
+
+on:
+  schedule:
+    # Daily at 09:00 UTC — well after the 00:30 UTC scheduled build should
+    # have finished, or converged over a couple of runs on a bad day.
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  actions: read
+
+env:
+  STALE_HOURS: 48
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Find latest successful multi-runner build
+        id: last
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          updated_at=$(gh run list --repo "${{ github.repository }}" \
+            --workflow "Build Tromso (Multi-Runner)" --branch main \
+            --status success --limit 1 --json updatedAt --jq '.[0].updatedAt // empty')
+          echo "updated_at=$updated_at" >> "$GITHUB_OUTPUT"
+
+      - name: Evaluate staleness
+        id: stale
+        run: |
+          updated_at="${{ steps.last.outputs.updated_at }}"
+          if [ -z "$updated_at" ]; then
+            echo "No successful build found at all — treating as stale."
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "age_desc=no successful run found in queryable history" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          now_ts=$(date -u +%s)
+          build_ts=$(date -u -d "$updated_at" +%s)
+          age_hours=$(( (now_ts - build_ts) / 3600 ))
+          echo "Last successful build: $updated_at ($age_hours hours ago)"
+          echo "age_desc=${age_hours}h ago (${updated_at})" >> "$GITHUB_OUTPUT"
+
+          if [ "$age_hours" -ge "$STALE_HOURS" ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Find existing stale-build alert issue
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          num=$(gh issue list --repo "${{ github.repository }}" --state open \
+            --search "\"Stale build: no successful main image publish\" in:title" \
+            --json number --jq '.[0].number // empty')
+          echo "number=$num" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update stale-build alert
+        if: steps.stale.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body="No successful \`Build Tromso (Multi-Runner)\` run on \`main\` in over ${STALE_HOURS}h. Last success: ${{ steps.stale.outputs.age_desc }}.
+
+          Automated check (\`.github/workflows/staleness-check.yml\`, #106) — this issue closes itself automatically once a build succeeds again."
+
+          if [ -n "${{ steps.existing.outputs.number }}" ]; then
+            gh issue comment "${{ steps.existing.outputs.number }}" --repo "${{ github.repository }}" --body "$body"
+          else
+            gh issue create --repo "${{ github.repository }}" \
+              --title "Stale build: no successful main image publish in ${STALE_HOURS}h+" \
+              --body "$body"
+          fi
+
+      - name: Auto-close resolved alert
+        if: steps.stale.outputs.stale == 'false' && steps.existing.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ steps.existing.outputs.number }}" --repo "${{ github.repository }}" \
+            --body "Resolved — latest successful build: ${{ steps.stale.outputs.age_desc }}."
+          gh issue close "${{ steps.existing.outputs.number }}" --repo "${{ github.repository }}"
