@@ -1,9 +1,3 @@
-self-hosted-runner:
-  # kanpur: the org's self-hosted validation runner (see validate-iso-kanpur.yml).
-  labels:
-    - kanpur
-    - vm
-
 # Pre-existing, low-severity shellcheck findings across several workflow
 # scripts (unquoted simple identifiers/paths in controlled contexts,
 # stylistic redirect suggestions). Not real bugs; genuine quoting issues
