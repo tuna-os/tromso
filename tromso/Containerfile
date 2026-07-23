@@ -27,9 +27,17 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         dracut \
         dmsetup \
+        plymouth \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=tromso-ref /usr/lib/modules /usr/lib/modules
+
+# Use Tromsø's own breeze-bgrt theme (elements/tromso/plymouth-theme.bst)
+# instead of Debian's default, so the live boot is branded to match
+# bootc-installed systems' splash + graphical LUKS prompt (#84).
+COPY --from=tromso-ref /usr/share/plymouth/themes/breeze-bgrt /usr/share/plymouth/themes/breeze-bgrt
+COPY --from=tromso-ref /usr/share/plymouth/plymouthd.defaults /usr/share/plymouth/plymouthd.defaults
+RUN plymouth-set-default-theme breeze-bgrt
 
 COPY src/dracut/95tromso-isofile /usr/lib/dracut/modules.d/95tromso-isofile
 
@@ -37,7 +45,7 @@ RUN set -ex; \
     kernel=$(ls /usr/lib/modules | sort -V | tail -1); \
     echo "Building dmsquash-live initramfs for kernel ${kernel}"; \
     DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
-        --add "dmsquash-live tromso-isofile" \
+        --add "dmsquash-live tromso-isofile plymouth" \
         --add-drivers "squashfs overlay loop iso9660 sr_mod cdrom sd_mod usb-storage xhci-pci exfat vfat fat ntfs3 ext4" \
         /tmp/initramfs.img "${kernel}"; \
     ls -lh /tmp/initramfs.img
