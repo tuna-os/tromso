@@ -83,6 +83,11 @@ EOF
 #   rd.live.image               enable dmsquash-live mode
 #   rd.live.overlay.overlayfs=1 use overlayfs (not device mapper) for the rw layer
 #   enforcing=0                 disable SELinux enforcement (GNOME OS ships it)
+#   splash                      plymouth graphical splash (breeze-bgrt theme, now
+#                                built into the live initramfs — see Containerfile)
+#   quiet                       suppresses kernel printk only, not systemd/userspace
+#                                console output — CI's serial-log TROMSO_LIVE_READY
+#                                grep still works fine with this present
 #   console=ttyS0,115200n8      serial output on amd64 (16550/QEMU q35) — validation target
 #   console=ttyAMA0,115200n8    serial output on arm64 (PL011/QEMU virt) — validation target; listed
 #                                last so it wins /dev/console on hardware where both UARTs exist
@@ -91,7 +96,7 @@ cat > "${ESP_STAGING}/loader/entries/tromso-live.conf" << EOF
 title   Tromso Live
 linux   /images/pxeboot/vmlinuz
 initrd  /images/pxeboot/initrd.img
-options root=live:CDLABEL=${LABEL} rd.live.image rd.live.overlay.overlayfs=1 enforcing=0 quiet console=ttyS0,115200n8 console=ttyAMA0,115200n8
+options root=live:CDLABEL=${LABEL} rd.live.image rd.live.overlay.overlayfs=1 enforcing=0 splash quiet console=ttyS0,115200n8 console=ttyAMA0,115200n8
 EOF
 # ── Create the FAT ESP image ──────────────────────────────────────────────────
 # Size = kernel + initramfs + EFI binary + loader files + 32 MiB headroom
