@@ -190,7 +190,7 @@ GitHub Actions runner
 Triggers: push to `main` (elements/**, project.conf, include/**), daily at 06:00 UTC, manual dispatch.
 
 **Experimental parallel workflow**: `.github/workflows/build-tromso-multirunner.yml`
-Splits the build into 10 parallel chunks across GitHub runners using `scripts/ci-build-matrix.py`.
+Splits the build into 10 parallel chunks across GitHub runners using the shared [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci) reusable workflow (`scripts/ci-build-matrix.py` no longer lives in this repo).
 Triggered manually or by daily schedule.
 
 ---
