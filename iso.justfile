@@ -490,3 +490,71 @@ luks-unlock-qemu target:
     # Show key screenshots inline for terminals that support it (Kitty, iTerm2)
     bash "{{target}}/src/show-screenshot.sh" /tmp/luks-screenshot-plymouth.ppm "Plymouth prompt" || true
     bash "{{target}}/src/show-screenshot.sh" /tmp/luks-screenshot-final.ppm "Final boot" || true
+
+# ── Plain (no-encryption) install e2e ──────────────────────────────────────
+# This is the install path most users actually run and (until this) had zero
+# e2e coverage. Reuses luks-boot-qemu-live/-installed (booting is identical
+# either way) with its own disk/monitor/serial variables so a plain and LUKS
+# run can coexist without colliding.
+#
+# Local equivalent:
+#   just debug=1 iso-sd-boot tromso
+#   just plain-test-qemu tromso
+
+plain-qemu-monitor-live := "/tmp/tromso-qemu-plain-live.sock"
+plain-qemu-monitor-installed := "/tmp/tromso-qemu-plain-installed.sock"
+plain-qemu-serial-live := "/tmp/tromso-qemu-plain-live-serial.log"
+plain-qemu-serial-installed := "/tmp/tromso-qemu-plain-installed-serial.log"
+
+# Run the full plain install end-to-end test in QEMU (CI entry point).
+# Builds nothing — expects the ISO to already exist in {{output_dir}}.
+plain-test-qemu target installer_channel="stable":
+    #!/usr/bin/bash
+    set -euo pipefail
+    DISK="/var/tmp/tromso-plain-install-{{target}}-{{installer_channel}}.qcow2"
+    SCRATCH="/var/tmp/tromso-plain-scratch-{{target}}-{{installer_channel}}.img"
+    just luks-qemu-disk="$DISK" luks-scratch-disk="$SCRATCH" \
+         luks-qemu-monitor-live="{{plain-qemu-monitor-live}}" \
+         luks-qemu-serial-live="{{plain-qemu-serial-live}}" \
+         luks-boot-qemu-live {{target}}
+    just luks-qemu-ssh-port={{luks-qemu-ssh-port}} \
+         luks-qemu-monitor-live="{{plain-qemu-monitor-live}}" \
+         plain-install-qemu {{target}}
+    just luks-qemu-disk="$DISK" luks-scratch-disk="$SCRATCH" \
+         luks-qemu-monitor-installed="{{plain-qemu-monitor-installed}}" \
+         luks-qemu-serial-installed="{{plain-qemu-serial-installed}}" \
+         luks-boot-qemu-installed {{target}}
+    just plain-qemu-monitor-installed="{{plain-qemu-monitor-installed}}" \
+         plain-qemu-serial-installed="{{plain-qemu-serial-installed}}" \
+         plain-wait-boot {{target}}
+
+# Run fisherman plain (no-encryption) install via SSH into the live QEMU VM.
+plain-install-qemu target:
+    ./scripts/plain-install-qemu.sh "{{target}}" "{{luks-qemu-ssh-port}}" "{{luks-qemu-monitor-live}}" "{{fisher_repo}}"
+
+# Wait for the installed disk to boot to a ready state. No passphrase to
+# handle here (that's the whole point of the plain path) — just watch serial
+# for the same success/failure markers tromso/src/luks-unlock.py's qemu mode
+# checks for, so a regression here surfaces the same way a LUKS one does.
+plain-wait-boot target:
+    #!/usr/bin/bash
+    set -euo pipefail
+    echo "Waiting for installed system to boot..."
+    for i in $(seq 1 60); do
+        if grep -qiE "emergency mode|emergency shell" "{{plain-qemu-serial-installed}}" 2>/dev/null; then
+            echo "ERROR: installed system dropped to emergency shell"
+            tail -50 "{{plain-qemu-serial-installed}}" || true
+            exit 1
+        fi
+        if grep -qE "Started gdm\.service|Started GNOME Display Manager|Started gnome-initial-setup" "{{plain-qemu-serial-installed}}" 2>/dev/null; then
+            echo "Installed system booted successfully"
+            sudo python3 "{{target}}/src/luks-unlock.py" wait-live \
+                "{{plain-qemu-monitor-installed}}" "/tmp/plain-screenshot-final.ppm" || true
+            bash "{{target}}/src/show-screenshot.sh" /tmp/plain-screenshot-final.ppm "Installed boot (plain)" || true
+            exit 0
+        fi
+        sleep 5
+    done
+    echo "ERROR: installed system did not reach a ready state after 5m"
+    tail -50 "{{plain-qemu-serial-installed}}" || true
+    exit 1
