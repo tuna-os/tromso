@@ -23,7 +23,7 @@ env:
 jobs:
   build-changed:
     name: Build changed elements
-    runs-on: runs-on=${{ github.run_id }}/runner=build-amd64
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 120
     permissions:
       contents: read
