@@ -26,7 +26,7 @@ jobs:
     # Use a self-hosted runner if ACTIONS_RUNNER_LABEL repo variable is set
     # (e.g. "self-hosted"), otherwise fall back to GitHub-hosted ubuntu-24.04.
     # GitHub-hosted runners are hard-capped at 6 h; self-hosted have no cap.
-    runs-on: ${{ vars.ACTIONS_RUNNER_LABEL || 'ubuntu-24.04' }}
+    runs-on: ${{ vars.ACTIONS_RUNNER_LABEL && format('runs-on={0}/runner={1}', github.run_id, vars.ACTIONS_RUNNER_LABEL) || 'ubuntu-24.04' }}
     timeout-minutes: 1440  # 24 h on self-hosted; GH-hosted still hard-capped at 6 h
     permissions:
       contents: read
