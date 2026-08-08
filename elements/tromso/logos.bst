@@ -5,7 +5,7 @@ sources:
 - kind: git_repo
   url: github:get-aurora-dev/common.git
   track: main
-  ref: v2026.08-3-g13c91863b464fc0d5df149d0ea50bafc074e5dc7
+  ref: v2026.08-4-gd49c0ce6bee80147cd18045bdf21b313245b843d
 - kind: remote
   url: https://invent.kde.org/plasma/plasma-workspace/-/raw/d3b5a422e586ee578efadfe462d0d0b5546aaa3b/lookandfeel/org.kde.breeze/contents/splash/images/busywidget.svgz
   ref: 606739a68533cd009d7401c25f449b2637cb66264a5358d42969fa1635ff3221
