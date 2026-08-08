@@ -229,33 +229,33 @@ rows:
             - org.jellyfin.JellyfinDesktop
 
   - sections:
-    - expand-horizontally: true
-      classes:
-        - global-section
-      light-classes:
-        - office-section
-      dark-classes:
-      - office-section-dark
-      category:
-        title: "Office & Productivity"
-        subtitle: "Let's do some work"
-        banner: file:///run/host/etc/bazaar/04-aurora-bazaar.jxl
-        banner-fit: cover
-        banner-text-halign: end
-        banner-text-valign: center
-        banner-height: 550
-        appids:
-          - com.collaboraoffice.Office
-          - com.slack.Slack
-          - md.obsidian.Obsidian
-          - org.onlyoffice.desktopeditors
-          - org.libreoffice.LibreOffice
-          - io.github.alainm23.planify
-          - io.github.nokse22.Exhibit
-          - io.gitlab.theevilskeleton.Upscaler
-          - com.bambulab.BambuStudio
-          - com.github.IsmaelMartinez.teams_for_linux
-          - com.super_productivity.SuperProductivity
+      - expand-horizontally: true
+        classes:
+          - global-section
+        light-classes:
+          - office-section
+        dark-classes:
+          - office-section-dark
+        category:
+          title: "Office & Productivity"
+          subtitle: "Let's do some work"
+          banner: file:///run/host/etc/bazaar/04-aurora-bazaar.jxl
+          banner-fit: cover
+          banner-text-halign: end
+          banner-text-valign: center
+          banner-height: 550
+          appids:
+            - com.collaboraoffice.Office
+            - com.slack.Slack
+            - md.obsidian.Obsidian
+            - org.onlyoffice.desktopeditors
+            - org.libreoffice.LibreOffice
+            - io.github.alainm23.planify
+            - io.github.nokse22.Exhibit
+            - io.gitlab.theevilskeleton.Upscaler
+            - com.bambulab.BambuStudio
+            - com.github.IsmaelMartinez.teams_for_linux
+            - com.super_productivity.SuperProductivity
 
   - sections:
       - expand-horizontally: true
