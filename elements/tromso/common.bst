@@ -5,7 +5,7 @@ sources:
 - kind: git_repo
   url: github:get-aurora-dev/common.git
   track: main
-  ref: v2026.07-12-gec6ad36c41eee73a3b63c625ffb8331d9c861efe
+  ref: v2026.08-4-gd49c0ce6bee80147cd18045bdf21b313245b843d
 - kind: git_module
   url: github:get-aurora-dev/branding/
   path: branding

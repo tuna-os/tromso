@@ -64,7 +64,9 @@ jobs:
   build_final:
     needs: multirunner
     if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
-    runs-on: runs-on=${{ github.run_id }}/runner=build-amd64
+    # ⚠️ Was Blacksmith build-amd64 (32-core) final assembly. Now 2-core
+    # GitHub-hosted — candidate for larger runner/kanpur if it nears 6h.
+    runs-on: ubuntu-24.04
     timeout-minutes: 360
     permissions:
       contents: read
@@ -260,7 +262,9 @@ jobs:
   build_final_aarch64:
     needs: multirunner_aarch64
     if: needs.multirunner_aarch64.result == 'success'
-    runs-on: runs-on=${{ github.run_id }}/runner=build-arm64
+    # ⚠️ Was Blacksmith build-arm64 (32-core) final assembly. Now 2-core
+    # GitHub-hosted arm64 — candidate for larger runner/kanpur if slow.
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 360
     permissions:
       contents: read

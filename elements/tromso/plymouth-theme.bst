@@ -12,7 +12,7 @@ sources:
 - kind: git_repo
   url: kde:kde-linux/kde-linux.git
   track: master
-  ref: 933211f7a9f03b6a7c957a95ee75db1618b1102b
+  ref: 9ad1b95507bc597d0c2256b63f76f0200e996b1e
 
 build-depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

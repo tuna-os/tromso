@@ -5,10 +5,10 @@ sources:
 - kind: git_repo
   url: github:get-aurora-dev/common.git
   track: main
-  ref: v2026.07-12-gec6ad36c41eee73a3b63c625ffb8331d9c861efe
+  ref: v2026.08-4-gd49c0ce6bee80147cd18045bdf21b313245b843d
 - kind: remote
   url: github_files:ublue-os/aurora-docs/releases/download/0.1/aurora.pdf
-  ref: 632c01960b9da73b83077da37206c2df555c35986aa391dacfc644e81f875e7b
+  ref: b6af1a58ea6397f0c893a2a726d40dc511d56bb76af28a0d8286cce93cce8472
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
