@@ -80,7 +80,7 @@ jobs:
     name: actionlint
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run actionlint on workflows
         uses: docker://rhysd/actionlint:latest
         with:
@@ -90,7 +90,7 @@ jobs:
     name: Renovate Config Validate
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate renovate.json
         run: npx --yes --package renovate -- renovate-config-validator renovate.json
 
