@@ -59,6 +59,54 @@ jobs:
       bst_target: oci/tromso.bst
       num_chunks: ${{ inputs.num_chunks || '10' }}
       core_split: "200"
+      # Elements that several chunks each rebuilt from scratch in run
+      # 31235013863, with the measured cost of one build and how many of the
+      # ten chunks paid it. Building them in core instead puts them in the
+      # shared core CAS that every chunk restores, so they are built once.
+      # That run did 1232 element-builds to produce 365 distinct elements —
+      # 3.4x duplication, most of it these.
+      #
+      #   webkitgtk-6.0    249 min (92% of a chunk's 270 min budget)
+      #   llvm             126 min x 5 chunks
+      #   qt6-qtdeclarative 57 min x 3 chunks
+      #   qt6-qtbase        43 min x 3 chunks
+      #   rust              35 min x 5 chunks
+      #   qt6-qtquick3d     17 min
+      #   glycin            13 min x 4 chunks
+      #   qt6-qttools       13 min x 3 chunks
+      #   cargo-c           13 min x 4 chunks
+      #   doxygen           12 min x 5 chunks
+      #   gdb               12 min x 3 chunks
+      #   systemd-stage1    10 min x 5 chunks
+      #
+      # kio is here because a chunk was still inside it when the budget ran
+      # out, and it drags in most of KDE Frameworks behind it.
+      #
+      # Naming an element builds its whole transitive closure, so this list is
+      # the shared spine, not just these leaves. It does not change the chunk
+      # matrix — chunk names and cache keys still come from core_split alone,
+      # so the warm GHCR chunk caches survive this change.
+      extra_core_targets: >-
+        sdk/webkitgtk-6.0.bst
+        kde/frameworks/kio.bst
+        kde/qt6/qt6-qtdeclarative.bst
+        kde/qt6/qt6-qtquick3d.bst
+        kde/qt6/qt6-qttools.bst
+        freedesktop-sdk.bst:components/llvm.bst
+        freedesktop-sdk.bst:components/rust.bst
+        freedesktop-sdk.bst:components/doxygen.bst
+        freedesktop-sdk.bst:components/cargo-c.bst
+        freedesktop-sdk.bst:components/gdb.bst
+        freedesktop-sdk.bst:components/systemd-stage1.bst
+        sdk/glycin.bst
+      # That spine is well over a single job's worth of serial work at 2 cores,
+      # so core will exhaust its budget for the first few runs. Its CAS is
+      # pushed regardless (the push step is if: always()), so each run resumes
+      # where the last stopped and the chunks get a progressively warmer core
+      # cache meanwhile. Only the budget timeout is tolerated — a real build
+      # error still fails core.
+      core_budget_minutes: "300"
+      soft_core_budget: true
 
   # ── Phase 4: Final assembly + push ──────────────────────────────────
   build_final:
@@ -257,6 +305,25 @@ jobs:
       bst_target: oci/tromso.bst
       num_chunks: ${{ inputs.num_chunks || '10' }}
       core_split: "200"
+      # Same shared spine as the x86_64 call above — same graph, same elements,
+      # and the -aarch64 cache namespace keeps the two CASes apart. Repeated
+      # rather than shared because GitHub Actions does not support YAML
+      # anchors; keep the two lists in step.
+      extra_core_targets: >-
+        sdk/webkitgtk-6.0.bst
+        kde/frameworks/kio.bst
+        kde/qt6/qt6-qtdeclarative.bst
+        kde/qt6/qt6-qtquick3d.bst
+        kde/qt6/qt6-qttools.bst
+        freedesktop-sdk.bst:components/llvm.bst
+        freedesktop-sdk.bst:components/rust.bst
+        freedesktop-sdk.bst:components/doxygen.bst
+        freedesktop-sdk.bst:components/cargo-c.bst
+        freedesktop-sdk.bst:components/gdb.bst
+        freedesktop-sdk.bst:components/systemd-stage1.bst
+        sdk/glycin.bst
+      core_budget_minutes: "300"
+      soft_core_budget: true
       arch: aarch64
 
   build_final_aarch64:
