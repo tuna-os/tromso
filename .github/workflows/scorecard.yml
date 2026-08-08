@@ -30,7 +30,9 @@ jobs:
           persist-credentials: false
 
       - name: Run analysis
-        uses: ossf/scorecard-action@v2
+        # ossf/scorecard-action publishes no floating major tag, so `@v2`
+        # never resolved and this job failed in ~3s on every push.
+        uses: ossf/scorecard-action@v2.4.4
         with:
           results_file: results.sarif
           results_format: sarif
