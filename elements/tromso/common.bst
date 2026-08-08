@@ -1,15 +1,11 @@
 kind: manual
-description: Aurora common branding (sourced from get-aurora-dev/{common,branding})
+description: Aurora common branding (vendored from get-aurora-dev/{common,branding})
 
 sources:
-- kind: git_repo
-  url: github:get-aurora-dev/common.git
-  track: main
-  ref: v2026.08-4-gd49c0ce6bee80147cd18045bdf21b313245b843d
-- kind: git_module
-  url: github:get-aurora-dev/branding/
-  path: branding
-  ref: 0063d5ca18e2b7dfddd8af05af86e63604dbb737
+- kind: local
+  path: files/tromso/aurora-common
+- kind: local
+  path: files/tromso/aurora-branding
 
 depends:
 - freedesktop-sdk.bst:components/sed.bst

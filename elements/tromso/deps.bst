@@ -30,7 +30,7 @@ depends:
   # Bluefin common shared payload -> Aurora common -> Brew -> Aurora image overlay.
   - tromso/bluefin-common.bst
 
-  # Aurora common/theme layer (sourced from get-aurora-dev/common + branding)
+  # Aurora common/theme layer (vendored from get-aurora-dev/common + branding)
   - tromso/common.bst
   - tromso/logos.bst
   - tromso/wallpapers.bst
