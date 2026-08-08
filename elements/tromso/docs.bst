@@ -5,7 +5,7 @@ sources:
 - kind: git_repo
   url: github:get-aurora-dev/common.git
   track: main
-  ref: v2026.08-3-g13c91863b464fc0d5df149d0ea50bafc074e5dc7
+  ref: v2026.08-4-gd49c0ce6bee80147cd18045bdf21b313245b843d
 - kind: remote
   url: github_files:ublue-os/aurora-docs/releases/download/0.1/aurora.pdf
   ref: b6af1a58ea6397f0c893a2a726d40dc511d56bb76af28a0d8286cce93cce8472
