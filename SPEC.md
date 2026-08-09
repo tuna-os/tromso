@@ -205,4 +205,4 @@ that have not yet been written:
 | `openrazer-daemon` | DKMS-based; needs special handling |
 | `yubikey-full-disk-encryption` | Hardware security key disk encryption |
 | `vpl-gpu-rt` | Intel VPL GPU runtime |
-| Python bindings (Shiboken6/PySide6) | Requires packaging from scratch |
+| Python bindings (Shiboken6/PySide6) | Requires packaging from scratch — see [investigation](docs/kde-python-bindings-investigation.md) (#2) for what that entails |
