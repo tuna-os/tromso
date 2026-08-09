@@ -38,7 +38,7 @@ Aurora Tromso images are:
 
 - Base elements are pinned by junction refs in `elements/kde-build-meta.bst`
 - Build dependencies are resolved via BuildStream's CASD content-addressable store
-- KDE package definitions live in `hanthor/kde-build-meta` with pinned junction URLs
+- KDE package definitions live in `tuna-os/kde-build-meta` with pinned junction URLs
 - The build container (`bst2`) is pinned by digest
 
 ## Disclosure Policy

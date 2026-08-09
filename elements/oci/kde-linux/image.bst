@@ -72,8 +72,8 @@ config:
           'org.opencontainers.image.description': 'A KDE Plasma desktop image based on freedesktop-sdk'
           'org.opencontainers.image.vendor': 'Hanthor'
           'org.opencontainers.image.licenses': 'Apache-2.0'
-          'org.opencontainers.image.url': 'https://github.com/hanthor/tromso'
-          'org.opencontainers.image.source': 'https://github.com/hanthor/tromso'
+          'org.opencontainers.image.url': 'https://github.com/tuna-os/tromso'
+          'org.opencontainers.image.source': 'https://github.com/tuna-os/tromso'
           'containers.bootc': '1'
         index-annotations:
           'org.opencontainers.image.ref.name': 'quay.io/kde_infrastructure/kde-build-meta:image'

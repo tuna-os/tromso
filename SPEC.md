@@ -37,7 +37,7 @@ tuna-os/tromso (this repo)
 ├── include/
 │   └── aliases.yml               # URL aliases (kde:, github:, etc.)
 └── elements/
-    ├── kde-build-meta.bst        # Junction → hanthor/kde-build-meta (tarball ref)
+    ├── kde-build-meta.bst        # Junction → tuna-os/kde-build-meta (tarball ref)
     ├── gnomeos-deps/
     │   └── bootc.bst             # bootc compiled from source (Rust)
     ├── test.bst                  # Minimal test element
@@ -75,10 +75,10 @@ tuna-os/tromso (this repo)
             └── tromso-stack.bst  # Combined: kde-linux/stack + tromso/deps
 ```
 
-`hanthor/kde-build-meta` mirrors the role of `gnome-build-meta`:
+`tuna-os/kde-build-meta` mirrors the role of `gnome-build-meta`:
 
 ```
-hanthor/kde-build-meta
+tuna-os/kde-build-meta
 └── elements/kde/
     ├── qt6/         (~30 elements — Qt6 base, declarative, multimedia, etc.)
     ├── frameworks/  (~70 elements — kcoreaddons, kio, kirigami, kwin deps, etc.)
@@ -161,7 +161,7 @@ git push origin master
 
 # 2. Compute new SHA (re-download — GitHub archive hashes are non-deterministic)
 SHA=$(git rev-parse --short=7 HEAD)
-curl -sL https://github.com/hanthor/kde-build-meta/archive/${SHA}.tar.gz | tee /tmp/kbm.tar.gz | sha256sum
+curl -sL https://github.com/tuna-os/kde-build-meta/archive/${SHA}.tar.gz | tee /tmp/kbm.tar.gz | sha256sum
 tar tzf /tmp/kbm.tar.gz | head -1    # verify base-dir
 
 # 3. Update elements/kde-build-meta.bst: url, ref, base-dir
