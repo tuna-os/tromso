@@ -1,0 +1,80 @@
+name: Report Multi-Runner Timings
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_count:
+        description: 'Number of completed multi-runner runs to inspect'
+        type: string
+        default: '20'
+      min_samples:
+        description: 'Successful observations required before a profile is tuning-ready'
+        type: string
+        default: '3'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Collect recent workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_COUNT: ${{ inputs.run_count }}
+        run: |
+          mkdir -p timing-jobs
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/build-tromso-multirunner.yml/runs?status=completed&per_page=${RUN_COUNT}" \
+            > timing-runs.json
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          raw = json.loads(pathlib.Path("timing-runs.json").read_text())
+          pages = raw if isinstance(raw, list) else [raw]
+          runs = [run for page in pages for run in page.get("workflow_runs", [])]
+          limit = int(os.environ["RUN_COUNT"])
+          for run in runs[:limit]:
+              pathlib.Path("timing-jobs", f"{run['id']}.json").write_text("")
+          pathlib.Path("timing-run-ids.txt").write_text(
+              "\n".join(str(run["id"]) for run in runs[:limit]) + "\n"
+          )
+          PY
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" \
+              > "timing-jobs/${run_id}.json"
+          done < timing-run-ids.txt
+
+      - name: Build timing profile
+        env:
+          MIN_SAMPLES: ${{ inputs.min_samples }}
+        run: |
+          python3 scripts/report_multirunner_timings.py \
+            --runs timing-runs.json \
+            --jobs-dir timing-jobs \
+            --min-samples "$MIN_SAMPLES" \
+            --output multirunner-timing-profile.json \
+            | tee timing-report.json
+          {
+            echo '## Multi-runner timing profile'
+            echo
+            echo '```json'
+            cat multirunner-timing-profile.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload timing profile
+        uses: actions/upload-artifact@v7
+        with:
+          name: multirunner-timing-profile
+          path: |
+            multirunner-timing-profile.json
+            timing-report.json
+          if-no-files-found: error

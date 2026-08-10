@@ -43,6 +43,17 @@ Free GitHub runners can't hold the whole KDE build, so it's split:
 
 BuildStream settings CI uses live in the checked-in `buildstream-ci.conf`.
 
+#### Measuring chunk balance
+
+Run `Report Multi-Runner Timings` manually to collect recent completed
+workflow jobs. The workflow writes `multirunner-timing-profile.json` as an
+artifact with successful per-chunk medians, p95 durations, and a
+`ready_for_weighted_planner` gate. Failed and timed-out chunks are excluded so
+they cannot make a cache miss or infrastructure failure look like build work.
+The profile is intentionally measurement-only until there are enough
+successful observations and the shared `bst-ci` planner has a compatible
+weighted-input interface.
+
 **Cache-key invalidation warning:** anything that changes every element's
 cache key (e.g. renaming `name:` in `project.conf`) triggers a full world
 rebuild — expect chunk jobs to run for hours or hit their 6 h timeout once,
