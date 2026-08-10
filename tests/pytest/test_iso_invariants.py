@@ -118,3 +118,17 @@ def test_high_frequency_workflows_cancel_superseded_runs():
         "push and workflow_run ISO triggers must normalize to the same branch key"
     )
 
+
+def test_changed_element_build_is_safe_to_require():
+    """The PR build must report for every PR and fail on an unbuilt change.
+
+    A paths-filtered required workflow deadlocks unrelated pull requests, and
+    treating the timeout as success turns a required context into decoration.
+    Both mistakes would defeat tromso#80's promotion goal.
+    """
+    workflow = (REPO / ".github" / "workflows" / "pr-build-changed.yml").read_text()
+    pull_request = workflow.split("on:", 1)[1].split("concurrency:", 1)[0]
+    assert "paths:" not in pull_request
+    assert "timeout 100m just bst" in workflow
+    assert "exit 0" not in workflow
+    assert "Build changed elements" in workflow

@@ -2,15 +2,13 @@ name: PR Build Changed Elements
 
 # Builds only the .bst elements a PR touches, against the warm GHCR core
 # CAS cache. This is what turns "lint passed" into "the change compiles".
-# Informational (not a required check) until the world rebuild converges
-# and the caches are warm — then promote it to required.
+# This check is deliberately eligible for branch protection: it reports on
+# every pull request, and a timeout is a failure rather than an inconclusive
+# success. Promote the reported `Build changed elements` context to required
+# after the scheduled world rebuild has converged and the shared CAS is warm.
 
 on:
   pull_request:
-    paths:
-      - 'elements/**'
-      - 'project.conf'
-      - 'include/**'
 
 concurrency:
   group: pr-build-${{ github.ref }}
@@ -77,15 +75,10 @@ jobs:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
         run: |
           mkdir -p logs
-          # Bounded: uncached deep deps can exceed a PR budget while the
-          # world rebuild converges; a 124 exit here is inconclusive, not red.
-          rc=0
-          timeout 100m just bst --log-file /src/logs/pr-build.log build ${{ steps.changed.outputs.elements }} || rc=$?
-          if [ "$rc" -eq 124 ]; then
-            echo "::warning::build budget exceeded — inconclusive (cold cache?), not failing the PR"
-            exit 0
-          fi
-          exit $rc
+          # A required check must never turn a timeout into a green result:
+          # that would let an unbuilt .bst change reach main unnoticed.
+          timeout 100m just bst --log-file /src/logs/pr-build.log build \
+            ${{ steps.changed.outputs.elements }}
 
       - uses: actions/upload-artifact@v7
         if: always()

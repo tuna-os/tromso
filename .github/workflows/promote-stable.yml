@@ -1,8 +1,12 @@
 name: Promote main to stable
 
 # Release bookmark automation (dakota-style): verifies the newest nightly
-# build + ISO on main both succeeded, then fast-forwards the `stable` branch
-# to that commit and dispatches the stable build.
+# build, ISO publish, plain-install boot gate and LUKS e2e on main all
+# succeeded, then fast-forwards the `stable` branch to that commit and
+# dispatches the stable build. These four are exactly the criteria tuna-os/
+# tromso#83 names for cutting the first stable release — build+ISO alone
+# proves the image assembles and publishes, not that it boots or that
+# encryption works, which is what the two E2E checks are for.
 #
 # Why the explicit dispatch: pushes made with GITHUB_TOKEN do not trigger
 # event workflows, but workflow_dispatch via the API does — and the ISO
@@ -35,11 +39,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Health check — latest nightly build + ISO green on main
+      - name: Health check — build_final + ISO boot gate + LUKS e2e green on main
         id: health
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # NOTE on scope: each check below looks at the latest *completed*
+          # run of its workflow on main independently — it does not verify
+          # all four ran against the exact same commit (the two original
+          # checks never did either; the plain-install/LUKS E2E workflows
+          # run on their own weekly schedules against whatever `:latest`
+          # happens to be at the time, not per-push). This is a "recent and
+          # green," not a "identical SHA," guarantee. Good enough to catch
+          # the case this issue exists for — a nightly that has never once
+          # produced a bootable, encryptable image — not a substitute for
+          # actually reading the run dates in the summary before promoting.
           check() {
             local wf="$1"
             local run
@@ -59,13 +73,17 @@ jobs:
           BUILD_OK=$?
           ISO_OK=1
           check "Build and Publish Tromsø Live ISO" >/dev/null && ISO_OK=0
+          PLAIN_OK=1
+          check "Plain Install End-to-End Test" >/dev/null && PLAIN_OK=0
+          LUKS_OK=1
+          check "LUKS Install End-to-End Test" >/dev/null && LUKS_OK=0
           set -e
-          if [ $BUILD_OK -ne 0 ] || [ $ISO_OK -ne 0 ]; then
+          if [ $BUILD_OK -ne 0 ] || [ $ISO_OK -ne 0 ] || [ $PLAIN_OK -ne 0 ] || [ $LUKS_OK -ne 0 ]; then
             if [ "${{ inputs.force }}" = "true" ]; then
               echo "Health checks failed but force=true — promoting HEAD of main."
               BUILD_SHA=$(git rev-parse origin/main)
             else
-              echo "::error::Health checks failed (build ok=$BUILD_OK, iso ok=$ISO_OK); not promoting. Use force=true to override."
+              echo "::error::Health checks failed (build ok=$BUILD_OK, iso ok=$ISO_OK, plain-install ok=$PLAIN_OK, luks ok=$LUKS_OK); not promoting. Use force=true to override."
               exit 1
             fi
           fi

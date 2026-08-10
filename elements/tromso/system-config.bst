@@ -365,8 +365,44 @@ config:
     ln -sf /dev/null "%{install-root}/etc/systemd/system/debug-shell.service"
     # sddm-themes-workaround: recursive overlay might hide themes
     ln -sf /dev/null "%{install-root}/etc/systemd/system/usr-share-sddm-themes.mount"
-    # flatpak-preinstall: requires Flatpak infrastructure not present in base image
-    ln -sf /dev/null "%{install-root}/etc/systemd/system/flatpak-preinstall.service"
+
+  # ── Default Flatpak preinstall manifests ────────────────────────────
+  # flatpak-preinstall.service (shipped by aurora-common) runs
+  #   flatpak preinstall -y
+  # at first boot, which reads .flatpakref files from
+  # /usr/share/flatpak/preinstall.d/ and installs the referenced apps.
+  # Flathub remote is pre-configured via kde-linux-deps/flathub-config.bst.
+  #
+  # This set mirrors the tromso/src/flatpaks list used by the live ISO
+  # Containerfile, ensuring the installed system ships the same curated
+  # default Flatpak apps as the live environment.
+  - |
+    install -d "%{install-root}%{datadir}/flatpak/preinstall.d"
+    for app_id in \
+      org.mozilla.firefox \
+      com.github.tchx84.Flatseal \
+      io.github.flattool.Warehouse \
+      io.missioncenter.MissionCenter \
+      org.gnome.Firmware \
+      io.gitlab.adhami3310.Impression \
+      org.kde.haruna \
+      org.kde.merkuro \
+      org.kde.kasts \
+      org.kde.isoimagewriter \
+      it.mijorus.smile \
+      page.tesk.Refine \
+      org.gtk.Gtk3theme.adw-gtk3 \
+      org.gtk.Gtk3theme.adw-gtk3-dark \
+    ; do
+      install -Dm644 /dev/stdin \
+        "%{install-root}%{datadir}/flatpak/preinstall.d/${app_id}.flatpakref" <<FLATPAKREF
+    [Flatpak Ref]
+    Name=${app_id}
+    Branch=stable
+    Url=https://dl.flathub.org/repo/
+    IsRuntime=false
+    FLATPAKREF
+    done
 
   # ── NetworkManager enable ────────────────────────────────────────────
   # NetworkManager is the standard network manager for Aurora (same as
@@ -415,8 +451,8 @@ public:
         - '%{datadir}/pam/security/namespace.conf'
         - '%{sysconfdir}/systemd/system/systemd-homed.service'
         - '%{sysconfdir}/systemd/system/debug-shell.service'
-        - '%{sysconfdir}/systemd/system/flatpak-preinstall.service'
         - '%{sysconfdir}/ld.so.conf'
+        - '%{datadir}/flatpak/preinstall.d'
         - '%{indep-libdir}/systemd/system/sddm.service.d/debug.conf'
         - '%{sysconfdir}/sddm.conf.d/wayland.conf'
         - '%{indep-libdir}/systemd/system/display-manager.service'
