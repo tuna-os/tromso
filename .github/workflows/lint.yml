@@ -6,13 +6,8 @@ name: Lint
 
 on:
   pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'LICENSE*'
-      - 'CODE_OF_CONDUCT.md'
-      - 'CONTRIBUTING.md'
-      - 'SECURITY.md'
+    # No paths-ignore at workflow level — required checks must always
+    # report so docs-only PRs aren't blocked (jobs skip internally).
   push:
     branches: [main]
     paths-ignore:
@@ -32,8 +27,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect changed files
+    runs-on: ubuntu-24.04
+    outputs:
+      non-docs: ${{ steps.filter.outputs.non-docs }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            non-docs:
+              - '!**.md'
+              - '!docs/**'
+              - '!LICENSE*'
+              - '!CODE_OF_CONDUCT.md'
+              - '!CONTRIBUTING.md'
+              - '!SECURITY.md'
+
   shellcheck:
     name: shellcheck
+    needs: changes
+    if: needs.changes.outputs.non-docs == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -54,6 +70,8 @@ jobs:
 
   yamllint:
     name: yamllint
+    needs: changes
+    if: needs.changes.outputs.non-docs == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -78,6 +96,8 @@ jobs:
 
   actionlint:
     name: actionlint
+    needs: changes
+    if: needs.changes.outputs.non-docs == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -88,6 +108,8 @@ jobs:
 
   renovate-config:
     name: Renovate Config Validate
+    needs: changes
+    if: needs.changes.outputs.non-docs == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -96,8 +118,9 @@ jobs:
 
   lint-bst:
     name: lint .bst files
+    needs: changes
+    if: needs.changes.outputs.non-docs == 'true' && github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v7
         with:
