@@ -140,8 +140,11 @@ shellcheck/yamllint/actionlint, unit suites (BATS + pytest incl. the
 assertion encodes a bug class that actually shipped), the BuildStream
 graph gate (`bst show --deps all` on the shipping target, junctions
 resolved), and `Just Parse`. `pr-build-changed.yml` additionally builds
-the elements a PR touches against the warm GHCR core CAS — informational
-until the world rebuild converges, then promote to required (tromso#80).
+the elements a PR touches against the warm GHCR core CAS. It reports on
+every PR (including PRs with no element changes, which finish immediately)
+so it is safe to add the `Build changed elements` context to branch
+protection once the world rebuild converges (tromso#80); a build timeout is
+a failure, never a green inconclusive result.
 
 Post-merge: salvage-enabled nightly world build → ISO boot gate
 (ready-marker + screenshot artifact) → weekly LUKS install e2e
