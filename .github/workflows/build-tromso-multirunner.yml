@@ -112,6 +112,8 @@ jobs:
   build_final:
     needs: multirunner
     if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    outputs:
+      image_digest: ${{ steps.push.outputs.digest }}
     # ⚠️ Was Blacksmith build-amd64 (32-core) final assembly. Now 2-core
     # GitHub-hosted — candidate for larger runner/kanpur if it nears 6h.
     runs-on: ubuntu-24.04
@@ -329,6 +331,8 @@ jobs:
   build_final_aarch64:
     needs: multirunner_aarch64
     if: needs.multirunner_aarch64.result == 'success'
+    outputs:
+      image_digest: ${{ steps.push.outputs.digest }}
     # ⚠️ Was Blacksmith build-arm64 (32-core) final assembly. Now 2-core
     # GitHub-hosted arm64 — candidate for larger runner/kanpur if slow.
     runs-on: ubuntu-24.04-arm
@@ -503,3 +507,51 @@ jobs:
           echo "## Build Summary (aarch64)" >> $GITHUB_STEP_SUMMARY
           echo "- **Target**: \`${BST_TARGET}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:latest-aarch64\`" >> $GITHUB_STEP_SUMMARY
+
+  # A manual arm build produces a platform-specific tag above. Once both
+  # platform jobs have published, replace the channel tags with OCI indexes so
+  # clients selecting :latest/:stable get the native image for their platform.
+  # This is deliberately gated to publishing refs: pull requests and dry runs
+  # must not modify the package registry.
+  publish_multiarch_manifests:
+    needs: [build_final, build_final_aarch64]
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.build_aarch64 == true &&
+      inputs.push_image != false &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') &&
+      needs.build_final.result == 'success' &&
+      needs.build_final_aarch64.result == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    env:
+      IMAGE_REF: ghcr.io/${{ github.repository_owner }}/tromso
+      X86_DIGEST: ${{ needs.build_final.outputs.image_digest }}
+      ARM_DIGEST: ${{ needs.build_final_aarch64.outputs.image_digest }}
+    steps:
+      - name: Login to GHCR
+        run: echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish multi-architecture channel manifests
+        run: |
+          set -eu
+          repo=$(echo "$IMAGE_REF" | tr '[:upper:]' '[:lower:]')
+          date_tag=$(date -u +%Y%m%d)
+          if [ "${{ github.ref }}" = "refs/heads/stable" ]; then
+            tags="stable stable-${date_tag}"
+          else
+            tags="latest nightly nightly-${date_tag}"
+          fi
+          tags="$tags ${{ github.sha }}"
+
+          for tag in $tags; do
+            local_ref="localhost/tromso:manifest-$tag"
+            sudo podman manifest create "$local_ref"
+            sudo podman manifest add "$local_ref" "docker://$repo@$X86_DIGEST"
+            sudo podman manifest add "$local_ref" "docker://$repo@$ARM_DIGEST"
+            sudo podman manifest push --all "$local_ref" "docker://$repo:$tag"
+            sudo podman manifest rm "$local_ref"
+          done
