@@ -1,0 +1,150 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "file",
+    "source": "/usr/share/ublue-os/aurora-ascii-logo.txt",
+    "color": {
+      "1": "white"
+    }
+  },
+  "display": {
+    "separator": "  "
+  },
+  "general": {
+    "dsForceDrm": true
+  },
+  "modules": [
+    {
+      "type": "title",
+      "key": "",
+      "color": {
+        "user": "#b75761",
+        "at": "#a64c6a",
+        "host": "#4075bf"
+      }
+    },
+    "break",
+    {
+      "type": "command",
+      "key": "",
+      "text": "/usr/bin/ublue-image-info.sh",
+      "keyColor": "#ad67d7"
+    },
+    {
+      "type": "os",
+      "key": "󱝂",
+      "format": "{pretty-name}"
+    },
+    {
+      "type": "kernel",
+      "key": "",
+      "format": "{1} {2}"
+    },
+    {
+      "type": "uptime",
+      "key": "󰅐"
+    },
+    {
+      "type": "command",
+      "key": "󰔠",
+      "text": "date -d$(ls -alct /var/log --time-style=full-iso|tail -1|awk '{print $6}') +'Forged on %b %d %G'",
+      "shell": "/bin/bash",
+      "keyColor": ""
+    },
+    "break",
+    {
+      "type": "command",
+      "key": "",
+      "keyColor": "#9b59b6",
+      "text": "cat /usr/share/ublue-os/fastfetch-user-count",
+      "shell": "/bin/bash",
+      "format": "Stargazers: {1} (weekly)"
+    },
+    {
+      "type": "command",
+      "key": "",
+      "keyColor": "#f66151",
+      "text": "cat /usr/share/ublue-os/bazaar-install-count",
+      "shell": "/bin/bash",
+      "format": "Bazaar Installs: {1} (weekly)"
+    },
+    "break",
+    {
+      "type": "host",
+      "key": "󰾰"
+    },
+    {
+      "type": "cpu",
+      "key": "󰻠"
+    },
+    {
+      "type": "gpu",
+      "key": "󰍛"
+    },
+    {
+      "type": "memory",
+      "key": "󰧑"
+    },
+    {
+      "type": "disk",
+      "key": "",
+      "hideFS": "overlay"
+    },
+    {
+      "type": "display",
+      "key": "󰍹"
+    },
+    {
+      "type": "battery",
+      "key": ""
+    },
+    {
+      "type": "gamepad",
+      "key": "󰖺"
+    },
+    "break",
+    {
+      "type": "de",
+      "key": "",
+      "keyColor": "#20a0f5"
+    },
+    {
+      "type": "wm",
+      "key": "",
+      "keyColor": "#20a0f5"
+    },
+    {
+      "type": "packages",
+      "key": "",
+      "disabled": ["rpm","brew"]
+    },
+    "break",
+    {
+      "type": "shell",
+      "key": ""
+    },
+    {
+      "type": "terminal",
+      "key": ""
+    },
+    {
+      "type": "command",
+      "shell": "/usr/bin/bash",
+      "text": "$EDITOR --version | head -1",
+      "key": "",
+      "keyColor": "",
+      "format": "{1}"
+    },
+    {
+      "type": "packages",
+      "key": "",
+      "disabled": ["rpm","flatpak"],
+      "keyColor": "#fbb040"
+    },
+    "break",
+    {
+      "type": "colors",
+      "paddingLeft": 2
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "",
+                "Name": "Aurora Contributors"
+            }
+        ],
+        "Category": "",
+        "Description": "Aurora - Theme variant of KDE Breeze",
+        "Id": "dev.getaurora.auroralight.desktop",
+        "License": "GPLv2+",
+        "Name": "Aurora Light",
+        "ServiceTypes": [
+            "Plasma/LookAndFeel"
+        ],
+        "Version": "0.01",
+        "Website": "https://getaurora.dev"
+    },
+    "X-KDE-ParentApp": "",
+    "X-Plasma-RootContainmentLayout": "org.kde.plasma.desktop-layout.js",
+    "X-Plasma-MainScript": "defaults"
+}
