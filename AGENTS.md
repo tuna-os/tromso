@@ -105,7 +105,7 @@ just log
      xargs -I{} cat ~/.cache/buildstream/logs/gnome/kde-frameworks-ELEMENT/{}
    ```
 
-3. Fix the `.bst` file in `hanthor/kde-build-meta`.
+3. Fix the `.bst` file in `tuna-os/kde-build-meta`.
 
 4. **Clear the cached failure** (BST caches failed artifacts):
    ```bash
