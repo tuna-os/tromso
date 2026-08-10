@@ -8,6 +8,11 @@ build-depends:
 - kde/qt6/qt6-qtbase.bst
 - freedesktop-sdk.bst:components/mesa-headers.bst
 
+depends:
+- freedesktop-sdk.bst:components/llvm.bst
+- freedesktop-sdk.bst:components/python3.bst
+- kde/qt6/qt6-qtbase.bst
+
 config:
   configure-commands:
   - cmake -B%{build-dir} -H"%{conf-root}/sources/shiboken6" -G"%{generator}" %{cmake-args}
