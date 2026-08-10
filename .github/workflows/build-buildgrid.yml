@@ -103,9 +103,11 @@ jobs:
       - name: Login to GHCR
         if: ${{ github.event_name != 'pull_request' && inputs.push_image != false }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | \
+          echo "${{ env.GITHUB_TOKEN }}" | \
             sudo podman login ghcr.io --username "${{ github.actor }}" --password-stdin
 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Push to GHCR
         if: ${{ github.event_name != 'pull_request' && inputs.push_image != false }}
         run: |
