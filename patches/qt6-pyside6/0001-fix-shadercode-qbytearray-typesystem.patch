@@ -1,5 +1,5 @@
 Fix shiboken internal error: Class "QByteArray" for
-"QShaderCode::QShaderCode()" not found.
+"QShaderCode::QShaderCode()" / "QRhiTextureSubresourceUploadDescription::QRhiTextureSubresourceUploadDescription()" not found.
 
 The typesystem_gui_rhi.xml declares QShaderCode as a value-type with
 private="yes".  Even though private types skip binding generation,
@@ -30,3 +30,17 @@ This is safe because:
    <value-type name="QShaderVersion" since="6.6" private="yes">
      <enum-type name="Flag" flags="Flags"/>
    </value-type>
+
+--- a/sources/pyside6/PySide6/QtGui/typesystem_gui_rhi.xml
++++ b/sources/pyside6/PySide6/QtGui/typesystem_gui_rhi.xml
+@@ -44,7 +44,7 @@
+   </value-type>
+-  <value-type name="QRhiTextureSubresourceUploadDescription" since="6.6" private="yes"/>
++  <primitive-type name="QRhiTextureSubresourceUploadDescription"/>
+   <value-type name="QRhiTextureUploadEntry" since="6.6" private="yes"/>
+   <value-type name="QRhiTextureUploadDescription" since="6.6" private="yes">
+@@ -53,7 +53,7 @@
+   <value-type name="QRhiTextureCopyDescription" since="6.6" private="yes"/>
+-  <value-type name="QRhiReadbackDescription" since="6.6" private="yes"/>
++  <primitive-type name="QRhiReadbackDescription"/>
+   <value-type name="QRhiNativeHandles" since="6.6" private="yes"/>
