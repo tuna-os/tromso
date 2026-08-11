@@ -33,3 +33,5 @@ sources:
 - kind: tar
   url: tar_https:download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.10.3-src/pyside-setup-everywhere-src-6.10.3.tar.xz
   ref: 2c7462fe0cecb5b8ac0a3d92014b8d0b88bd4d9f8646709dab5286d9416f45bc
+- kind: patch
+  path: patches/qt6-pyside6/0001-fix-shadercode-qbytearray-typesystem.patch
