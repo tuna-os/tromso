@@ -14,6 +14,7 @@ exercised directly.
 
 import importlib.util
 import os
+import shutil
 import stat
 import sys
 import tempfile
@@ -95,8 +96,11 @@ class TestMakeLayer(unittest.TestCase):
 
     def test_compare_files_identical(self):
         mod, _ = self._run_merge()
+        # copy2 preserves content AND stat (mtime_ns) — compare_files requires
+        # exact equality, so separately-written files would be timing-flaky.
         a = _write(os.path.join(self.lower, "f"), "same")
-        b = _write(os.path.join(self.upper, "f"), "same")
+        b = os.path.join(self.upper, "f")
+        shutil.copy2(a, b)
         self.assertTrue(mod.compare_files(a, b))
 
     def test_compare_files_different_content(self):
@@ -138,8 +142,8 @@ class TestMakeLayer(unittest.TestCase):
     def test_identical_file_excluded_from_delta(self):
         # Output is a delta layer: files unchanged versus lower stay in the
         # base image and must NOT be emitted again.
-        _write(os.path.join(self.lower, "f"), "same")
-        _write(os.path.join(self.upper, "f"), "same")
+        a = _write(os.path.join(self.lower, "f"), "same")
+        shutil.copy2(a, os.path.join(self.upper, "f"))  # identical incl. stat
         self._run_merge()
         self.assertFalse(os.path.exists(os.path.join(self.output, "f")))
 
