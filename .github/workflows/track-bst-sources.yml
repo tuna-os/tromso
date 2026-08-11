@@ -1,11 +1,10 @@
 name: Track BuildStream Sources
 
-# Auto-bump .bst source refs (dakota's track-bst-sources pattern, simplified):
-#   elements  — repo-local elements (elements/tromso, elements/gnomeos-deps),
-#               tracked together into one PR, safe to automerge once CI passes
-#   junctions — kde-build-meta, tracked atomically into
-#               a separate PR that needs a human eye (base bumps can rebuild
-#               the world)
+# Auto-bump repo-local .bst source refs (dakota's track-bst-sources pattern,
+# simplified). KDE/Plasma elements were consolidated into this repository, so
+# there is no kde-build-meta junction to track. The upstream KDE BuildStream
+# project is an evaluation target, not a dependency of this project yet; see
+# ADR 0003.
 #
 # Renovate cannot parse .bst files, so this workflow is the .bst counterpart
 # to renovate.json.
@@ -23,7 +22,7 @@ on:
         description: 'Which element group to track'
         type: choice
         default: 'elements'
-        options: [all, elements, junctions]
+        options: [elements]
 
 permissions:
   contents: write
@@ -49,11 +48,6 @@ jobs:
             branch: auto/track-elements
             title: "chore(deps): track element sources"
             automerge: true
-          - group: junctions
-            paths: "elements/kde-build-meta.bst"
-            branch: auto/track-junctions
-            title: "chore(deps): track kde-build-meta junction"
-            automerge: false
     name: Track ${{ matrix.group }}
     steps:
       - name: Should this group run?
