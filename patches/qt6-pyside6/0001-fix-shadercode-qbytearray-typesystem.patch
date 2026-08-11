@@ -1,24 +1,32 @@
 Fix shiboken internal error: Class "QByteArray" for
 "QShaderCode::QShaderCode()" not found.
 
-The typesystem_gui_rhi.xml is loaded as a sub-typesystem of
-typesystem_gui.xml. When processed, value-type QShaderCode
-references QByteArray in its constructor and member types, but the
-sub-typesystem lacks an explicit namespace-type mapping from the C++
-Qt namespace to PySide6.QtCore (typesystem_gui_common.xml declares
-one, but it may be scoped to that file only).  Add both an explicit
-load-typesystem for QtCore and the requisite namespace-type directive
-so that QByteArray (and other Core value types) are properly resolved
-during shiboken's code-generation phase.
+The typesystem_gui_rhi.xml declares QShaderCode as a value-type with
+private="yes".  Even though private types skip binding generation,
+shiboken still tries to resolve constructor parameter types and
+member variable types.  QShaderCode's constructor takes QByteArray
+(and the class has QByteArray member variables), but the
+load-typesystem chain from typesystem_gui.xml does not make
+QByteArray visible in typesystem_gui_rhi.xml's resolution context.
+
+Fix by demoting QShaderCode from <value-type> to <primitive-type>.
+Primitive types are treated opaquely by shiboken — constructors and
+member types are not resolved, so no QByteArray lookup is needed.
+This is safe because:
+- QShaderCode is private="yes" (no Python bindings generated)
+- All types that reference QShaderCode in this file are also private
+- The one external reference (typesystem_quick.xml) uses
+  modify-function remove="all" which does not require full type info
 
 --- a/sources/pyside6/PySide6/QtGui/typesystem_gui_rhi.xml
 +++ b/sources/pyside6/PySide6/QtGui/typesystem_gui_rhi.xml
-@@ -4,6 +4,8 @@
- // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
- -->
- <typesystem package="PySide6.QtGui">
-+  <load-typesystem name="QtCore/typesystem_core.xml" generate="no"/>
-+  <namespace-type name="Qt" files="^.*/(gui|QtGui)[/.].*\.h$" extends="PySide6.QtCore"/>
-   <object-type name="QRhiAdapter" since="6.10" private="yes"/>
-   <value-type name="QRhiDepthStencilClearValue" since="6.6" private="yes"/>
-   <value-type name="QRhiViewport" since="6.6" private="yes"/>
+@@ -176,8 +176,8 @@
+       <enum-type name="Variant"/>
+       <enum-type name="SerializedFormatVersion"/>
+   </value-type>
+-  <value-type name="QShaderCode" since="6.6" private="yes"/>
++  <primitive-type name="QShaderCode"/>
+   <value-type name="QShaderKey" since="6.6" private="yes"/>
+   <value-type name="QShaderVersion" since="6.6" private="yes">
+     <enum-type name="Flag" flags="Flags"/>
+   </value-type>
