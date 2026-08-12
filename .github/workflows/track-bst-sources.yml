@@ -78,13 +78,29 @@ jobs:
       - name: Track sources
         if: steps.gate.outputs.run == 'true'
         run: |
+          # Elements that cannot be built by `pr-build-changed.yml`: their
+          # build-commands run `go mod download`, which needs network access
+          # the offline BuildStream sandbox does not have. Tracking them
+          # produces a permanently red PR that blocks the other (buildable)
+          # ref bumps from automerging. Both are orphaned (nothing in
+          # tromso/deps.bst depends on them), so the world build never
+          # exercises them and the breakage only surfaces here. Drop the
+          # entry once the element vendors its modules (see uupd.bst /
+          # kde-linux-deps/toolbox.bst for the `-mod=vendor` pattern).
+          TRACK_EXCLUDE="tromso/glow.bst tromso/gum.bst"
+
+          excluded() {
+            case " $TRACK_EXCLUDE " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+          }
+
           TARGETS=""
           for p in ${{ matrix.paths }}; do
             if [ -d "$p" ]; then
               for f in "$p"/*.bst; do
+                excluded "${f#elements/}" && continue
                 TARGETS="$TARGETS ${f#elements/}"
               done
-            else
+            elif ! excluded "${p#elements/}"; then
               TARGETS="$TARGETS ${p#elements/}"
             fi
           done
