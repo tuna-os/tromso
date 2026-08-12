@@ -6,7 +6,7 @@ sources:
   path: files/tromso/aurora-common
 - kind: remote
   url: github_files:ublue-os/aurora-docs/releases/download/0.1/aurora.pdf
-  ref: b6af1a58ea6397f0c893a2a726d40dc511d56bb76af28a0d8286cce93cce8472
+  ref: ead3ee938b3ab3e054aae5fe76465556b74548fc73fff0f237d54cd677b2c06e
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
