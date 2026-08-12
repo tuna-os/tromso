@@ -14,7 +14,7 @@ sources:
 - kind: git_repo
   url: github:charmbracelet/glow.git
   track: 'v[0-9]*.[0-9]*.[0-9]*'
-  ref: v2.1.2-0-gf57087499b407d420cdad1d76d0e1ed33c77a3d8
+  ref: v3.0.0-0-gadd5e7a1f63cf0b1de4dfb457c147986e1b1d1fb
 
 config:
   build-commands:
