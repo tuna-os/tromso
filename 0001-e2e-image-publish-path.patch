@@ -1,0 +1,166 @@
+diff --git a/.github/workflows/build-tromso-multirunner.yml b/.github/workflows/build-tromso-multirunner.yml
+index faf7de1..e641658 100644
+--- a/.github/workflows/build-tromso-multirunner.yml
++++ b/.github/workflows/build-tromso-multirunner.yml
+@@ -8,9 +8,18 @@ name: Build Tromso (Multi-Runner)
+ # instructions point at.
+ 
+ on:
+-  # No push trigger: this build takes hours and we don't need a fresh run
+-  # on every commit — the daily schedule is enough. Use workflow_dispatch
+-  # to build on demand.
++  # Push trigger is scoped to element/project changes only — merges that
++  # only touch docs, CI, or ISO tooling don't trigger a multi-hour build.
++  # When elements DO change, this ensures ghcr.io/tuna-os/tromso:latest
++  # stays current so E2E workflows (test-luks-install, test-plain-install)
++  # always have an image to pull.
++  push:
++    branches: [main]
++    paths:
++      - 'elements/**'
++      - 'project.conf'
++      - 'buildstream-ci.conf'
++      - '.github/workflows/build-tromso-multirunner.yml'
+   schedule:
+     # Daily at 00:30 UTC (6:00 AM IST) — early morning, 1h after xfce-linux's
+     # slot to reduce org-wide runner contention (tuna-os/tromso#93).
+diff --git a/.github/workflows/test-luks-install.yml b/.github/workflows/test-luks-install.yml
+index edd31f9..a78fcc6 100644
+--- a/.github/workflows/test-luks-install.yml
++++ b/.github/workflows/test-luks-install.yml
+@@ -42,7 +42,7 @@ jobs:
+   luks-e2e:
+     name: LUKS E2E ${{ matrix.installer_channel }}
+     runs-on: ubuntu-24.04
+-    timeout-minutes: 120
++    timeout-minutes: 180
+     strategy:
+       fail-fast: false
+       matrix:
+@@ -98,6 +98,56 @@ jobs:
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
++      - name: Setup ORAS
++        uses: oras-project/setup-oras@v2
++
++      - name: Restore BuildStream CAS from GHCR
++        id: cas
++        continue-on-error: true
++        run: |
++          echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
++          mkdir -p ~/.cache/buildstream
++          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
++          IMG="${{ env.TARGET }}"
++
++          # Pull core CAS (shared dependency spine)
++          if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMG}-core:latest" -o .; then
++            if [ -f cas-core.tar.zst ]; then
++              zstd -d -c -T0 cas-core.tar.zst | tar -xf - -C "$HOME/.cache/buildstream"
++              rm -f cas-core.tar.zst
++              echo "core-cached=true" >> "$GITHUB_OUTPUT"
++            fi
++          fi
++
++          # Pull chunk CASes (try the default 10-chunk split; non-existent
++          # chunks are harmless — BuildStream will rebuild those elements)
++          for chunk in $(seq 0 9); do
++            oras pull "ghcr.io/${REPO_LOWER}/cache-${IMG}-${chunk}:latest" -o . || continue
++            TARBALL="cas-${chunk}.tar.zst"
++            if [ -f "$TARBALL" ]; then
++              zstd -d -c -T0 "$TARBALL" | tar -xf - -C "$HOME/.cache/buildstream"
++              rm -f "$TARBALL"
++            fi
++          done
++          du -sh ~/.cache/buildstream
++        env:
++          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++
++      - name: Build tromso OCI image
++        run: |
++          BST2_IMAGE="registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d"
++          sudo podman pull "$BST2_IMAGE"
++          # Build the final target using any CAS restored above.
++          # If GHCR had no cache at all this builds from source — slow but
++          # correct.  A warm cache makes this step nearly instant.
++          BST_FLAGS="--no-interactive --config /src/buildstream-ci.conf" \
++            just bst --log-file /tmp/build-final.log build oci/tromso.bst
++          just export
++          # Tag so the Containerfile's ARG BASE_IMAGE (ghcr.io/tuna-os/tromso:latest)
++          # resolves locally without hitting the registry.
++          sudo podman tag localhost/tromso:latest ghcr.io/tuna-os/tromso:latest
++        timeout-minutes: 90
++
+       - name: Build debug ISO
+         id: build
+         run: |
+diff --git a/.github/workflows/test-plain-install.yml b/.github/workflows/test-plain-install.yml
+index cca54e8..c35411f 100644
+--- a/.github/workflows/test-plain-install.yml
++++ b/.github/workflows/test-plain-install.yml
+@@ -44,7 +44,7 @@ jobs:
+   plain-e2e:
+     name: Plain E2E ${{ matrix.installer_channel }}
+     runs-on: ubuntu-24.04
+-    timeout-minutes: 120
++    timeout-minutes: 180
+     strategy:
+       fail-fast: false
+       matrix:
+@@ -100,6 +100,56 @@ jobs:
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
++      - name: Setup ORAS
++        uses: oras-project/setup-oras@v2
++
++      - name: Restore BuildStream CAS from GHCR
++        id: cas
++        continue-on-error: true
++        run: |
++          echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
++          mkdir -p ~/.cache/buildstream
++          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
++          IMG="${{ env.TARGET }}"
++
++          # Pull core CAS (shared dependency spine)
++          if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMG}-core:latest" -o .; then
++            if [ -f cas-core.tar.zst ]; then
++              zstd -d -c -T0 cas-core.tar.zst | tar -xf - -C "$HOME/.cache/buildstream"
++              rm -f cas-core.tar.zst
++              echo "core-cached=true" >> "$GITHUB_OUTPUT"
++            fi
++          fi
++
++          # Pull chunk CASes (try the default 10-chunk split; non-existent
++          # chunks are harmless — BuildStream will rebuild those elements)
++          for chunk in $(seq 0 9); do
++            oras pull "ghcr.io/${REPO_LOWER}/cache-${IMG}-${chunk}:latest" -o . || continue
++            TARBALL="cas-${chunk}.tar.zst"
++            if [ -f "$TARBALL" ]; then
++              zstd -d -c -T0 "$TARBALL" | tar -xf - -C "$HOME/.cache/buildstream"
++              rm -f "$TARBALL"
++            fi
++          done
++          du -sh ~/.cache/buildstream
++        env:
++          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++
++      - name: Build tromso OCI image
++        run: |
++          BST2_IMAGE="registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d"
++          sudo podman pull "$BST2_IMAGE"
++          # Build the final target using any CAS restored above.
++          # If GHCR had no cache at all this builds from source — slow but
++          # correct.  A warm cache makes this step nearly instant.
++          BST_FLAGS="--no-interactive --config /src/buildstream-ci.conf" \
++            just bst --log-file /tmp/build-final.log build oci/tromso.bst
++          just export
++          # Tag so the Containerfile's ARG BASE_IMAGE (ghcr.io/tuna-os/tromso:latest)
++          # resolves locally without hitting the registry.
++          sudo podman tag localhost/tromso:latest ghcr.io/tuna-os/tromso:latest
++        timeout-minutes: 90
++
+       - name: Build debug ISO
+         id: build
+         run: |
