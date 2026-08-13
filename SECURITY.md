@@ -36,9 +36,9 @@ Aurora Tromso images are:
 
 ## Supply Chain Security
 
-- Base elements are pinned by junction refs in `elements/kde-build-meta.bst`
+- Base elements are pinned by git ref / tarball SHA256 inside this repo's `elements/` tree (`kde/`, `kde-linux-deps/`, `kde-linux-system/`, `core/`, `core-deps/`, …); the former `kde-build-meta` junction was removed and its elements consolidated in — see `AGENTS.md`
+- The `freedesktop-sdk` base SDK is pinned via the `elements/freedesktop-sdk.bst` junction
 - Build dependencies are resolved via BuildStream's CASD content-addressable store
-- KDE package definitions live in `hanthor/kde-build-meta` with pinned junction URLs
 - The build container (`bst2`) is pinned by digest
 
 ## Disclosure Policy

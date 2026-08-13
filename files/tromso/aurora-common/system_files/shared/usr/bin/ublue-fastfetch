@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+exec fastfetch --config /usr/share/ublue-os/fastfetch.jsonc "${@}"

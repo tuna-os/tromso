@@ -118,3 +118,16 @@ def test_high_frequency_workflows_cancel_superseded_runs():
         "push and workflow_run ISO triggers must normalize to the same branch key"
     )
 
+
+def test_multi_runner_is_the_only_buildstream_image_builder():
+    """Prevent a second, non-convergent image builder from returning."""
+    workflows = REPO / ".github" / "workflows"
+    names = {path.name for path in workflows.glob("*.yml")}
+    assert "build-tromso-multirunner.yml" in names
+    assert "build-buildgrid.yml" not in names
+    assert "pr-build-changed.yml" not in names
+
+    multi = (workflows / "build-tromso-multirunner.yml").read_text()
+    assert "multirunner:" in multi
+    assert "build_final:" in multi
+    assert "just export" in multi

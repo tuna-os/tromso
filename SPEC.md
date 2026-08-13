@@ -2,10 +2,9 @@
 
 > **Note:** `tuna-os/kde-build-meta` was consolidated directly into this repo's
 > `elements/` tree (junction removed, repo archived) — the "two-repo model"
-> described below is historical. All KDE `.bst` elements now live in this repo.
-> The rest of this doc's directory diagrams/workflow steps referencing the old
-> junction predate that change; see `AGENTS.md`'s "Single-Repo Model" section
-> for the current state.
+> described below is historical. All KDE `.bst` elements now live in this repo;
+> the diagrams below reflect the current single-repo state. See `AGENTS.md`'s
+> "Single-Repo Model" section for details.
 
 ## Overview
 
@@ -35,11 +34,25 @@ tuna-os/tromso (this repo)
 ├── project.conf                  # BuildStream project config (name: tromso)
 ├── Justfile                      # Build recipes (bst, build, boot-vm, etc.)
 ├── include/
-│   └── aliases.yml               # URL aliases (kde:, github:, etc.)
+│   └── aliases.yml               # URL aliases (kde:, github:, gnome:, etc.)
 └── elements/
-    ├── kde-build-meta.bst        # Junction → hanthor/kde-build-meta (tarball ref)
+    ├── freedesktop-sdk.bst       # Junction → freedesktop-sdk (base SDK)
+    ├── kde/                      # KDE stack (consolidated in from kde-build-meta)
+    │   ├── qt6/                  # Qt6 base, declarative, multimedia, etc.
+    │   ├── frameworks/           # kcoreaddons, kio, kirigami, kwin deps, etc.
+    │   ├── libs/                 # libkscreen, qcoro, phonon, etc.
+    │   ├── plasma/               # plasma-workspace, kwin, sddm, discover, etc.
+    │   ├── apps/                 # dolphin, kate, okular, konsole, etc.
+    │   └── deps.bst              # Master KDE stack
+    ├── kde-linux-deps/           # KDE Linux base deps (consolidated in)
+    ├── kde-linux-system/         # KDE Linux system config/initramfs (consolidated in)
+    ├── core/                     # Core freedesktop-sdk-facing elements
+    ├── core-deps/                # Core dependency elements
     ├── gnomeos-deps/
     │   └── bootc.bst             # bootc compiled from source (Rust)
+    ├── sdk/                      # SDK-facing elements
+    ├── sdk-deps/
+    ├── plugins/                  # BuildStream plugins (junctions)
     ├── test.bst                  # Minimal test element
     ├── tromso/                   # Aurora-specific additions over KDE Linux base
     │   ├── deps.bst              # Master stack of all Aurora additions
@@ -66,7 +79,7 @@ tuna-os/tromso (this repo)
         ├── tromso-ostree.bst     # OSTree variant
         ├── os-release.bst        # Aurora os-release (overrides KDE Linux)
         ├── kde-linux/            # KDE Linux base image composition
-        │   ├── image.bst         # Parent OCI image (from kde-build-meta)
+        │   ├── image.bst         # Parent OCI image (Aurora fork, no bootc build)
         │   ├── stack.bst         # KDE Linux full stack
         │   └── filesystem.bst    # Filesystem layout
         └── layers/
@@ -75,33 +88,26 @@ tuna-os/tromso (this repo)
             └── tromso-stack.bst  # Combined: kde-linux/stack + tromso/deps
 ```
 
-`hanthor/kde-build-meta` mirrors the role of `gnome-build-meta`:
-
-```
-hanthor/kde-build-meta
-└── elements/kde/
-    ├── qt6/         (~30 elements — Qt6 base, declarative, multimedia, etc.)
-    ├── frameworks/  (~70 elements — kcoreaddons, kio, kirigami, kwin deps, etc.)
-    ├── libs/        (~17 elements — libkscreen, qcoro, phonon, etc.)
-    ├── plasma/      (~41 elements — plasma-workspace, kwin, sddm, discover, etc.)
-    ├── apps/        (~9 elements  — dolphin, kate, okular, konsole, etc.)
-    └── deps.bst     # Master KDE Linux stack (200+ packages)
-```
+All KDE `.bst` elements live directly in this repo — the former
+`tuna-os/kde-build-meta` junction was removed and its elements consolidated
+into `elements/` (`kde/`, `kde-linux-deps/`, `kde-linux-system/`, `core/`,
+`core-deps/`, `patches/`, `files/`, `keys/`, `plugins/`; see `AGENTS.md` for
+the full history). The role formerly played by the `kde-build-meta` junction
+(`gnome-build-meta` scaffolding rebranded for KDE) is now filled by this
+repo's own `elements/` tree plus the `freedesktop-sdk` junction.
 
 ---
 
 ## Build Pipeline
 
 ```
-freedesktop-sdk (base SDK)
-    └── kde-build-meta junction
-            ├── kde/qt6/         # Qt6 compiled from source
-            ├── kde/frameworks/  # KDE Frameworks 6
-            ├── kde/plasma/      # KDE Plasma 6 (kwin, sddm, plasma-workspace, etc.)
-            ├── kde/apps/        # KDE Applications
-            └── oci/kde-linux/   # KDE Linux base image
-                    └── tromso/deps.bst      # Aurora additions
-                            └── oci/tromso.bst  # Final OCI image
+freedesktop-sdk (base SDK, via elements/freedesktop-sdk.bst junction)
+    └── elements/kde/              # Qt6, Frameworks 6, Plasma 6, KDE Applications
+    └── elements/kde-linux-deps/   # KDE Linux base deps
+    └── elements/kde-linux-system/ # system config, initramfs, signed modules
+            └── oci/kde-linux/     # KDE Linux base image
+                    └── elements/tromso/deps.bst   # Aurora additions
+                            └── oci/tromso.bst     # Final OCI image
                                     └── ghcr.io/tuna-os/tromso:latest
 ```
 
@@ -151,47 +157,40 @@ BuildStream does not automatically propagate CMake config files through `depends
 If `foo.bst` calls `find_package(KF6Bar)` at configure time, then `kde/frameworks/bar.bst`
 **must** appear in `foo.bst`'s `build-depends`, even if it's already in `depends`.
 
-### Updating the junction
+### Updating KDE elements
+
+All KDE elements live in this repo now (the `kde-build-meta` junction was removed), so updating a KDE stack element is an ordinary commit to `elements/kde/…` — no separate repo or junction-bump step:
 
 ```bash
-# 1. Commit + push kde-build-meta
-cd /path/to/kde-build-meta
-TMPDIR=/var/tmp git commit -m "..."
-git push origin master
-
-# 2. Compute new SHA (re-download — GitHub archive hashes are non-deterministic)
-SHA=$(git rev-parse --short=7 HEAD)
-curl -sL https://github.com/hanthor/kde-build-meta/archive/${SHA}.tar.gz | tee /tmp/kbm.tar.gz | sha256sum
-tar tzf /tmp/kbm.tar.gz | head -1    # verify base-dir
-
-# 3. Update elements/kde-build-meta.bst: url, ref, base-dir
-
-# 4. Commit + push tromso
 cd /path/to/tromso
-TMPDIR=/var/tmp git commit -m "Update junction to kde-build-meta ${SHA}"
+# edit elements/kde/<stack>/<element>.bst (bump url/ref, patch, etc.)
+TMPDIR=/var/tmp git commit -m "Update <element> to <version>"
 git push origin main
 ```
+
+For the `freedesktop-sdk` base SDK junction, bump `elements/freedesktop-sdk.bst` (`url`, `ref`, `base-dir`) the same way.
 
 ---
 
 ## CI/CD
 
-**Primary workflow**: `.github/workflows/build-buildgrid.yml`
+**Only image-build workflow**: `.github/workflows/build-tromso-multirunner.yml`
 
 ```
-GitHub Actions runner
-  → Generate CI BuildStream config
-  → bst2 container pull (pinned image SHA)
-  → just bst build oci/tromso.bst     (local CASD build)
-  → just export                        (exports OCI tarball)
-  → skopeo push ghcr.io/tuna-os/tromso:latest
+GitHub Actions runners
+  → shared bst-ci planning/core/dependency chunks
+  → merge chunk CAS archives
+  → build_final: just bst build oci/tromso.bst + just export
+  → sign and push ghcr.io/tuna-os/tromso tags
 ```
 
 Triggers: push to `main` (elements/**, project.conf, include/**), daily at 06:00 UTC, manual dispatch.
 
-**Experimental parallel workflow**: `.github/workflows/build-tromso-multirunner.yml`
-Splits the build into 10 parallel chunks across GitHub runners using the shared [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci) reusable workflow (`scripts/ci-build-matrix.py` no longer lives in this repo).
-Triggered manually or by daily schedule.
+The multi-runner workflow splits the build into parallel chunks across GitHub
+runners using the shared [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci)
+reusable workflow (`scripts/ci-build-matrix.py` no longer lives in this repo).
+It is triggered manually or by the daily schedule and is the only workflow
+permitted to build or publish the Tromsø OCI image.
 
 ---
 
@@ -205,4 +204,4 @@ that have not yet been written:
 | `openrazer-daemon` | DKMS-based; needs special handling |
 | `yubikey-full-disk-encryption` | Hardware security key disk encryption |
 | `vpl-gpu-rt` | Intel VPL GPU runtime |
-| Python bindings (Shiboken6/PySide6) | Requires packaging from scratch |
+| Python bindings (Shiboken6/PySide6) | Requires packaging from scratch — see [investigation](docs/kde-python-bindings-investigation.md) (#2) for what that entails |

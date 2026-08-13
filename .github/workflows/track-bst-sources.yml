@@ -1,11 +1,10 @@
 name: Track BuildStream Sources
 
-# Auto-bump .bst source refs (dakota's track-bst-sources pattern, simplified):
-#   elements  — repo-local elements (elements/tromso, elements/gnomeos-deps),
-#               tracked together into one PR, safe to automerge once CI passes
-#   junctions — kde-build-meta, tracked atomically into
-#               a separate PR that needs a human eye (base bumps can rebuild
-#               the world)
+# Auto-bump repo-local .bst source refs (dakota's track-bst-sources pattern,
+# simplified). KDE/Plasma elements were consolidated into this repository, so
+# there is no kde-build-meta junction to track. The upstream KDE BuildStream
+# project is an evaluation target, not a dependency of this project yet; see
+# ADR 0003.
 #
 # Renovate cannot parse .bst files, so this workflow is the .bst counterpart
 # to renovate.json.
@@ -23,7 +22,7 @@ on:
         description: 'Which element group to track'
         type: choice
         default: 'elements'
-        options: [all, elements, junctions]
+        options: [elements]
 
 permissions:
   contents: write
@@ -49,11 +48,6 @@ jobs:
             branch: auto/track-elements
             title: "chore(deps): track element sources"
             automerge: true
-          - group: junctions
-            paths: "elements/kde-build-meta.bst"
-            branch: auto/track-junctions
-            title: "chore(deps): track kde-build-meta junction"
-            automerge: false
     name: Track ${{ matrix.group }}
     steps:
       - name: Should this group run?
@@ -84,13 +78,29 @@ jobs:
       - name: Track sources
         if: steps.gate.outputs.run == 'true'
         run: |
+          # Elements that cannot be built by the multi-runner shipping world:
+          # their build-commands run `go mod download`, which needs network access
+          # the offline BuildStream sandbox does not have. Tracking them
+          # produces a permanently red PR that blocks the other (buildable)
+          # ref bumps from automerging. Both are orphaned (nothing in
+          # tromso/deps.bst depends on them), so the world build never
+          # exercises them and the breakage only surfaces here. Drop the
+          # entry once the element vendors its modules (see uupd.bst /
+          # kde-linux-deps/toolbox.bst for the `-mod=vendor` pattern).
+          TRACK_EXCLUDE="tromso/glow.bst tromso/gum.bst"
+
+          excluded() {
+            case " $TRACK_EXCLUDE " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+          }
+
           TARGETS=""
           for p in ${{ matrix.paths }}; do
             if [ -d "$p" ]; then
               for f in "$p"/*.bst; do
+                excluded "${f#elements/}" && continue
                 TARGETS="$TARGETS ${f#elements/}"
               done
-            else
+            elif ! excluded "${p#elements/}"; then
               TARGETS="$TARGETS ${p#elements/}"
             fi
           done

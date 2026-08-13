@@ -33,3 +33,9 @@ rules:
   truthy:
     allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']
     check-keys: false
+
+# Vendored third-party deployment data (from the former get-aurora-dev org)
+# is not authored here and must not be linted as project YAML.
+ignore: |
+  files/tromso/aurora-common/**
+  files/tromso/aurora-branding/**
