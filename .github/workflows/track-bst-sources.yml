@@ -78,8 +78,8 @@ jobs:
       - name: Track sources
         if: steps.gate.outputs.run == 'true'
         run: |
-          # Elements that cannot be built by `pr-build-changed.yml`: their
-          # build-commands run `go mod download`, which needs network access
+          # Elements that cannot be built by the multi-runner shipping world:
+          # their build-commands run `go mod download`, which needs network access
           # the offline BuildStream sandbox does not have. Tracking them
           # produces a permanently red PR that blocks the other (buildable)
           # ref bumps from automerging. Both are orphaned (nothing in

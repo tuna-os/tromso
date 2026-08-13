@@ -119,16 +119,15 @@ def test_high_frequency_workflows_cancel_superseded_runs():
     )
 
 
-def test_changed_element_build_is_safe_to_require():
-    """The PR build must report for every PR and fail on an unbuilt change.
+def test_multi_runner_is_the_only_buildstream_image_builder():
+    """Prevent a second, non-convergent image builder from returning."""
+    workflows = REPO / ".github" / "workflows"
+    names = {path.name for path in workflows.glob("*.yml")}
+    assert "build-tromso-multirunner.yml" in names
+    assert "build-buildgrid.yml" not in names
+    assert "pr-build-changed.yml" not in names
 
-    A paths-filtered required workflow deadlocks unrelated pull requests, and
-    treating the timeout as success turns a required context into decoration.
-    Both mistakes would defeat tromso#80's promotion goal.
-    """
-    workflow = (REPO / ".github" / "workflows" / "pr-build-changed.yml").read_text()
-    pull_request = workflow.split("on:", 1)[1].split("concurrency:", 1)[0]
-    assert "paths:" not in pull_request
-    assert "timeout 100m just bst" in workflow
-    assert "exit 0" not in workflow
-    assert "Build changed elements" in workflow
+    multi = (workflows / "build-tromso-multirunner.yml").read_text()
+    assert "multirunner:" in multi
+    assert "build_final:" in multi
+    assert "just export" in multi
