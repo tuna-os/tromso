@@ -115,6 +115,13 @@ log:
 
 # Launch live HTML build dashboard at http://localhost:8765
 # Downloads bst-dashboard.py from GitHub on first run; cached at ~/.cache/bst-dashboard/
+# NOTE (tromso#164): still fetched from the maintainer's personal
+# hanthor/buildstream-dashboard fork, a real bus-factor risk this Justfile
+# depends on for a dev-only convenience target. Not repointed to a tuna-os
+# mirror here because tuna-os/buildstream-dashboard does not exist yet —
+# creating/transferring that repo needs org-admin access a fork contributor
+# doesn't have. Unlike the os-release URLs this issue also names, nothing
+# here ships in a built image.
 [group('build')]
 dashboard:
     #!/usr/bin/env bash
