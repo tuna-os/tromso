@@ -58,6 +58,11 @@ jobs:
       image_name: tromso
       bst_target: oci/tromso.bst
       num_chunks: ${{ inputs.num_chunks || '10' }}
+      # Keep the nightly build on GitHub-hosted runners.  The optional
+      # Runs-on fleet is backed by EC2 instance types that are rejected by
+      # accounts subject to Free-Tier eligibility checks; this build must not
+      # inherit that fleet if the shared workflow changes its default.
+      runner_label: ubuntu-24.04
       core_split: "200"
       # Elements that several chunks each rebuilt from scratch in run
       # 31235013863, with the measured cost of one build and how many of the
@@ -115,6 +120,8 @@ jobs:
     # ⚠️ Was Blacksmith build-amd64 (32-core) final assembly. Now 2-core
     # GitHub-hosted — candidate for larger runner/kanpur if it nears 6h.
     runs-on: ubuntu-24.04
+    # Leave one hour for CAS downloads, export, signing, and publishing after
+    # the 300-minute BuildStream budget below.  GitHub-hosted jobs cap at 6h.
     timeout-minutes: 360
     permissions:
       contents: read
