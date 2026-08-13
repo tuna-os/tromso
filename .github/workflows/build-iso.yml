@@ -28,7 +28,8 @@ concurrency:
 jobs:
   build-and-publish:
     name: Build Tromsø Live ISO
-    runs-on: ${{ vars.ACTIONS_RUNNER_LABEL && format('runs-on={0}/runner={1}', github.run_id, vars.ACTIONS_RUNNER_LABEL) || 'ubuntu-24.04' }}
+    # Always a GitHub-hosted runner -- no third-party runner escape hatch.
+    runs-on: ubuntu-24.04
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
