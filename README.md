@@ -74,10 +74,11 @@ ssh -p 2222 root@localhost
 | `just boot-vm` | Boot the raw image in QEMU (SSH on port 2222, serial on 4444) |
 | `just bst <args>` | Run any arbitrary `bst` command inside the build container |
 
-## CI/CD — CASD
+## CI/CD — multi-runner BuildStream
 
-The CI workflow (`.github/workflows/build-buildgrid.yml`) builds `oci/tromso.bst` with
-local CASD on the runner, then pushes the result to GHCR:
+The sole image-build workflow (`.github/workflows/build-tromso-multirunner.yml`)
+splits the BuildStream graph across runners, merges the resulting CAS, builds
+the final target, and pushes the result to GHCR:
 
 ```
 ghcr.io/tuna-os/tromso:latest
@@ -85,14 +86,12 @@ ghcr.io/tuna-os/tromso:<date>
 ghcr.io/tuna-os/tromso:<git-sha>
 ```
 
-**How it works:**
-1. GitHub Actions runs BuildStream inside the pinned `bst2` container
-2. BuildStream uses local CASD (`~/.cache/buildstream`) with CI-tuned scheduler settings
-3. The built target is exported as an OCI image and pushed to GHCR
-
-**Cold builds** (empty CASD cache on the runner) are slower; warm runner caches significantly reduce runtime.
-
-Triggers: push to `main` (element changes), daily at 06:00 UTC, manual dispatch.
+**How it works:** planning, core, and dependency chunks run through the shared
+`tuna-os/bst-ci` reusable workflow; `build_final` merges the chunk CAS archives,
+exports the OCI image, signs it, and publishes the nightly or stable tags.
+The workflow runs on its scheduled/manual triggers; it is intentionally the
+single BuildStream publication path so every successful image uses the same
+convergent cache and signing identity.
 
 ## Updating KDE Packages
 

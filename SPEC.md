@@ -174,22 +174,23 @@ For the `freedesktop-sdk` base SDK junction, bump `elements/freedesktop-sdk.bst`
 
 ## CI/CD
 
-**Primary workflow**: `.github/workflows/build-buildgrid.yml`
+**Only image-build workflow**: `.github/workflows/build-tromso-multirunner.yml`
 
 ```
-GitHub Actions runner
-  → Generate CI BuildStream config
-  → bst2 container pull (pinned image SHA)
-  → just bst build oci/tromso.bst     (local CASD build)
-  → just export                        (exports OCI tarball)
-  → skopeo push ghcr.io/tuna-os/tromso:latest
+GitHub Actions runners
+  → shared bst-ci planning/core/dependency chunks
+  → merge chunk CAS archives
+  → build_final: just bst build oci/tromso.bst + just export
+  → sign and push ghcr.io/tuna-os/tromso tags
 ```
 
 Triggers: push to `main` (elements/**, project.conf, include/**), daily at 06:00 UTC, manual dispatch.
 
-**Experimental parallel workflow**: `.github/workflows/build-tromso-multirunner.yml`
-Splits the build into 10 parallel chunks across GitHub runners using the shared [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci) reusable workflow (`scripts/ci-build-matrix.py` no longer lives in this repo).
-Triggered manually or by daily schedule.
+The multi-runner workflow splits the build into parallel chunks across GitHub
+runners using the shared [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci)
+reusable workflow (`scripts/ci-build-matrix.py` no longer lives in this repo).
+It is triggered manually or by the daily schedule and is the only workflow
+permitted to build or publish the Tromsø OCI image.
 
 ---
 
