@@ -25,9 +25,15 @@ config:
   configure-commands:
   - cmake -B%{build-dir} -H"%{conf-root}/sources/pyside6" -G"%{generator}" %{cmake-args}
 
+# Qt is installed under /usr, which clang treats as a system-header path, so
+# shiboken skips the Qt headers and builds a half-empty code model ("Class
+# QTransform not found", qRed/qRgb/qRgba/qIsGray/qPixelFormat "not defined").
+# Force shiboken to process the Qt include dirs anyway (same workaround used by
+# Yocto meta-qt6 and Flatpak builds of PySide6 against system Qt).
 variables:
   cmake-local: >-
     -DBUILD_SHARED_LIBS=ON
+    -DPYSIDE_TREAT_QT_INCLUDE_DIRS_AS_NON_SYSTEM=ON
 
 sources:
 - kind: tar
