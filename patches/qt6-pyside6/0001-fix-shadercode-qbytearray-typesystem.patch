@@ -257,4 +257,12 @@ per nightly build.
 +<primitive-type name="QShaderKey"/>
 +<primitive-type name="QShaderVersion"/>
  
+</typesystem>
+
+--- a/sources/pyside6/PySide6/QtGui/typesystem_gui.xml
++++ b/sources/pyside6/PySide6/QtGui/typesystem_gui.xml
+@@ -17,7 +17,6 @@
+     <load-typesystem name="QtGui/typesystem_gui_nativeinterface.xml" generate="yes"/>
+     <load-typesystem name="QtGui/typesystem_gui_common.xml" generate="yes"/>
+-    <load-typesystem name="QtGui/typesystem_gui_rhi.xml" generate="yes"/>
  </typesystem>

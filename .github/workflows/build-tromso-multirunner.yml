@@ -59,6 +59,11 @@ jobs:
       bst_target: oci/tromso.bst
       num_chunks: ${{ inputs.num_chunks || '10' }}
       core_split: "200"
+      # Keep the fleet choice explicit. The shared workflow must not silently
+      # fall back to an EC2/third-party label that is not provisioned for this
+      # repository (tromso#176); ubuntu-24.04 is GitHub-hosted and available
+      # on the repository's current plan.
+      runner_label: ubuntu-24.04
       # Elements that several chunks each rebuilt from scratch in run
       # 31235013863, with the measured cost of one build and how many of the
       # ten chunks paid it. Building them in core instead puts them in the
@@ -305,6 +310,7 @@ jobs:
       bst_target: oci/tromso.bst
       num_chunks: ${{ inputs.num_chunks || '10' }}
       core_split: "200"
+      runner_label_aarch64: ubuntu-24.04-arm
       # Same shared spine as the x86_64 call above — same graph, same elements,
       # and the -aarch64 cache namespace keeps the two CASes apart. Repeated
       # rather than shared because GitHub Actions does not support YAML
