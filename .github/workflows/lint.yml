@@ -57,6 +57,13 @@ jobs:
       - name: Run shellcheck
         uses: ludeeus/action-shellcheck@2.0.0
         with:
+          # Pinned (tromso#185): the action defaults to version: stable,
+          # which resolves to a moving GitHub release tag. A transient
+          # asset-CDN hiccup on that tag returns an HTML page instead of
+          # the tarball ("tar: This does not look like a tar archive"),
+          # not reproducible on retry -- pinning to a concrete release
+          # makes the download URL deterministic.
+          version: v0.11.0
           scandir: '.'
           additional_files: >
             tromso/src/build-iso.sh

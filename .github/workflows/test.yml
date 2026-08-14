@@ -20,6 +20,10 @@ jobs:
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
         with:
+          # Pinned (tromso#185): see lint.yml's shellcheck step for why --
+          # the default version: stable is a moving tag, and a transient
+          # asset-CDN hiccup on it reds CI non-deterministically.
+          version: v0.11.0
           scandir: './'
           severity: error
           format: tty
