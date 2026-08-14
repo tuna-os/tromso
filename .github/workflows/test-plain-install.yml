@@ -162,7 +162,19 @@ jobs:
           echo "final_url=https://raw.githubusercontent.com/${REPO}/ci-screenshots/${PATH_IN_REPO}" >> "$GITHUB_OUTPUT"
 
       - name: Post PR comment
-        if: always() && github.event_name == 'pull_request'
+        # GitHub downgrades GITHUB_TOKEN to read-only for pull_request-triggered
+        # runs whose head is a fork, regardless of this workflow's own
+        # `permissions:` block (tromso#202) -- createComment always 403s there
+        # ("Resource not accessible by integration"). continue-on-error already
+        # keeps that from failing the job, but every hive contributor PR is a
+        # fork PR, so it was throwing an unhandled-error stack trace on every
+        # run for no result. Skip the call entirely for fork PRs instead of
+        # attempting a write that's structurally impossible for this trigger;
+        # the "Write job summary" step below reports the same result and works
+        # unconditionally (job summaries only need read access).
+        if: >-
+          always() && github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
         uses: actions/github-script@v9
         env:
