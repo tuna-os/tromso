@@ -19,7 +19,7 @@ there is no longer a second repo or junction to keep in sync.
 
 **NEVER invent workarounds for build issues.** For any infrastructure, bootc, systemd, kernel, or non-KDE/QT packages:
 
-1. **FIRST**: Clone and examine `/var/home/james/reference-repos/dakota` and `/var/home/james/reference-repos/gnome-build-meta`
+1. **FIRST**: Clone and examine `~/reference-repos/dakota` and `~/reference-repos/gnome-build-meta` (or wherever you keep your local clones of `projectbluefin/dakota` and `GNOME/gnome-build-meta`)
 2. **ALWAYS**: Copy the `.bst` patterns and approaches from these known-good repos
 3. **NEVER**: Use pre-built binaries, shortcuts, or workarounds to bypass build failures
 4. **EXAMPLE**: When bootc compilation fails with Cargo DNS errors:
@@ -49,8 +49,8 @@ If bootc build fails in the containerized BuildStream environment:
 3. Apply the same approach rather than using a pre-built binary
 
 **Reference files**:
-- `/var/home/james/reference-repos/gnome-build-meta/elements/gnomeos-deps/bootc.bst`
-- `/var/home/james/reference-repos/dakota/elements/*/bootc.bst` (if exists)
+- `~/reference-repos/gnome-build-meta/elements/gnomeos-deps/bootc.bst`
+- `~/reference-repos/dakota/elements/*/bootc.bst` (if exists)
 
 ---
 
@@ -157,12 +157,12 @@ Pattern — if upstream `CMakeLists.txt` has `find_package(KF6Foo REQUIRED)`, th
 
 ## File locations
 
-- **Reference repos**: `/var/home/james/reference-repos/`
+- **Reference repos**: `~/reference-repos/`
   - `dakota/` — Project Bluefin Dakota (GNOME-based, bootc-enabled)
   - `gnome-build-meta/` — GNOME's BuildStream repository
 - **Build logs**: `/var/tmp/aurora-build.log`
 - **Cache**: `~/.cache/buildstream/`
-- **This project**: `/var/home/james/dev/tromso/`
+- **This project**: the repository checkout (e.g. `~/dev/tromso/`)
 
 ---
 
@@ -199,7 +199,7 @@ When generating bootable images with `bootc install`:
 When you are asked to fix a build failure, add a package, or resolve an infrastructure issue:
 
 1. **DO NOT** search the web or guess at solutions.
-2. **DO** read the reference repo files from `/var/home/james/reference-repos/`.
+2. **DO** read the reference repo files from `~/reference-repos/`.
 3. **DO** compare the working configuration in Dakota/gnome-build-meta to the Aurora configuration.
 4. **DO** apply the exact pattern or approach used in the reference repos.
 5. **DO** document the reasoning in memory or commit messages.
@@ -238,7 +238,7 @@ The tromso OCI image must have gzip-compressed layers for composefs to work:
 
 The squashfs embeds the tromso OCI image as VFS containers-storage.  The skopeo import into VFS **must run from inside the installer container** (not the build host) so the tar-split metadata is written in the format the live ISO can read.  See dakota-iso's justfile comment for details.
 
-### Key Reference: `/var/home/james/reference-repos/dakota-iso/`
+### Key Reference: `~/reference-repos/dakota-iso/`
 
 Always check dakota-iso for the correct behavior before making changes to tromso-iso.
 
