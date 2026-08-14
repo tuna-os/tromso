@@ -131,3 +131,22 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_multirunner_uses_github_hosted_x86_runner():
+    """The image build must not regress to the rejected EC2 fleet label."""
+    multi = (REPO / ".github" / "workflows" / "build-tromso-multirunner.yml").read_text()
+    assert "runner_label: ubuntu-24.04" in multi
+    assert "runner_label_aarch64: ubuntu-24.04-arm" in multi
+
+
+def test_pyside_patch_skips_private_rhi_typesystem():
+    """Private RHI declarations must not enter Shiboken's code model.
+
+    Demoting the declarations to primitive types was insufficient: Qt for
+    Python still generated QRhiResourceUpdateBatch methods and failed while
+    resolving QByteArray. The patch now removes the all-private RHI
+    typesystem from the QtGui load graph entirely.
+    """
+    patch = (REPO / "patches/qt6-pyside6/0001-fix-shadercode-qbytearray-typesystem.patch").read_text()
+    assert "-    <load-typesystem name=\"QtGui/typesystem_gui_rhi.xml\" generate=\"yes\"/>" in patch
