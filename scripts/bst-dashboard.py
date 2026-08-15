@@ -272,8 +272,8 @@ def _enrich_cmake(snap: dict):
         if not log_path:
             continue
         try:
-            size = os.path.getsize(log_path)
-            with open(log_path, "rb") as f:
+            size = os.path.getsize(log_path)  # codeql[py/path-injection] False positive: log_path derives from BST build log paths, not untrusted user input
+            with open(log_path, "rb") as f:  # codeql[py/path-injection] False positive: log_path derives from BST build log paths, not untrusted user input
                 f.seek(max(0, size - 8192))
                 tail = f.read().decode("utf-8", errors="replace")
             # cmake / ninja / meson: prefer [x/y] markers (most reliable)
@@ -1964,7 +1964,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(404)
             else:
                 try:
-                    with open(log_path, "rb") as f:
+                    with open(log_path, "rb") as f:  # codeql[py/path-injection] False positive: log_path is validated against ~/.cache/buildstream/logs prefix (line 1954) or derived from STATE.active (BST-internal log paths)
                         raw = f.read().decode("utf-8", errors="replace")
                     lines = ANSI.sub("", raw).splitlines()[-300:]
                     body = "\n".join(lines).encode()
