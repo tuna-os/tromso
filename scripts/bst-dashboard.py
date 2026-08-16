@@ -1948,14 +1948,19 @@ class Handler(BaseHTTPRequestHandler):
             params = dict(p.split("=", 1) for p in query.split("&") if "=" in p)
             log_path = None
             if "path" in params:
-                # Direct path (for failures) — validate it stays inside buildstream logs
+                # Direct path (for failures) — validate it stays inside buildstream logs.
                 candidate = urllib.parse.unquote(params["path"])
                 bst_logs = os.path.realpath(os.path.expanduser("~/.cache/buildstream/logs"))
                 candidate_abs = os.path.realpath(candidate)
-                # Containment check with trailing separator: a bare startswith()
-                # prefix also admits sibling dirs (e.g. ~/.cache/buildstream/logs-evil).
-                if candidate_abs == bst_logs or candidate_abs.startswith(bst_logs + os.sep):
-                    log_path = candidate
+                # os.path.commonpath containment — the documented sanitizer for
+                # py/path-injection. Raises ValueError when the paths share no
+                # common root (e.g. different drives), which we treat as unsafe.
+                try:
+                    inside = os.path.commonpath([candidate_abs, bst_logs]) == bst_logs
+                except ValueError:
+                    inside = False
+                if inside:
+                    log_path = candidate_abs
             elif "hash" in params:
                 h = params["hash"]
                 with STATE._lock:
