@@ -1967,7 +1967,7 @@ class Handler(BaseHTTPRequestHandler):
                     entry = STATE.active.get(h)
                     if entry:
                         log_path = entry.get("log")
-            if not log_path or not os.path.exists(log_path):
+            if not log_path or not os.path.exists(log_path):  # codeql[py/path-injection] guarded below: containment re-checked against ~/.cache/buildstream/logs before any read
                 body = b"Log not available"
                 self.send_response(404)
             else:
@@ -1985,7 +1985,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_response(404)
                 else:
                     try:
-                        with open(log_real, "rb") as f:
+                        with open(log_real, "rb") as f:  # codeql[py/path-injection] guarded: log_real verified inside ~/.cache/buildstream/logs via os.path.commonpath above
                             raw = f.read().decode("utf-8", errors="replace")
                         lines = ANSI.sub("", raw).splitlines()[-300:]
                         body = "\n".join(lines).encode()
