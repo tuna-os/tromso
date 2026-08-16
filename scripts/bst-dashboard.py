@@ -1971,15 +1971,28 @@ class Handler(BaseHTTPRequestHandler):
                 body = b"Log not available"
                 self.send_response(404)
             else:
+                # Enforce containment at the sink: only read files inside the
+                # buildstream logs dir. commonpath() raises ValueError when the
+                # two paths share no common root (different drives).
+                bst_logs = os.path.realpath(os.path.expanduser("~/.cache/buildstream/logs"))
+                log_real = os.path.realpath(log_path)
                 try:
-                    with open(log_path, "rb") as f:
-                        raw = f.read().decode("utf-8", errors="replace")
-                    lines = ANSI.sub("", raw).splitlines()[-300:]
-                    body = "\n".join(lines).encode()
-                    self.send_response(200)
-                except Exception as e:
-                    body = str(e).encode()
-                    self.send_response(500)
+                    common = os.path.commonpath([log_real, bst_logs])
+                except ValueError:
+                    common = ""
+                if common != bst_logs:
+                    body = b"Log not available"
+                    self.send_response(404)
+                else:
+                    try:
+                        with open(log_real, "rb") as f:
+                            raw = f.read().decode("utf-8", errors="replace")
+                        lines = ANSI.sub("", raw).splitlines()[-300:]
+                        body = "\n".join(lines).encode()
+                        self.send_response(200)
+                    except Exception as e:
+                        body = str(e).encode()
+                        self.send_response(500)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
