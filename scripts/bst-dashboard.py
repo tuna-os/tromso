@@ -1948,53 +1948,37 @@ class Handler(BaseHTTPRequestHandler):
             params = dict(p.split("=", 1) for p in query.split("&") if "=" in p)
             log_path = None
             if "path" in params:
-                # Direct path (for failures) — validate it stays inside buildstream logs.
-                candidate = urllib.parse.unquote(params["path"])
-                bst_logs = os.path.realpath(os.path.expanduser("~/.cache/buildstream/logs"))
-                candidate_abs = os.path.realpath(candidate)
-                # os.path.commonpath containment — the documented sanitizer for
-                # py/path-injection. Raises ValueError when the paths share no
-                # common root (e.g. different drives), which we treat as unsafe.
-                try:
-                    inside = os.path.commonpath([candidate_abs, bst_logs]) == bst_logs
-                except ValueError:
-                    inside = False
-                if inside:
-                    log_path = candidate_abs
+                # Serve only log paths the server itself reported from BST build
+                # events (STATE.active / STATE.failures). The user-supplied value
+                # is used purely as a lookup key against server-known paths and
+                # never reaches the filesystem directly — no user-controlled
+                # path sink.
+                with STATE._lock:
+                    known = {}
+                    for e in list(STATE.active.values()) + list(STATE.failures):
+                        lp = e.get("log")
+                        if lp:
+                            known[lp] = lp
+                log_path = known.get(urllib.parse.unquote(params["path"]))
             elif "hash" in params:
                 h = params["hash"]
                 with STATE._lock:
                     entry = STATE.active.get(h)
                     if entry:
                         log_path = entry.get("log")
-            # codeql[py/path-injection]
             if not log_path or not os.path.exists(log_path):
                 body = b"Log not available"
                 self.send_response(404)
             else:
-                # Enforce containment at the sink: only read files inside the
-                # buildstream logs dir. commonpath() raises ValueError when the
-                # two paths share no common root (different drives).
-                bst_logs = os.path.realpath(os.path.expanduser("~/.cache/buildstream/logs"))
-                log_real = os.path.realpath(log_path)
                 try:
-                    common = os.path.commonpath([log_real, bst_logs])
-                except ValueError:
-                    common = ""
-                if common != bst_logs:
-                    body = b"Log not available"
-                    self.send_response(404)
-                else:
-                    try:
-                        # codeql[py/path-injection]
-                        with open(log_real, "rb") as f:
-                            raw = f.read().decode("utf-8", errors="replace")
-                        lines = ANSI.sub("", raw).splitlines()[-300:]
-                        body = "\n".join(lines).encode()
-                        self.send_response(200)
-                    except Exception as e:
-                        body = str(e).encode()
-                        self.send_response(500)
+                    with open(log_path, "rb") as f:
+                        raw = f.read().decode("utf-8", errors="replace")
+                    lines = ANSI.sub("", raw).splitlines()[-300:]
+                    body = "\n".join(lines).encode()
+                    self.send_response(200)
+                except Exception as e:
+                    body = str(e).encode()
+                    self.send_response(500)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
