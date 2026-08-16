@@ -1950,8 +1950,11 @@ class Handler(BaseHTTPRequestHandler):
             if "path" in params:
                 # Direct path (for failures) — validate it stays inside buildstream logs
                 candidate = urllib.parse.unquote(params["path"])
-                bst_logs = os.path.expanduser("~/.cache/buildstream/logs")
-                if os.path.abspath(candidate).startswith(bst_logs):
+                bst_logs = os.path.realpath(os.path.expanduser("~/.cache/buildstream/logs"))
+                candidate_abs = os.path.realpath(candidate)
+                # Containment check with trailing separator: a bare startswith()
+                # prefix also admits sibling dirs (e.g. ~/.cache/buildstream/logs-evil).
+                if candidate_abs == bst_logs or candidate_abs.startswith(bst_logs + os.sep):
                     log_path = candidate
             elif "hash" in params:
                 h = params["hash"]
@@ -1964,7 +1967,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(404)
             else:
                 try:
-                    with open(log_path, "rb") as f:  # codeql[py/path-injection] False positive: log_path is validated against ~/.cache/buildstream/logs prefix (line 1954) or derived from STATE.active (BST-internal log paths)
+                    with open(log_path, "rb") as f:
                         raw = f.read().decode("utf-8", errors="replace")
                     lines = ANSI.sub("", raw).splitlines()[-300:]
                     body = "\n".join(lines).encode()
