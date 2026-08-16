@@ -31,9 +31,14 @@ config:
 # Force shiboken to process the Qt include dirs anyway (same workaround used by
 # Yocto meta-qt6 and Flatpak builds of PySide6 against system Qt).
 variables:
+  # BUILD_TESTS=OFF: PySide6's self-test target (pysidetest) generates wrapper
+  # code referencing PySide::Signal against this repo's Qt6 headers, which fails
+  # to compile and was taking the whole variant build down with it. The bindings
+  # themselves are unaffected; only the upstream test suite is skipped.
   cmake-local: >-
     -DBUILD_SHARED_LIBS=ON
     -DPYSIDE_TREAT_QT_INCLUDE_DIRS_AS_NON_SYSTEM=ON
+    -DBUILD_TESTS=OFF
 
 # PySide6's per-module CMakeLists hard-code the generated *_wrapper.cpp files,
 # including the private RHI/QShader types. The old qt6-pyside6 patch demoted
