@@ -5,7 +5,7 @@ sources:
 - kind: git_repo
   url: github:projectbluefin/common.git
   track: main
-  ref: v2026.08-52-g107797534fb1f015af06003e7af8b6725940495c
+  ref: v2026.08-55-g6e8e5faa9f8e99d11ce99ed78e60fa24c364e17e
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
