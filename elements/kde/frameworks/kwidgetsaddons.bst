@@ -14,7 +14,7 @@ build-depends:
 - kde/qt6/qt6-pyside6.bst
 
 variables:
-  cmake-local: -DBUILD_TESTING=OFF
+  cmake-local: -DBUILD_TESTING=OFF -DBUILD_PYTHON_BINDINGS=OFF
 
 sources:
 - kind: git_repo
