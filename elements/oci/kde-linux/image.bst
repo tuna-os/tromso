@@ -70,7 +70,7 @@ config:
           'com.github.containers.toolbox': 'true'
           'org.opencontainers.image.title': 'KDE Linux'
           'org.opencontainers.image.description': 'A KDE Plasma desktop image based on freedesktop-sdk'
-          'org.opencontainers.image.vendor': 'Hanthor'
+          'org.opencontainers.image.vendor': 'tuna-os'
           'org.opencontainers.image.licenses': 'Apache-2.0'
           'org.opencontainers.image.url': 'https://github.com/tuna-os/tromso'
           'org.opencontainers.image.source': 'https://github.com/tuna-os/tromso'
