@@ -71,7 +71,9 @@ build-recovery-prompt.txt
 # Dev-time scripts
 bst-cache-pull.sh
 bst-cache-push.sh
-bst-dashboard.py
+# bst-dashboard.py is vendored under scripts/ (see tuna-os/tromso#164);
+# keep ignoring only a root-level local copy.
+/bst-dashboard.py
 bst-failure-recovery.py
 bst.yml
 build.sh

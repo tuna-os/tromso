@@ -114,19 +114,12 @@ log:
     tail -f /tmp/tromso-build.log
 
 # Launch live HTML build dashboard at http://localhost:8765
-# Downloads bst-dashboard.py from GitHub on first run; cached at ~/.cache/bst-dashboard/
+# Runs the vendored scripts/bst-dashboard.py (tracked in-repo; update via git pull)
 [group('build')]
 dashboard:
     #!/usr/bin/env bash
     set -euo pipefail
-    SCRIPT="${HOME}/.cache/bst-dashboard/bst-dashboard.py"
-    if [ ! -f "$SCRIPT" ]; then
-        echo "Downloading bst-dashboard (run 'just dashboard-update' to upgrade)…"
-        mkdir -p "$(dirname "$SCRIPT")"
-        curl -fsSL https://raw.githubusercontent.com/hanthor/buildstream-dashboard/main/bst-dashboard.py \
-            -o "$SCRIPT"
-    fi
-    python3 "$SCRIPT" \
+    python3 "{{justfile_directory()}}/scripts/bst-dashboard.py" \
         --log /tmp/tromso-build.log \
         --target oci/tromso.bst \
         --project "{{justfile_directory()}}" &>/tmp/bst-dashboard.log &
@@ -141,16 +134,10 @@ dashboard:
         fi
     done
 
-# Pull the latest bst-dashboard from GitHub
+# bst-dashboard.py is vendored in scripts/; update it with git pull
 [group('build')]
 dashboard-update:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    mkdir -p "${HOME}/.cache/bst-dashboard"
-    echo "Updating bst-dashboard…"
-    curl -fsSL https://raw.githubusercontent.com/hanthor/buildstream-dashboard/main/bst-dashboard.py \
-        -o "${HOME}/.cache/bst-dashboard/bst-dashboard.py"
-    echo "Done."
+    @echo "bst-dashboard.py is vendored in scripts/ — update it with 'git pull'."
 
 # Install bst-dashboard as a systemd user service
 [group('build')]
@@ -169,7 +156,7 @@ dashboard-service:
       '[Service]' \
       'Type=simple' \
       'Environment=PYTHONUNBUFFERED=1' \
-      "ExecStart=/usr/bin/python3 ${JUSTDIR}/bst-dashboard.py --log /tmp/${IMAGE_NAME}-build.log --target oci/${IMAGE_NAME}.bst --project ${JUSTDIR}" \
+      "ExecStart=/usr/bin/python3 ${JUSTDIR}/scripts/bst-dashboard.py --log /tmp/${IMAGE_NAME}-build.log --target oci/${IMAGE_NAME}.bst --project ${JUSTDIR}" \
       'Restart=always' \
       'RestartSec=5' \
       '' \
