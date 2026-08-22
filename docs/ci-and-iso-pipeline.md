@@ -86,11 +86,12 @@ desktop) are published to the `ci-screenshots` branch and PR comments.
 - **Renovate** (`renovate.json`) — GitHub Actions, container tags. Automerge
   on green CI, majors included.
 - **`track-bst-sources.yml`** — Renovate can't parse `.bst`; this runs
-  `bst source track` daily. Local elements (`elements/tromso`,
-  `elements/gnomeos-deps`) go into one automergeable PR; the
-  `kde-build-meta.bst` junction gets a separate review-required PR (a
-  junction bump can rebuild the world). PRs made with the default
-  `GITHUB_TOKEN` don't trigger CI — set a `BOT_TOKEN` secret to fix that.
+  `bst source track` daily across the repo-local element groups. The workflow
+  splits updates into focused PRs using its matrix and excludes orphaned
+  elements that cannot build in BuildStream's offline sandbox. There is no
+  `kde-build-meta.bst` junction or separate junction-update PR. PRs made with
+  the default `GITHUB_TOKEN` don't trigger CI — set a `BOT_TOKEN` secret to
+  fix that.
 
 ## Troubleshooting log (symptom → root cause → fix)
 
