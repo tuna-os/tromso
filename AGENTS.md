@@ -105,7 +105,7 @@ just log
      xargs -I{} cat ~/.cache/buildstream/logs/gnome/kde-frameworks-ELEMENT/{}
    ```
 
-3. Fix the `.bst` file in `tuna-os/kde-build-meta`.
+3. Fix the failed `.bst` file in this repository's `elements/` tree.
 
 4. **Clear the cached failure** (BST caches failed artifacts):
    ```bash
@@ -116,7 +116,8 @@ just log
    **⚠️ CRITICAL**: Never clear `kde-*` broadly — this forces rebuild of ALL KDE elements, not just the fix.
    Instead, clear only the specific element that failed.
 
-5. Commit + push `kde-build-meta`, update junction, restart build.
+5. Commit the local element change, push the Tromso branch, and restart the
+   build. There is no `kde-build-meta` junction to update.
 
 ---
 

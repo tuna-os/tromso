@@ -135,6 +135,19 @@ cosign verify-blob tromso-live-<date>-<sha>.iso \
 
 ## ISO Builder (merged from tromso-iso)
 
+The live-ISO tooling is maintained in this repository. Build a systemd-boot
+UEFI ISO from the published Tromso payload, then boot it in QEMU:
+
+```bash
+just iso-sd-boot tromso
+just boot-iso-vnc tromso
+```
+
+The default artifact is `output/tromso-live.iso`. Set a different output
+directory with `just output_dir=/path/to/output iso-sd-boot tromso`. For the
+pipeline architecture, debugging options, and install end-to-end tests, see
+[CI & ISO pipeline](docs/ci-and-iso-pipeline.md).
+
 ---
 
 Part of the [TunaOS](https://tunaos.org) ecosystem. [Docs](https://tunaos.org) · [Contributing](CONTRIBUTING.md)
