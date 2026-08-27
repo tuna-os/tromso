@@ -26,8 +26,11 @@ just --summary >/dev/null
 just --evaluate >/dev/null
 
 # Unit tests (requires bats and pytest)
-bats tests/bats/*.bats
-pytest tests/pytest/ -v --tb=short
+just test
+# Or directly: bats tests/bats/*.bats && pytest tests/pytest/ -v --tb=short
+
+# Container linting (requires built image)
+just lint
 
 # Validate the shipping BuildStream graph in the pinned container
 just bst --no-interactive show --deps all oci/tromso.bst
