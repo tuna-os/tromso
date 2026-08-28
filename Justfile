@@ -123,7 +123,7 @@ dashboard:
     if [ ! -f "$SCRIPT" ]; then
         echo "Downloading bst-dashboard (run 'just dashboard-update' to upgrade)…"
         mkdir -p "$(dirname "$SCRIPT")"
-        curl -fsSL https://raw.githubusercontent.com/hanthor/buildstream-dashboard/main/bst-dashboard.py \
+        curl -fsSL https://raw.githubusercontent.com/tuna-os/buildstream-dashboard/main/bst-dashboard.py \
             -o "$SCRIPT"
     fi
     python3 "$SCRIPT" \
@@ -148,9 +148,14 @@ dashboard-update:
     set -euo pipefail
     mkdir -p "${HOME}/.cache/bst-dashboard"
     echo "Updating bst-dashboard…"
-    curl -fsSL https://raw.githubusercontent.com/hanthor/buildstream-dashboard/main/bst-dashboard.py \
+    curl -fsSL https://raw.githubusercontent.com/tuna-os/buildstream-dashboard/main/bst-dashboard.py \
         -o "${HOME}/.cache/bst-dashboard/bst-dashboard.py"
     echo "Done."
+
+# Analyze multi-runner chunk build durations and auto-tune chunk grouping
+[group('build')]
+autotune-chunks limit='5':
+    python3 scripts/autotune-chunk-grouping.py --limit {{limit}}
 
 # Install bst-dashboard as a systemd user service
 [group('build')]
