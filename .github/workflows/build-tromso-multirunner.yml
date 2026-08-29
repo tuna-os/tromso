@@ -107,6 +107,17 @@ jobs:
       # error still fails core.
       core_budget_minutes: "300"
       soft_core_budget: true
+      # Chunks get the same treatment core does, and for the same reason.
+      # In run 33167876228 seven of ten chunks exited at exactly 270 minutes —
+      # seven budget timeouts, zero build errors — and each one still pushed
+      # its partial CAS to `:latest`. But a red chunk trips build_final's
+      # `!contains(needs.*.result, 'failure')` guard, so that warm cache was
+      # never harvested and no image was published; the same wall has been hit
+      # on every run since #46. Softening the timeout lets build_final merge
+      # what the chunks did finish and drive the build forward each night.
+      # A timed-out chunk still publishes only `:latest`, never its exact-key
+      # tag, so nothing is ever marked complete that isn't.
+      soft_chunk_budget: true
 
   # ── Phase 4: Final assembly + push ──────────────────────────────────
   build_final:
@@ -324,6 +335,11 @@ jobs:
         sdk/glycin.bst
       core_budget_minutes: "300"
       soft_core_budget: true
+      # Kept in step with the x86_64 call above. This path has never had a
+      # warm cache at all, so if it is ever dispatched its chunks will
+      # certainly exhaust the budget — the same reasoning applies with more
+      # force, and it still cannot publish an unsuffixed tag either way.
+      soft_chunk_budget: true
       arch: aarch64
 
   build_final_aarch64:
