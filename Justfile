@@ -448,6 +448,17 @@ chunkify image_ref:
         $SUDO_CMD podman tag "$NEW_REF" "{{image_ref}}"
     fi
 
+# ── Unit tests ───────────────────────────────────────────────────────
+[group('test')]
+test:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "==> Running BATS unit tests..."
+    bats tests/bats/*.bats
+    echo "==> Running Pytest suite..."
+    pytest tests/pytest/ -v --tb=short
+
 # ── Lint ─────────────────────────────────────────────────────────────
 [group('test')]
 lint:

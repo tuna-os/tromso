@@ -72,6 +72,8 @@ ssh -p 2222 root@localhost
 | `just log` | Tail the build log |
 | `just generate-bootable-image` | Create a bootable raw disk image via bootc |
 | `just boot-vm` | Boot the raw image in QEMU (SSH on port 2222, serial on 4444) |
+| `just test` | Run local BATS and Pytest unit test suites |
+| `just lint` | Run bootc container lint on the built OCI image |
 | `just bst <args>` | Run any arbitrary `bst` command inside the build container |
 
 ## CI/CD — multi-runner BuildStream
