@@ -152,6 +152,11 @@ dashboard-update:
         -o "${HOME}/.cache/bst-dashboard/bst-dashboard.py"
     echo "Done."
 
+# Analyze multi-runner chunk build durations and auto-tune chunk grouping
+[group('build')]
+autotune-chunks limit='5':
+    python3 scripts/autotune-chunk-grouping.py --limit {{limit}}
+
 # Install bst-dashboard as a systemd user service
 [group('build')]
 dashboard-service:
