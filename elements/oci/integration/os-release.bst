@@ -17,10 +17,10 @@ config:
     VERSION_ID="20260428"
     PRETTY_NAME="Aurora KDE Linux"
     ANSI_COLOR="0;34"
-    HOME_URL="https://github.com/james/kde-linux"
-    SUPPORT_URL="https://github.com/james/kde-linux/issues"
-    BUG_REPORT_URL="https://github.com/james/kde-linux/issues"
-    PRIVACY_POLICY_URL="https://github.com/james/kde-linux"
+    HOME_URL="https://github.com/tuna-os/tromso"
+    SUPPORT_URL="https://github.com/tuna-os/tromso/issues"
+    BUG_REPORT_URL="https://github.com/tuna-os/tromso/issues"
+    PRIVACY_POLICY_URL="https://github.com/tuna-os/tromso"
     OSTREE_VERSION='20260428'
     BOOTC_IMAGE=1
     VARIANT="KDE Plasma"
