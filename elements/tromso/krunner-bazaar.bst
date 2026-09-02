@@ -21,4 +21,4 @@ sources:
 - kind: git_repo
   url: github:bazaar-org/krunner-bazaar.git
   track: v[0-9]*
-  ref: v1.3.0-0-gdbed96fa4c2e709c38432eb63e58289636f01b33
+  ref: v1.4.0-0-g323fc8d684a60a7f864964e97d55371bd6a74d9c
