@@ -1,0 +1,6 @@
+target-version = "py311"
+
+# gettext.install() (files/kde-linux-system/live/proto-installer/installer.py)
+# injects _() as a builtin at runtime; without this, every _("...") call
+# false-flags as an undefined name (F821).
+builtins = ["_"]
