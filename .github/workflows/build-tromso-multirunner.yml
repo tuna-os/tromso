@@ -231,7 +231,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Login to GHCR (podman)
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
           echo "$GITHUB_TOKEN" | \
             sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
@@ -240,7 +240,7 @@ jobs:
 
       - name: Push to GHCR
         id: push
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
           DATE_TAG=$(date -u +%Y%m%d)
           # Channels: main = nightly trunk (also owns :latest); stable = release bookmark
@@ -262,17 +262,17 @@ jobs:
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign image (cosign keyless)
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
           cosign sign --yes \
             "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
 
       - name: Trivy image scan
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -282,7 +282,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Upload Trivy scan results
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
         with:
@@ -455,7 +455,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Login to GHCR (podman)
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
           echo "$GITHUB_TOKEN" | \
             sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
@@ -464,7 +464,7 @@ jobs:
 
       - name: Push to GHCR
         id: push
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
           DATE_TAG=$(date -u +%Y%m%d)
           # -aarch64-suffixed only — never the bare channel tags an x86_64
@@ -487,17 +487,17 @@ jobs:
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign image (cosign keyless)
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
           cosign sign --yes \
             "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
 
       - name: Trivy image scan
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -507,7 +507,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Upload Trivy scan results
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image != false }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
         with:
