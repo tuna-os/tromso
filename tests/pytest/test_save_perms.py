@@ -69,14 +69,22 @@ class TestSavePerms(unittest.TestCase):
         mod, _ = self._import()
         p = _write(os.path.join(self.root, "bin/tool"), "x", mode=0o755)
         doc = {}
-        mod.retrieve_one(doc, self.root, "bin/tool")
+        # A freshly created file is not guaranteed to report zero xattrs --
+        # on an SELinux-labeled filesystem os.listxattr returns
+        # ['security.selinux'] for every new file, which would make this
+        # "omitted" assertion fail for reasons unrelated to what the test is
+        # actually checking (mode, not attributes). Pin the xattr precondition
+        # explicitly rather than relying on the host's ambient labeling.
+        with patch.object(os, "listxattr", return_value=[]):
+            mod.retrieve_one(doc, self.root, "bin/tool")
         self.assertNotIn("bin/tool", doc)
 
     def test_regular_file_default_644_mode_omitted(self):
         mod, _ = self._import()
         p = _write(os.path.join(self.root, "etc/f"), "x", mode=0o644)
         doc = {}
-        mod.retrieve_one(doc, self.root, "etc/f")
+        with patch.object(os, "listxattr", return_value=[]):
+            mod.retrieve_one(doc, self.root, "etc/f")
         self.assertNotIn("etc/f", doc)
 
     def test_dir_nonstandard_mode_recorded(self):
@@ -107,7 +115,8 @@ class TestSavePerms(unittest.TestCase):
         mod, _ = self._import()
         _write(os.path.join(self.root, "usr/bin/script"), "x", mode=0o750)
         _write(os.path.join(self.root, "usr/bin/normal"), "x", mode=0o755)
-        doc = mod.retrieve(self.root)
+        with patch.object(os, "listxattr", return_value=[]):
+            doc = mod.retrieve(self.root)
         self.assertEqual(doc["usr/bin/script"]["mode"], 0o750)
         self.assertNotIn("usr/bin/normal", doc)
 
