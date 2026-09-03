@@ -168,5 +168,13 @@ inverse of promotion: verifies the target `:<sha>` image exists, then
 `skopeo copy --preserve-digests` onto `:stable` (+ a dated
 `stable-rollback-*` tag) and force-pushes the stable branch to the same
 commit so branch and tag never diverge. Shares the promote concurrency
-group so it cannot race a promotion. Dakota-pattern notes: once signing
-lands, add a cosign-verify step before the retag.
+group so it cannot race a promotion.
+
+It is not a full rollback of a release. It restores the x86_64 `:stable`
+tag and the git branch only — the `-aarch64` tags and the R2
+`tromso/stable/` ISO surface stay on the bad build, and it does not
+`cosign verify` the target before retagging (signing has landed:
+`build-tromso-multirunner.yml` signs every pushed digest, so the
+"once signing lands" note here is obsolete). The manual steps for the
+uncovered surfaces, and the verification to run afterwards, are in
+[`runbooks/rollback-a-bad-stable-release.md`](../runbooks/rollback-a-bad-stable-release.md).

@@ -148,7 +148,9 @@ just boot-iso-vnc tromso
 The default artifact is `output/tromso-live.iso`. Set a different output
 directory with `just output_dir=/path/to/output iso-sd-boot tromso`. For the
 pipeline architecture, debugging options, and install end-to-end tests, see
-[CI & ISO pipeline](docs/ci-and-iso-pipeline.md).
+[CI & ISO pipeline](docs/ci-and-iso-pipeline.md). To restore a bad `stable`
+release, follow
+[Roll back a bad stable release](runbooks/rollback-a-bad-stable-release.md).
 
 ---
 
