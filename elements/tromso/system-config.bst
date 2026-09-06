@@ -1,6 +1,6 @@
 kind: script
 description: >-
-  System configuration required for the Aurora OCI image to boot correctly:
+  System configuration required for the Tromso OCI image to boot correctly:
   - dbus.service + dbus.socket systemd units (freedesktop-sdk dbus provides
     the binary but not the systemd activation units)
   - sysusers.d entries for system accounts: messagebus (dbus), sshd, rtkit, polkitd
@@ -68,7 +68,7 @@ config:
   # image systemd-sysusers runs at first-boot; the entries here ensure they
   # are created before the services that need them start.
   - |
-    install -Dm644 /dev/stdin "%{install-root}/usr/lib/sysusers.d/aurora-system.conf" <<'EOF'
+    install -Dm644 /dev/stdin "%{install-root}/usr/lib/sysusers.d/tromso-system.conf" <<'EOF'
     # messagebus: required by dbus-daemon (runs as this user)
     u messagebus - "D-Bus Message Daemon" /run/dbus /usr/sbin/nologin
 
@@ -116,7 +116,7 @@ config:
   # ── ld.so.conf ───────────────────────────────────────────────────────
   # Without /etc/ld.so.conf, ldconfig ignores /etc/ld.so.conf.d/*.conf
   # and the Qt6 libs in /usr/lib/ are never registered in the linker
-  # cache.  Qt6 ships in the KDE Linux parent OCI layer (not this Aurora
+  # cache.  Qt6 ships in the KDE Linux parent OCI layer (not this Tromso
   # layer), so the cache must be rebuilt on the merged image at OCI
   # assembly time (see oci/tromso.bst).
   - |
@@ -182,11 +182,11 @@ config:
 
   # ── sshd_config ──────────────────────────────────────────────────────
   # A minimal default sshd_config.  Without this sshd refuses to start.
-  # PermitRootLogin is enabled for the initial Aurora image; users should
+  # PermitRootLogin is enabled for the initial image; users should
   # create a regular account and disable root SSH in production.
   - |
     install -Dm644 /dev/stdin "%{install-root}/etc/ssh/sshd_config" <<'EOF'
-    # Aurora default sshd configuration
+    # Default sshd configuration
     HostKey /etc/ssh/ssh_host_rsa_key
     HostKey /etc/ssh/ssh_host_ecdsa_key
     HostKey /etc/ssh/ssh_host_ed25519_key
@@ -261,7 +261,7 @@ config:
   # start cleanly.  Without it, PAM fails and all user sessions break.
   - |
     install -Dm644 /dev/stdin "%{install-root}/usr/share/pam/security/namespace.conf" <<'EOF'
-    # Aurora: no PAM namespace bindings configured
+    # No PAM namespace bindings configured
     EOF
 
   # ── unix_chkpwd setuid ───────────────────────────────────────────────
@@ -321,7 +321,7 @@ config:
   - |
     install -Dm644 /dev/stdin \
       "%{install-root}/etc/xdg/plasma-workspace/env/kde-settings.sh" <<'EOF'
-    # Activate Aurora system-wide KDE defaults profile (mirrors Fedora kde-settings RPM)
+    # Activate system-wide KDE defaults profile (mirrors Fedora kde-settings RPM)
     export XDG_CONFIG_DIRS=/usr/share/kde-settings/kde-profile/default/xdg${XDG_CONFIG_DIRS:+:$XDG_CONFIG_DIRS}
     EOF
 
@@ -359,7 +359,7 @@ config:
   # overwrite it during OCI layer merging.
   - |
     install -d "%{install-root}/etc/systemd/system"
-    # systemd-homed: Aurora does not use LUKS home dirs; fails on early D-Bus race
+    # systemd-homed: Tromso does not use LUKS home dirs; fails on early D-Bus race
     ln -sf /dev/null "%{install-root}/etc/systemd/system/systemd-homed.service"
     # debug-shell: ttyS1 early root shell — only needed during development
     ln -sf /dev/null "%{install-root}/etc/systemd/system/debug-shell.service"
@@ -405,7 +405,7 @@ config:
     done
 
   # ── NetworkManager enable ────────────────────────────────────────────
-  # NetworkManager is the standard network manager for Aurora (same as
+  # NetworkManager is the standard network manager for Tromso (same as
   # gnome-build-meta / Dakota).  systemd-networkd is explicitly disabled
   # (as in gnome-build-meta's 80-network.preset) to avoid conflicts.
   - |
@@ -438,7 +438,7 @@ public:
         - '%{indep-libdir}/systemd/system/multi-user.target.wants/sshd.service'
         - '%{sysconfdir}/ssh/sshd_config'
         - '%{sysconfdir}/pam.d/sshd'
-        - '%{indep-libdir}/sysusers.d/aurora-system.conf'
+        - '%{indep-libdir}/sysusers.d/tromso-system.conf'
         - '%{indep-libdir}/systemd/system/multi-user.target.wants/NetworkManager.service'
         - '%{sysconfdir}/systemd/system/systemd-networkd.service'
         - '%{sysconfdir}/systemd/system/systemd-networkd.socket'

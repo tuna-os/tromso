@@ -1,16 +1,22 @@
-# Aurora Tromso — KDE Linux OCI/bootc Image
+# Tromso — KDE Linux OCI/bootc Image
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/tuna-os/tromso/blob/main/LICENSE)
 
-**Aurora Tromso** is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's
+**Tromso** is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's
 [`projectbluefin/dakota`](https://github.com/projectbluefin/dakota). It builds KDE Plasma 6 on top
 of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso`.
 
 **Status: Builds successfully and boots to a functional KDE Plasma 6 Wayland desktop.**
 
+> **Attribution.** Tromso reuses configuration and helper scripts derived from
+> [`ublue-os/aurora`](https://github.com/ublue-os/aurora) and the former
+> `get-aurora-dev` org, under their original licenses. Tromso is **not affiliated
+> with, endorsed by, or a distribution of Aurora**, and ships none of Aurora's
+> artwork, logos, wallpapers or trademarks — the desktop uses stock KDE Breeze.
+
 ## Architecture
 
-Aurora Tromso uses one repository. All KDE, Plasma, and freedesktop-sdk `.bst`
+Tromso uses one repository. All KDE, Plasma, and freedesktop-sdk `.bst`
 elements are in `elements/`. They came from the former `tuna-os/kde-build-meta`
 junction repository, which is now archived. This structure prevents nested
 junction bugs and stale references between repositories:
@@ -24,7 +30,7 @@ tuna-os/tromso
 │   ├── core-deps/, core/     shared core OS dependencies
 │   ├── freedesktop-sdk.bst   external junction (still a real junction — freedesktop-sdk
 │   │                         is genuinely upstream, unlike the retired kde-build-meta one)
-│   ├── tromso/                Aurora Tromso-specific layers (theming, apps, overlays)
+│   ├── tromso/                Tromso-specific layers (theming, apps, overlays)
 │   └── oci/tromso.bst        top-level build target → ghcr.io/tuna-os/tromso
 └── Justfile
 ```
@@ -59,7 +65,7 @@ just generate-bootable-image
 # Boot the image in QEMU
 just boot-vm
 
-# SSH in (password: aurora)
+# SSH in (password: tromso)
 ssh -p 2222 root@localhost
 ```
 
@@ -67,7 +73,7 @@ ssh -p 2222 root@localhost
 
 | Recipe | Description |
 |---|---|
-| `just bst-build` | Background build, logs to `/var/tmp/aurora-build.log` |
+| `just bst-build` | Background build, logs to `/var/tmp/tromso-build.log` |
 | `just build` | Foreground build + OCI export |
 | `just log` | Tail the build log |
 | `just generate-bootable-image` | Create a bootable raw disk image via bootc |

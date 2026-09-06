@@ -1,5 +1,5 @@
 kind: manual
-description: Aurora Tailscale payload adapted from Dakota's Bluefin element
+description: Tailscale payload adapted from Dakota's Bluefin element
 
 sources:
 - kind: tar

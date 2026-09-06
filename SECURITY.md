@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Aurora Tromso images are built on every push to `main` and published to GHCR.
+Tromso images are built on every push to `main` and published to GHCR.
 Only the most recent build of each tag has active support. A periodic job
 removes older tags.
 
@@ -29,7 +29,7 @@ You can expect:
 
 ## Security Model
 
-Aurora Tromso images are:
+Tromso images are:
 - Built in CI from fixed BuildStream elements with a content-addressed cache
 - Published as OCI images to `ghcr.io/tuna-os/tromso`
 - Built inside a pinned `bst2` container with local CASD

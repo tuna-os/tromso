@@ -1,5 +1,5 @@
 kind: manual
-description: Aurora OS release information
+description: Tromso OS release information
 
 depends:
   - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
@@ -8,19 +8,19 @@ variables:
   strip-binaries: ""
 
 environment:
-  IMAGE_NAME: "aurora"
+  IMAGE_NAME: "tromso"
   IMAGE_VENDOR: "tuna-os"
   IMAGE_REF: "ostree-image-signed:docker://ghcr.io/tuna-os/tromso"
   IMAGE_FLAVOR: "main"
   IMAGE_TAG: "latest"
   VERSION_ID: "0"
   IMAGE_VERSION: "0"
-  IMAGE_PRETTY_NAME: "Aurora Tromso"
+  IMAGE_PRETTY_NAME: "Tromso"
   HOME_URL: "https://github.com/tuna-os/tromso"
   DOCUMENTATION_URL: "https://github.com/tuna-os/tromso"
   SUPPORT_URL: "https://github.com/tuna-os/tromso/issues"
   BUG_SUPPORT_URL: "https://github.com/tuna-os/tromso/issues"
-  ID: "aurora"
+  ID: "tromso"
 
 config:
   build-commands:
@@ -36,9 +36,9 @@ config:
       HOME_URL="${HOME_URL}"
       DOCUMENTATION_URL="${DOCUMENTATION_URL}"
       SUPPORT_URL="${SUPPORT_URL}"
-      LOGO=tromso
+      LOGO=start-here-kde
       ANSI_COLOR="0;34"
-      DEFAULT_HOSTNAME="aurora"
+      DEFAULT_HOSTNAME="tromso"
       IMAGE_NAME="${IMAGE_NAME}"
       IMAGE_VENDOR="${IMAGE_VENDOR}"
       IMAGE_REF="${IMAGE_REF}"

@@ -2,9 +2,9 @@
 Type=Application
 Name=System Update
 Name[fr]=Mises à jour
-Comment=Update Aurora, Flatpaks and Homebrew.
-Comment[fr]=Mets à jour Aurora, les Flatpaks et Homebrew.
-Icon=aurora-update
+Comment=Update the system, Flatpaks and Homebrew.
+Comment[fr]=Mets à jour le système, les Flatpaks et Homebrew.
+Icon=system-software-update
 Categories=ConsoleOnly;System;
 Terminal=true
 Exec=/usr/bin/ujust update

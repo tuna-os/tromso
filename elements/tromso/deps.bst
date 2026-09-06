@@ -1,5 +1,5 @@
 kind: stack
-description: Aurora-specific additions over KDE Linux base (mirrors dakota/elements/bluefin/deps.bst)
+description: Tromso-specific additions over KDE Linux base (mirrors dakota/elements/bluefin/deps.bst)
 
 depends:
   # KDE Linux base provides Plasma, Frameworks, Qt6, Apps, kernel, systemd, bootc,
@@ -19,7 +19,7 @@ depends:
   - tromso/system-config.bst
 
   # containers policy.json: required by bootc at runtime to accept images
-  # (containers-common puts this in 'sysconf' split which aurora-runtime excludes)
+  # (containers-common puts this in 'sysconf' split which tromso-runtime excludes)
   - tromso/containers-config.bst
 
   # Qt6 libraries install to /usr/lib, so add a runtime ld.so.conf.d drop-in
@@ -27,14 +27,11 @@ depends:
   - tromso/ldconfig-paths.bst
 
   # Upstream layer parity:
-  # Bluefin common shared payload -> Aurora common -> Brew -> Aurora image overlay.
+  # Bluefin common shared payload -> common -> Brew -> image overlay.
   - tromso/bluefin-common.bst
 
-  # Aurora common/theme layer (vendored from get-aurora-dev/common + branding)
+  # Common config layer (vendored from get-aurora-dev/common)
   - tromso/common.bst
-  - tromso/logos.bst
-  - tromso/wallpapers.bst
-  - tromso/docs.bst
   - tromso/brew.bst
   - tromso/tailscale.bst
   - tromso/image-overlay.bst
@@ -69,6 +66,6 @@ depends:
   # Dakota uses sudo-rs to preserve the setuid sudo binary in the final image.
   - tromso/sudo-rs.bst
 
-  # Aurora-specific KDE components
+  # Tromso-specific KDE components
   - tromso/kcm_ublue.bst
   - tromso/krunner-bazaar.bst

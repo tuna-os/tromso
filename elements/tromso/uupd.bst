@@ -1,5 +1,5 @@
 kind: manual
-description: Aurora uupd payload built from upstream source
+description: uupd payload built from upstream source
 
 build-depends:
 - freedesktop-sdk.bst:components/go.bst

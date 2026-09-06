@@ -32,7 +32,7 @@ import "just/disk-vm.just"
 build:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "==> Building Aurora Tromso OCI image with BuildStream..."
+    echo "==> Building Tromso OCI image with BuildStream..."
     BST_FLAGS="--no-interactive " just bst build oci/tromso.bst
     just export
 
@@ -45,7 +45,7 @@ export:
     if [ "$(id -u)" -ne 0 ]; then
         SUDO_CMD="sudo"
     fi
-    echo "==> Exporting Aurora Tromso OCI image..."
+    echo "==> Exporting Tromso OCI image..."
     rm -rf .build-out
     just bst artifact checkout oci/tromso.bst --directory /src/.build-out
     echo "==> Loading and squashing OCI image..."

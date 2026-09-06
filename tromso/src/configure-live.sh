@@ -103,7 +103,7 @@ chmod 0440 /etc/sudoers.d/liveuser
 echo 'QT_QPA_PLATFORM=wayland' >> /etc/environment
 
 # ── SDDM autologin — Wayland mode ────────────────────────────────────────────
-# Use the Wayland display server path; Aurora has no Xorg.
+# Use the Wayland display server path; the image has no Xorg.
 mkdir -p /etc/sddm.conf.d
 cat > /etc/sddm.conf.d/live-autologin.conf << 'SDDMEOF'
 [General]
@@ -210,7 +210,7 @@ cat > /etc/xdg/autostart/tuna-installer.desktop << DTEOF
 [Desktop Entry]
 Name=Tromso Installer
 Exec=flatpak run ${INSTALLER_APP_ID}
-Icon=tromso
+Icon=system-software-install
 Type=Application
 X-KDE-autostart-phase=2
 DTEOF
@@ -222,7 +222,7 @@ cat > /usr/share/applications/tromso-installer.desktop << DTEOF
 Name=Tromso Installer
 Comment=Install Tromso KDE Linux to your computer
 Exec=flatpak run ${INSTALLER_APP_ID}
-Icon=tromso
+Icon=system-software-install
 Type=Application
 Categories=System;
 NoDisplay=false

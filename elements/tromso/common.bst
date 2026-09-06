@@ -1,11 +1,9 @@
 kind: manual
-description: Aurora common branding (vendored from get-aurora-dev/{common,branding})
+description: Common system files (vendored from get-aurora-dev/common, unaffiliated)
 
 sources:
 - kind: local
   path: files/tromso/aurora-common
-- kind: local
-  path: files/tromso/aurora-branding
 
 depends:
 - freedesktop-sdk.bst:components/sed.bst
@@ -29,21 +27,5 @@ config:
     if [ -d system_files/shared/etc ]; then
       mkdir -p "%{install-root}%{sysconfdir}"
       cp -r system_files/shared/etc/./ "%{install-root}%{sysconfdir}/"
-    fi
-    if [ -d branding/system_files/etc ]; then
-      mkdir -p "%{install-root}%{sysconfdir}"
-      cp -r branding/system_files/etc/./ "%{install-root}%{sysconfdir}/"
-    fi
-    if [ -d branding/system_files/usr ]; then
-      cp -r branding/system_files/usr/./ "%{install-root}%{prefix}/"
-    fi
-    main_qml="%{install-root}%{datadir}/sddm/themes/01-breeze-aurora/Main.qml"
-    if [ -f "$main_qml" ]; then
-      sed -i '/^[[:space:]]*VirtualKeyboardLoader[[:space:]]*{/,/^[[:space:]]*}[[:space:]]*$/c\
-        QtObject {\
-            id: inputPanel\
-            property bool keyboardActive: false\
-            function showHide() {}\
-        }' "$main_qml"
     fi
   - "%{install-extra}"

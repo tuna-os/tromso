@@ -1,5 +1,5 @@
 kind: manual
-description: Bluefin common shared payload imported for Aurora layering parity
+description: Bluefin common shared payload imported for upstream layering parity
 
 sources:
 - kind: git_repo

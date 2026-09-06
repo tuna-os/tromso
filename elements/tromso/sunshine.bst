@@ -1,5 +1,5 @@
 kind: cmake
-description: Aurora-layer packaging for Sunshine from upstream source
+description: Tromso-layer packaging for Sunshine from upstream source
 
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst

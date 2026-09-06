@@ -6,7 +6,7 @@ description: >-
 # since tuned v2.21.0. It provides a D-Bus API compatible with
 # power-profiles-daemon, backed by tuned profiles.
 #
-# To include tuned-ppd in Aurora, the full `tuned` package would need to be
+# To include tuned-ppd in Tromso, the full `tuned` package would need to be
 # packaged as a BST element. tuned is a Python-based daemon with a large
 # set of profiles; see:
 #   https://github.com/redhat-performance/tuned/releases
