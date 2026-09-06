@@ -11,8 +11,8 @@ of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso
 > **Attribution.** Tromso reuses configuration and helper scripts derived from
 > [`ublue-os/aurora`](https://github.com/ublue-os/aurora) and the former
 > `get-aurora-dev` org, under their original licenses. Tromso is **not affiliated
-> with, endorsed by, or a distribution of Aurora**, and ships none of Aurora's
-> artwork, logos, wallpapers or trademarks — the desktop uses stock KDE Breeze.
+> with Aurora**, and Aurora does not endorse it. The image ships none of Aurora's
+> artwork, logos, wallpapers or trademarks. The desktop uses stock KDE Breeze.
 
 ## Architecture
 
