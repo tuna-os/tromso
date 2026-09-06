@@ -19,7 +19,7 @@ there is no longer a second repo or junction to keep in sync.
 
 **NEVER invent workarounds for build issues.** For any infrastructure, bootc, systemd, kernel, or non-KDE/QT packages:
 
-1. **FIRST**: Clone and examine `/var/home/james/reference-repos/dakota` and `/var/home/james/reference-repos/gnome-build-meta`
+1. **FIRST**: Clone and examine `/var/home/james/reference-repos/dakota` and `/var/home/james/reference-repos/gnome-build-meta` — those paths are local to the original maintainer's machine; if absent, clone `https://github.com/projectbluefin/dakota` and `https://gitlab.gnome.org/GNOME/gnome-build-meta` instead
 2. **ALWAYS**: Copy the `.bst` patterns and approaches from these known-good repos
 3. **NEVER**: Use pre-built binaries, shortcuts, or workarounds to bypass build failures
 4. **EXAMPLE**: When bootc compilation fails with Cargo DNS errors:
@@ -48,7 +48,7 @@ If bootc build fails in the containerized BuildStream environment:
 2. Determine if they resolve DNS/Cargo issues via container networking or CI environment setup
 3. Apply the same approach rather than using a pre-built binary
 
-**Reference files**:
+**Reference files** (local maintainer paths — clone the public repos above if these are absent):
 - `/var/home/james/reference-repos/gnome-build-meta/elements/gnomeos-deps/bootc.bst`
 - `/var/home/james/reference-repos/dakota/elements/*/bootc.bst` (if exists)
 
@@ -158,12 +158,14 @@ Pattern — if upstream `CMakeLists.txt` has `find_package(KF6Foo REQUIRED)`, th
 
 ## File locations
 
-- **Reference repos**: `/var/home/james/reference-repos/`
-  - `dakota/` — Project Bluefin Dakota (GNOME-based, bootc-enabled)
-  - `gnome-build-meta/` — GNOME's BuildStream repository
+- **Reference repos**: `/var/home/james/reference-repos/` (local to the original
+  maintainer's machine — clone from GitHub/GitLab if working elsewhere)
+  - `dakota/` — Project Bluefin Dakota (GNOME-based, bootc-enabled) — https://github.com/projectbluefin/dakota
+  - `gnome-build-meta/` — GNOME's BuildStream repository — https://gitlab.gnome.org/GNOME/gnome-build-meta
+  - `dakota-iso/` — Project Bluefin's ISO pipeline — https://github.com/projectbluefin/dakota-iso
 - **Build logs**: `/var/tmp/aurora-build.log`
 - **Cache**: `~/.cache/buildstream/`
-- **This project**: `/var/home/james/dev/tromso/`
+- **This project**: `/var/home/james/dev/tromso/` (local checkout path — irrelevant to any other clone)
 
 ---
 
@@ -200,7 +202,7 @@ When generating bootable images with `bootc install`:
 When you are asked to fix a build failure, add a package, or resolve an infrastructure issue:
 
 1. **DO NOT** search the web or guess at solutions.
-2. **DO** read the reference repo files from `/var/home/james/reference-repos/`.
+2. **DO** read the reference repo files from `/var/home/james/reference-repos/`, or a fresh clone of the public repos listed under "File locations" if that path isn't present.
 3. **DO** compare the working configuration in Dakota/gnome-build-meta to the Aurora configuration.
 4. **DO** apply the exact pattern or approach used in the reference repos.
 5. **DO** document the reasoning in memory or commit messages.
@@ -242,6 +244,8 @@ The squashfs embeds the tromso OCI image as VFS containers-storage.  The skopeo 
 ### Key Reference: `/var/home/james/reference-repos/dakota-iso/`
 
 Always check dakota-iso for the correct behavior before making changes to tromso-iso.
+That path is local to the original maintainer's machine; clone
+`https://github.com/projectbluefin/dakota-iso` if it isn't present.
 
 ## CI & ISO pipeline
 
