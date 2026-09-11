@@ -14,14 +14,14 @@ config:
     NAME="Tromso"
     ID=tromso
     ID_LIKE=fedora
-    VERSION_ID="20260428"
+    VERSION_ID="%{image-version}"
     PRETTY_NAME="Tromso KDE Linux"
     ANSI_COLOR="0;34"
     HOME_URL="https://github.com/tuna-os/tromso"
     SUPPORT_URL="https://github.com/tuna-os/tromso/issues"
     BUG_REPORT_URL="https://github.com/tuna-os/tromso/issues"
     PRIVACY_POLICY_URL="https://github.com/tuna-os/tromso"
-    OSTREE_VERSION='20260428'
+    OSTREE_VERSION='%{image-version}'
     BOOTC_IMAGE=1
     VARIANT="KDE Plasma"
     VARIANT_ID=kde

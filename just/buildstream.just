@@ -159,3 +159,19 @@ dashboard-service:
     systemctl --user restart bst-dashboard.service
     sudo loginctl enable-linger $USER
     echo "Dashboard service started and enabled (linger enabled)."
+
+# Generate dynamic image version metadata from git commit date
+[group('build')]
+generate-image-version branch='main':
+    #!/usr/bin/env bash
+    set -xeu
+
+    IMAGE_VERSION=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M)
+    COMMIT=$(git rev-parse HEAD)
+    COMMIT_DATE_PRETTY=$(git show -s --format=%ci HEAD)
+    BRANCH="{{branch}}"
+
+    printf "branch: '%s'\ncommit: '%s'\ncommit-date-pretty: '%s'\nimage-version: '%%{branch}.%s'\n" \
+        "$BRANCH" "$COMMIT" "$COMMIT_DATE_PRETTY" "$IMAGE_VERSION" > include/image-version.yml
+
+
