@@ -169,7 +169,17 @@ jobs:
 
           if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest" -o .; then
             if [ -f cas-core.tar.zst ]; then
-              zstd -d -c -T0 cas-core.tar.zst | tar -xf - -C "$HOME/.cache/buildstream"
+              # --exclude=sources: each pushed tarball is a full
+              # ~/.cache/buildstream snapshot (see the archive step in
+              # tuna-os/bst-ci's multirunner-build.yml), source downloads
+              # included. build_final only needs the built artifacts (cas/)
+              # to assemble final_target — every element it references is
+              # already cached, so it never re-stages sources for them.
+              # Merging 11 full per-chunk sources/ trees onto one small
+              # runner disk is what exhausted it in run 33295159787
+              # ("No space left on device" mid-extract); skipping sources/
+              # here cuts what actually hits disk to the artifacts we use.
+              zstd -d -c -T0 cas-core.tar.zst | tar --exclude=sources -xf - -C "$HOME/.cache/buildstream"
               rm -f cas-core.tar.zst
             fi
           fi
@@ -187,7 +197,7 @@ jobs:
             fi
             TARBALL="cas-${chunk}.tar.zst"
             if [ -f "$TARBALL" ]; then
-              zstd -d -c -T0 "$TARBALL" | tar -xf - -C "$HOME/.cache/buildstream"
+              zstd -d -c -T0 "$TARBALL" | tar --exclude=sources -xf - -C "$HOME/.cache/buildstream"
               rm -f "$TARBALL"
             fi
           done
@@ -393,7 +403,11 @@ jobs:
 
           if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}${ARCH_SUFFIX}-core:latest" -o .; then
             if [ -f cas-core.tar.zst ]; then
-              zstd -d -c -T0 cas-core.tar.zst | tar -xf - -C "$HOME/.cache/buildstream"
+              # --exclude=sources: see the x86_64 build_final job above —
+              # build_final only needs cas/ to assemble final_target, and
+              # merging every chunk's full sources/ tree onto one runner
+              # disk is what exhausted it in run 33295159787.
+              zstd -d -c -T0 cas-core.tar.zst | tar --exclude=sources -xf - -C "$HOME/.cache/buildstream"
               rm -f cas-core.tar.zst
             fi
           fi
@@ -411,7 +425,7 @@ jobs:
             fi
             TARBALL="cas-${chunk}.tar.zst"
             if [ -f "$TARBALL" ]; then
-              zstd -d -c -T0 "$TARBALL" | tar -xf - -C "$HOME/.cache/buildstream"
+              zstd -d -c -T0 "$TARBALL" | tar --exclude=sources -xf - -C "$HOME/.cache/buildstream"
               rm -f "$TARBALL"
             fi
           done
