@@ -257,6 +257,11 @@ CI troubleshooting log (append to it while debugging CI).
   the same PR, or automerge waits forever on the stale name.
 - Never wrap a gate in `|| echo` — bst-validate and pytest were silently
   dead for months that way.
+- Source URLs must go through an alias in `include/aliases.yml` —
+  `unaliased-url` is fatal in `project.conf`, so a hardcoded `https://…` in a
+  `.bst` fails `bst-validate`. Prefer a specific alias over the generic
+  `tar_https:`; only the specific ones are mirrored in `include/mirrors.yml`.
+  See `docs/adr/0004-freedesktop-sdk-upstream-practices.md`.
 - `tests/pytest/test_iso_invariants.py` encodes shipped bug classes; when
   you fix a CI/ISO bug, add an invariant for it there and a row to
   docs/ci-and-iso-pipeline.md.
