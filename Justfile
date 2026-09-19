@@ -95,10 +95,21 @@ chunkify image_ref:
     FAKECAP_RESTORE_SRC="{{justfile_directory()}}/files/fakecap/fakecap-restore.c"
     FAKECAP_MANIFEST="{{justfile_directory()}}/files/fakecap-manifest.tsv"
 
-    # Tromso doesn't currently version Dakota's generated fakecap manifest.
-    # Skip chunkifying when those inputs are absent so `just build` still succeeds.
+    # Both inputs are absent from the tree today, so this branch always fires
+    # and chunkify is a no-op in `just build` and in CI (tromso#277):
+    #
+    #   - fakecap-restore.c came in with the Dakota assets and was dropped by
+    #     the tromso-iso merge (74465bc) without anyone noticing.
+    #   - fakecap-manifest.tsv was Dakota's *generated* manifest, 67 MB,
+    #     naming bluefin/* and gnomeos* elements this repo does not have. It
+    #     was removed in 0ddf4ee and must not come back: it is build output,
+    #     and it was never correct for a Tromso rootfs anyway.
+    #
+    # Reviving chunkify needs a generator that derives the map from Tromso's
+    # own graph. Do NOT fix this by committing a manifest. See docs/adr/0005.
     if [ ! -f "$FAKECAP_RESTORE_SRC" ] || [ ! -f "$FAKECAP_MANIFEST" ]; then
         echo "==> Skipping chunkify: missing fakecap inputs ($FAKECAP_RESTORE_SRC, $FAKECAP_MANIFEST)."
+        echo "==> This is the current steady state, not a transient error — see tromso#277."
         exit 0
     fi
 
