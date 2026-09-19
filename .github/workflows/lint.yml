@@ -29,7 +29,7 @@ concurrency:
 jobs:
   changes:
     name: Detect changed files
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       non-docs: ${{ steps.filter.outputs.non-docs }}
     steps:
@@ -50,7 +50,7 @@ jobs:
     name: shellcheck
     needs: changes
     if: needs.changes.outputs.non-docs == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 
@@ -79,7 +79,7 @@ jobs:
     name: yamllint
     needs: changes
     if: needs.changes.outputs.non-docs == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 
@@ -105,7 +105,7 @@ jobs:
     name: actionlint
     needs: changes
     if: needs.changes.outputs.non-docs == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - name: Run actionlint on workflows
@@ -117,7 +117,7 @@ jobs:
     name: Renovate Config Validate
     needs: changes
     if: needs.changes.outputs.non-docs == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - name: Validate renovate.json
@@ -127,7 +127,7 @@ jobs:
     name: lint .bst files
     needs: changes
     if: needs.changes.outputs.non-docs == 'true' && github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
         with:

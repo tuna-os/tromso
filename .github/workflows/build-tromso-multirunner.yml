@@ -125,7 +125,7 @@ jobs:
     if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     # ⚠️ Was Blacksmith build-amd64 (32-core) final assembly. Now 2-core
     # GitHub-hosted — candidate for larger runner/kanpur if it nears 6h.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 360
     permissions:
       contents: read
@@ -357,7 +357,7 @@ jobs:
     if: needs.multirunner_aarch64.result == 'success'
     # ⚠️ Was Blacksmith build-arm64 (32-core) final assembly. Now 2-core
     # GitHub-hosted arm64 — candidate for larger runner/kanpur if slow.
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 360
     permissions:
       contents: read
