@@ -1,0 +1,28 @@
+name: Generate BuildStream CI config
+description: >-
+  Write buildstream-ci.conf, and the CASD client certificate when one exists,
+  for remote execution and mTLS cache push. Falls back to a local-only config
+  that is byte-identical to the committed buildstream-ci.conf.
+
+# See generate.sh for the full rationale (tuna-os/tromso#311). Pass the
+# certificate and key through env, not inputs, so they are never interpolated
+# into a step's command line.
+
+inputs:
+  enable-remote-execution:
+    description: Route build actions and CAS storage through cache.projectbluefin.io.
+    required: true
+  enable-push:
+    description: Publish built artifacts and fetched sources during the build.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Generate BuildStream CI config
+      shell: bash
+      env:
+        ENABLE_REMOTE_EXECUTION: ${{ inputs.enable-remote-execution }}
+        ENABLE_PUSH: ${{ inputs.enable-push }}
+      run: bash "${GITHUB_ACTION_PATH}/generate.sh"
