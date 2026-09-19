@@ -21,7 +21,7 @@ ARG BASE_IMAGE=ghcr.io/tuna-os/tromso:latest
 FROM ${BASE_IMAGE} AS tromso-ref
 
 # ── Stage 2: Debian — builds the dmsquash-live initramfs ─────────────────────
-FROM debian:sid@sha256:c1acdb109bacb5adf0f2078892ac177ee2e2ce6f88e96c5b743998b5489d36a9 AS initramfs-builder
+FROM debian:sid@sha256:fac5e25c91c3036d0990e1f57ec7c1e80a77e30db3b72ad9353fd9be85ec7096 AS initramfs-builder
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
