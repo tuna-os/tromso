@@ -1,6 +1,6 @@
 # Tromsø Roadmap
 
-**Last updated**: 2026-09-02 | **Status**: Alpha
+**Last updated**: 2026-09-17 | **Status**: Alpha
 
 Part of the [TunaOS](https://tunaos.org) ecosystem. BuildStream-based KDE Linux distribution.
 
@@ -28,7 +28,7 @@ Each gate records whether its evidence has been produced, not whether the
 machinery that would produce it exists. A row is only green when a run,
 identified by URL, has passed.
 
-| Gate | Required evidence | Current evidence (2026-09-02) |
+| Gate | Required evidence | Current evidence (2026-09-17) |
 |---|---|---|
 | Build reliability | A successful scheduled multi-runner build whose commit is used by the candidate ISO | ❌ Never green. 79 recorded runs of `Build Tromso (Multi-Runner)` since 2026-05-05, 0 successes; `build_final` has never executed because a chunk build fails ahead of it |
 | Install validation | Successful ISO boot, plain-install, and encrypted-install runs for the same candidate | ❌ Never green. `Plain Install End-to-End Test` 0 of 49 runs passed; `LUKS Install End-to-End Test` 0 of 71. Both pull `ghcr.io/tuna-os/tromso:latest`, which has never been published ([#221](https://github.com/tuna-os/tromso/issues/221)) |
