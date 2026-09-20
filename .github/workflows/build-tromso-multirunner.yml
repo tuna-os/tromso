@@ -203,12 +203,44 @@ jobs:
           done
           du -sh ~/.cache/buildstream
 
+      # ── Remote execution (tuna-os/tromso#311) ─────────────────────────
+      # Inert until someone adds the CASD credentials: with neither set, the
+      # action regenerates the committed buildstream-ci.conf byte for byte
+      # (tests/pytest/test_bst_ci_config.py asserts that), so this run behaves
+      # exactly as it does today. Once the secrets exist it adds the mTLS
+      # endpoint and the executor, with no further change here.
+      #
+      # Note this covers build_final only. The plan/core/chunk jobs get their
+      # config from tuna-os/bst-ci's multirunner-build.yml, which reads the
+      # committed file from this checkout and which this repo cannot change.
+      - name: Generate BuildStream CI config
+        env:
+          CASD_CLIENT_CERT: ${{ vars.CASD_CLIENT_CERT }}
+          CASD_CLIENT_KEY: ${{ secrets.CASD_CLIENT_KEY }}
+        uses: ./.github/actions/generate-bst-ci-config
+        with:
+          enable-remote-execution: ${{ vars.CASD_CLIENT_CERT != '' }}
+          enable-push: 'true'
+
       - name: Build Final Target
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+          RE_EXPECTED: ${{ vars.CASD_CLIENT_CERT != '' }}
         run: |
           mkdir -p logs
-          timeout 300m just bst --log-file /src/logs/build-final.log build ${{ needs.multirunner.outputs.final_target }}
+          set -o pipefail
+          timeout 300m just bst --log-file /src/logs/build-final.log build ${{ needs.multirunner.outputs.final_target }} 2>&1 | tee /tmp/bst-console.log
+          # A green build is not proof BuildStream loaded the executor — it
+          # falls back to local building without saying so, which would read
+          # as a slow success. Fail closed on the startup banner instead.
+          if [ "$RE_EXPECTED" = "true" ]; then
+            grep -q "Remote Execution Configuration" /tmp/bst-console.log \
+              || { echo "::error::remote execution requested but not engaged"; exit 1; }
+          fi
+
+      - name: Remove CASD client credentials
+        if: always()
+        run: rm -f client.key client.crt
 
       - name: Capture build timestamp
         id: timestamp
@@ -431,12 +463,30 @@ jobs:
           done
           du -sh ~/.cache/buildstream
 
+      # Same generator as the x86_64 job, but remote execution stays off: the
+      # executor behind cache.projectbluefin.io is x86_64 as far as anyone has
+      # checked, and this path is already unverified end to end (#88). The
+      # mTLS cache still applies when credentials exist, and the -aarch64 key
+      # namespace keeps the two CASes apart.
+      - name: Generate BuildStream CI config
+        env:
+          CASD_CLIENT_CERT: ${{ vars.CASD_CLIENT_CERT }}
+          CASD_CLIENT_KEY: ${{ secrets.CASD_CLIENT_KEY }}
+        uses: ./.github/actions/generate-bst-ci-config
+        with:
+          enable-remote-execution: 'false'
+          enable-push: 'true'
+
       - name: Build Final Target
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
         run: |
           mkdir -p logs
           timeout 300m just bst --log-file /src/logs/build-final.log build ${{ needs.multirunner_aarch64.outputs.final_target }}
+
+      - name: Remove CASD client credentials
+        if: always()
+        run: rm -f client.key client.crt
 
       - name: Capture build timestamp
         id: timestamp

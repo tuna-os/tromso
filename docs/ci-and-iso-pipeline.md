@@ -43,6 +43,42 @@ Free GitHub runners can't hold the whole KDE build, so it's split:
 
 BuildStream settings CI uses live in the checked-in `buildstream-ci.conf`.
 
+#### Remote execution (tromso#311)
+
+The whole plan, core, chunk and merge design exists because this repository
+has no remote executor. Other repositories with one finish the same work in
+18 to 22 minutes. `RazorfinOS-org/cosmic-build-meta` is the clearest proof,
+because it is one repository before and after the change.
+
+`build_final` now takes its config from
+`.github/actions/generate-bst-ci-config`, a port of razorfin's action. The
+action reads two credentials:
+
+| name | kind | purpose |
+| --- | --- | --- |
+| `CASD_CLIENT_CERT` | repository variable | mTLS identity for `cache.projectbluefin.io:11002` |
+| `CASD_CLIENT_KEY` | repository secret | the matching private key |
+
+Neither exists yet, and nobody in this repository can create them. Someone
+must ask the Bluefin maintainers for a client certificate. Until then the
+action writes the committed `buildstream-ci.conf` byte for byte, so the build
+behaves as it did before. `tests/pytest/test_bst_ci_config.py` asserts that
+equality on every pull request.
+
+Two rules protect the change:
+
+- The action stops the job when a caller asks for remote execution and the
+  credentials are absent.
+- The build step greps the console for the `Remote Execution Configuration`
+  banner. A green cache hit does not prove that BuildStream loaded the
+  executor. A quiet fall back to local builds looks like a slow success.
+
+Two steps remain. First, get the certificate. Second, move the junction pins.
+Cache keys are a function of the ref, the patch queue, the options and the
+overrides. A shared cache therefore stays cold while this repository sits on
+freedesktop-sdk 25.08.9 and the others sit on 25.08.16. Delete the chunk
+machinery from the caller only after a remote build passes.
+
 **Cache-key invalidation warning:** a change to the cache key of every element
 causes a full world rebuild. A change to `name:` in `project.conf` is one example.
 Expect chunk jobs to run for hours or reach their six-hour limit once. They
