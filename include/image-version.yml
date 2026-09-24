@@ -1,5 +1,5 @@
-# Local defaults — updated in CI or via `just generate-image-version`
-branch: 'main'
+# Local defaults ("l" for local). CI overwrites this file with
+# `just generate-image-version` before building the shipped image.
 image-version: 'l.1'
 filesystem-time: 1321009871
 commit: 'unknown'

@@ -222,6 +222,14 @@ jobs:
           enable-remote-execution: ${{ vars.CASD_CLIENT_CERT != '' }}
           enable-push: 'true'
 
+      # Stamp os-release with this commit's date. Without it the image ships
+      # the committed local default VERSION_ID="l.1" (include/image-version.yml).
+      # The recipe reads only HEAD, so the default depth-1 checkout is enough.
+      - name: Generate image version
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: just generate-image-version "$BRANCH"
+
       - name: Build Final Target
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
@@ -476,6 +484,14 @@ jobs:
         with:
           enable-remote-execution: 'false'
           enable-push: 'true'
+
+      # Stamp os-release with this commit's date. Without it the image ships
+      # the committed local default VERSION_ID="l.1" (include/image-version.yml).
+      # The recipe reads only HEAD, so the default depth-1 checkout is enough.
+      - name: Generate image version
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: just generate-image-version "$BRANCH"
 
       - name: Build Final Target
         env:
