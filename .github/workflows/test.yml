@@ -14,7 +14,7 @@ concurrency:
 jobs:
   shellcheck:
     name: ShellCheck
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Run ShellCheck
@@ -34,7 +34,7 @@ jobs:
 
   yamllint:
     name: YAML Lint
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Run yamllint
@@ -44,7 +44,7 @@ jobs:
 
   bst-validate:
     name: BuildStream Validate
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     container:
       image: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
       # BuildStream's CAS stager needs a real FUSE device; a plain container
@@ -62,7 +62,7 @@ jobs:
 
   bats-tests:
     name: BATS Unit Tests
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -84,7 +84,7 @@ jobs:
 
   pytest:
     name: Python Tests
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -108,7 +108,7 @@ jobs:
 
   just-parse:
     name: Just Parse
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: extractions/setup-just@v4
