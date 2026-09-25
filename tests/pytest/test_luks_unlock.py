@@ -1,12 +1,12 @@
 import hashlib
-import sys
-import os
-import tempfile
-import unittest
-from unittest.mock import patch, MagicMock, mock_open
 
 # Dynamically import luks-unlock.py which has a hyphen in its name
 import importlib.util
+import os
+import sys
+import tempfile
+import unittest
+from unittest.mock import MagicMock, mock_open, patch
 
 spec = importlib.util.spec_from_file_location(
     "luks_unlock",
@@ -665,6 +665,126 @@ class TestQemuSendPassphraseEdgeCases(unittest.TestCase):
 
         # First key (before "ret") must differ
         self.assertNotEqual(sent_minus[0], sent_under[0])
+
+
+class TestRunLibvirt(unittest.TestCase):
+    """run_libvirt() is covered by neither unit nor e2e tests: CI (test-luks-install.yml)
+    only ever invokes qemu mode, never libvirt mode."""
+
+    def _run(self, screenshot_sizes, dhcp_ips, expect_exit):
+        import itertools
+        size_iter = itertools.chain(screenshot_sizes, itertools.repeat(screenshot_sizes[-1]))
+        ip_iter = itertools.chain(dhcp_ips, itertools.repeat(dhcp_ips[-1]))
+        with patch("time.time", side_effect=range(100000)), \
+             patch("time.sleep"), \
+             patch.object(luks_unlock, "virsh_screenshot_size", side_effect=size_iter), \
+             patch.object(luks_unlock, "virsh_send_passphrase") as mock_send, \
+             patch.object(luks_unlock, "virsh_dhcp_ip", side_effect=ip_iter):
+            with self.assertRaises(SystemExit) as cm:
+                luks_unlock.run_libvirt("myvm", "hunter2", "aa:bb:cc:dd:ee:ff")
+        self.assertEqual(cm.exception.code, expect_exit)
+        return mock_send
+
+    def test_run_libvirt_success(self):
+        # Content appears (size > 4096), then Plymouth takes over (size <= 4096),
+        # then DHCP lease appears — full success path.
+        sizes = [5000, 5000, 100]
+        ips = ["", "", "192.168.1.5"]
+        mock_send = self._run(sizes, ips, expect_exit=0)
+        mock_send.assert_called_once_with("myvm", "hunter2")
+
+    def test_run_libvirt_plymouth_never_detected(self):
+        # Screenshot size never exceeds 4096 — Plymouth takeover condition
+        # never triggers before PROMPT_DEADLINE.
+        with patch("time.time", side_effect=range(100000)), \
+             patch("time.sleep"), \
+             patch.object(luks_unlock, "virsh_screenshot_size", return_value=100), \
+             patch.object(luks_unlock, "virsh_send_passphrase"):
+            with self.assertRaises(SystemExit) as cm:
+                luks_unlock.run_libvirt("myvm", "hunter2", "aa:bb:cc:dd:ee:ff")
+        self.assertEqual(cm.exception.code, 1)
+
+    def test_run_libvirt_no_dhcp_lease(self):
+        # Passphrase sent, but DHCP lease never shows up before BOOT_DEADLINE.
+        import itertools
+        sizes = itertools.chain([5000, 100], itertools.repeat(100))
+        with patch("time.time", side_effect=range(100000)), \
+             patch("time.sleep"), \
+             patch.object(luks_unlock, "virsh_screenshot_size", side_effect=sizes), \
+             patch.object(luks_unlock, "virsh_send_passphrase"), \
+             patch.object(luks_unlock, "virsh_dhcp_ip", return_value=""):
+            with self.assertRaises(SystemExit) as cm:
+                luks_unlock.run_libvirt("myvm", "hunter2", "aa:bb:cc:dd:ee:ff")
+        self.assertEqual(cm.exception.code, 2)
+
+
+class TestRunQemu(unittest.TestCase):
+    """run_qemu()'s main polling loops (framebuffer-stability fallback path and
+    post-passphrase boot-detection path) are exercised by CI end-to-end but have
+    zero unit coverage — this class adds the fallback-path (no serial console)
+    branches, which qemu_check_serial-based tests above cannot reach."""
+
+    def _run(self, serial_results, screendumps, expect_exit):
+        import itertools
+        serial_iter = itertools.chain(serial_results, itertools.repeat(serial_results[-1]))
+        screendump_iter = itertools.chain(screendumps, itertools.repeat(screendumps[-1]))
+        with patch("time.time", side_effect=range(100000)), \
+             patch("time.sleep"), \
+             patch.object(luks_unlock, "qemu_check_serial", side_effect=serial_iter), \
+             patch.object(luks_unlock, "qemu_screendump", side_effect=screendump_iter), \
+             patch.object(luks_unlock, "qemu_send_passphrase") as mock_send, \
+             patch("shutil.copy2"):
+            with self.assertRaises(SystemExit) as cm:
+                luks_unlock.run_qemu("/tmp/mon.sock", "hunter2", "/tmp/serial.log")
+        self.assertEqual(cm.exception.code, expect_exit)
+        return mock_send
+
+    def test_run_qemu_framebuffer_stable_fallback(self):
+        # No serial console output at all ("" forever): must fall back to
+        # framebuffer brightness/hash-stability detection to find Plymouth,
+        # then to brightness-based GDM/emergency detection post-passphrase.
+        serials = [""] * 200
+        screendumps = (
+            [(0.2, "h0")]                              # not yet rendering
+            + [(3.0, "h1")]                             # content appears
+            + [(1.0, "h2"), (1.0, "h2"), (1.0, "h2")]   # stabilises (3x) -> Plymouth detected
+            + [(2.5, "h3"), (2.5, "h4"), (2.5, "h4")]   # screen changes then re-stabilises -> success
+            + [(2.5, "h4")] * 10
+        )
+        mock_send = self._run(serials, screendumps, expect_exit=0)
+        mock_send.assert_called_once_with("/tmp/mon.sock", "hunter2")
+
+    def test_run_qemu_framebuffer_emergency_dark(self):
+        serials = [""] * 200
+        screendumps = (
+            [(0.2, "h0")]
+            + [(3.0, "h1")]
+            + [(1.0, "h2"), (1.0, "h2"), (1.0, "h2")]  # Plymouth detected via stability (3x)
+            + [(0.9, "h3"), (0.9, "h4"), (0.9, "h4")]  # screen changes then re-stabilises, dark
+            + [(0.9, "h4")] * 10
+        )
+        self._run(serials, screendumps, expect_exit=2)
+
+    def test_run_qemu_plymouth_never_detected(self):
+        # Screendump errors forever (-1, ""): never gets stable content, never
+        # detects Plymouth via either serial or framebuffer before deadline.
+        serials = [""] * 200
+        screendumps = [(-1, "")] * 200
+        self._run(serials, screendumps, expect_exit=1)
+
+    def test_run_qemu_serial_emergency_after_passphrase(self):
+        # Plymouth detected via serial immediately; after passphrase, serial
+        # reports "emergency" -> issue #270 reproduced.
+        serials = ["plymouth"] + ["emergency"] * 200
+        screendumps = [(1.0, "h0")] * 200
+        self._run(serials, screendumps, expect_exit=2)
+
+    def test_run_qemu_boot_timeout(self):
+        # Plymouth detected via serial; post-passphrase nothing ever confirms
+        # boot (no gdm/g-i-s, screen never re-stabilises) -> timeout warning.
+        serials = ["plymouth"] + [""] * 200
+        screendumps = [(1.0, "h0")] + [(1.0, f"h{i}") for i in range(1, 200)]
+        self._run(serials, screendumps, expect_exit=2)
 
 
 if __name__ == "__main__":
