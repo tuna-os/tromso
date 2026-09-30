@@ -1,5 +1,5 @@
 kind: cmake
-description: Aurora KRunner plugin for searching Flatpak apps via Bazaar
+description: KRunner plugin for searching Flatpak apps via Bazaar
 
 environment:
   LD_LIBRARY_PATH: /usr/lib

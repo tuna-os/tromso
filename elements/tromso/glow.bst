@@ -1,5 +1,5 @@
 kind: manual
-description: Aurora-layer packaging for the Glow CLI from upstream source
+description: Tromso-layer packaging for the Glow CLI from upstream source
 
 build-depends:
 - freedesktop-sdk.bst:components/go.bst

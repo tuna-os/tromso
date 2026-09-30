@@ -1,5 +1,5 @@
 kind: compose
-description: Aurora unified boot runtime
+description: Tromso unified boot runtime
 
 build-depends:
   - oci/layers/tromso-stack.bst

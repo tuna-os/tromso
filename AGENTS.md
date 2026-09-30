@@ -1,6 +1,6 @@
-# Aurora KDE Linux — Agent Context
+# Tromso KDE Linux — Agent Context
 
-Aurora is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's `projectbluefin/dakota`.
+Tromso is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's `projectbluefin/dakota`.
 It builds KDE Plasma 6 on top of freedesktop-sdk. All KDE/Plasma/freedesktop-sdk
 `.bst` elements live directly in this repo's `elements/` tree (`kde/`,
 `kde-linux-deps/`, `kde-linux-system/`, `core-deps/`, `core/`,
@@ -88,7 +88,7 @@ just log
 - **NEVER** run `bst` directly on the host or via `pipx` for project work.
 - Never use `just bst-build` directly in a blocking tool call — it uses `tail -f`.
 - The build container image is pinned in `Justfile` for reproducibility.
-- Build log location: `/var/tmp/aurora-build.log`
+- Build log location: `/var/tmp/tromso-build.log`
 
 ---
 
@@ -96,7 +96,7 @@ just log
 
 1. Check the build log for the element name:
    ```bash
-   grep "FAILURE" /var/tmp/aurora-build.log | grep -v "^    "
+   grep "FAILURE" /var/tmp/tromso-build.log | grep -v "^    "
    ```
 
 2. Read the detailed log:
@@ -162,8 +162,7 @@ Pattern — if upstream `CMakeLists.txt` has `find_package(KF6Foo REQUIRED)`, th
   maintainer's machine — clone from GitHub/GitLab if working elsewhere)
   - `dakota/` — Project Bluefin Dakota (GNOME-based, bootc-enabled) — https://github.com/projectbluefin/dakota
   - `gnome-build-meta/` — GNOME's BuildStream repository — https://gitlab.gnome.org/GNOME/gnome-build-meta
-  - `dakota-iso/` — Project Bluefin's ISO pipeline — https://github.com/projectbluefin/dakota-iso
-- **Build logs**: `/var/tmp/aurora-build.log`
+- **Build logs**: `/var/tmp/tromso-build.log`
 - **Cache**: `~/.cache/buildstream/`
 - **This project**: `/var/home/james/dev/tromso/` (local checkout path — irrelevant to any other clone)
 
@@ -203,7 +202,7 @@ When you are asked to fix a build failure, add a package, or resolve an infrastr
 
 1. **DO NOT** search the web or guess at solutions.
 2. **DO** read the reference repo files from `/var/home/james/reference-repos/`, or a fresh clone of the public repos listed under "File locations" if that path isn't present.
-3. **DO** compare the working configuration in Dakota/gnome-build-meta to the Aurora configuration.
+3. **DO** compare the working configuration in Dakota/gnome-build-meta to the upstream ublue-os/aurora configuration.
 4. **DO** apply the exact pattern or approach used in the reference repos.
 5. **DO** document the reasoning in memory or commit messages.
 
@@ -212,7 +211,7 @@ When you are asked to fix a build failure, add a package, or resolve an infrastr
 ## ISO Installer
 
 The live ISO's installer uses `tuna-installer` (fisherman backend) to install
-Aurora KDE Linux. The ISO pipeline (`Containerfile`, `iso.justfile`,
+Tromso KDE Linux. The ISO pipeline (`Containerfile`, `iso.justfile`,
 `build-iso.yml`) lives directly in this repo — `tuna-os/tromso-iso` was the
 former separate repo for this and is now archived/retired. It was modeled on
 `projectbluefin/dakota-iso` and the patterns below still apply.
@@ -261,6 +260,11 @@ CI troubleshooting log (append to it while debugging CI).
   the same PR, or automerge waits forever on the stale name.
 - Never wrap a gate in `|| echo` — bst-validate and pytest were silently
   dead for months that way.
+- Source URLs must go through an alias in `include/aliases.yml` —
+  `unaliased-url` is fatal in `project.conf`, so a hardcoded `https://…` in a
+  `.bst` fails `bst-validate`. Prefer a specific alias over the generic
+  `tar_https:`; only the specific ones are mirrored in `include/mirrors.yml`.
+  See `docs/adr/0004-freedesktop-sdk-upstream-practices.md`.
 - `tests/pytest/test_iso_invariants.py` encodes shipped bug classes; when
   you fix a CI/ISO bug, add an invariant for it there and a row to
   docs/ci-and-iso-pipeline.md.

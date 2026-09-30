@@ -6,40 +6,41 @@
 
 ## Context
 
-`invent.kde.org/packaging/kde-buildstream` is an official-looking KDE
-packaging effort with active KDE maintainer participation. It is also a
-separate, early-stage project. The repository does not yet provide evidence of
-the complete Plasma dependency graph or a bootable KDE Linux image comparable
-to Tromso's current BuildStream graph.
+`invent.kde.org/packaging/kde-buildstream` is a KDE package project with
+participation from active KDE maintainers. It is also a separate project at an
+early stage. The repository does not yet show a complete dependency graph for
+Plasma. It also does not show a bootable image of KDE Linux that compares with
+the current BuildStream graph in Tromso.
 
-Tromso no longer has a `kde-build-meta` junction: the KDE/Plasma elements were
-consolidated into this repository. A migration would therefore be a wholesale
-replacement of the local element graph, not a junction URL update.
+Tromso no longer has a `kde-build-meta` junction. The project moved the KDE and
+Plasma elements into this repository. Thus, a migration would replace all local
+elements instead of only the URL of a junction.
 
 ## Decision
 
-Do not migrate Tromso to `kde-buildstream` now. Keep the current single-repo
-element graph and treat the upstream project as a watch item. The source
-tracking workflow must track only real repo-local element paths; it must not
-attempt to update the removed `elements/kde-build-meta.bst` junction.
+Do not migrate Tromso to `kde-buildstream` now. Keep the current graph of
+elements in this repository, and treat the upstream project as a watch item.
+The workflow that tracks sources must track only element paths in this
+repository. It must not try to update the removed
+`elements/kde-build-meta.bst` junction.
 
-This is intentionally not a rejection of the upstream project. It avoids
-making the production build depend on an incomplete graph while preserving a
-clear path to a future trial branch.
+This decision does not reject the upstream project. It prevents the production
+build from use of an incomplete graph. It also keeps a clear path to a future
+trial branch.
 
-## Re-evaluation gates
+## Gates for another evaluation
 
-Revisit when the upstream project can demonstrate all of the following:
+Revisit the decision when the upstream project can show all these items:
 
-1. a complete, reproducible Plasma dependency graph covering the packages
-   Tromso currently builds;
-2. a native BuildStream image/ISO path that no longer depends on mkosi for
-   final assembly; and
-3. a bootable image, source pinning/release policy, and CI evidence that can be
-   compared against Tromso's existing OCI and ISO gates.
+1. a complete and reproducible dependency graph for Plasma, with the packages
+   that Tromso builds now;
+2. a native BuildStream path for the image and ISO, without mkosi for final
+   assembly; and
+3. a bootable image and a policy for source versions and releases. The project
+   must also give CI evidence to compare with the OCI and ISO gates in Tromso.
 
-The eventual trial should be an isolated branch or parallel junction, with a
-full graph build and QEMU boot validation before changing the production
-project. Any Tromso-specific additions, such as Plymouth and core boot
-dependencies, should first be proposed upstream or explicitly accounted for
-in the trial delta.
+Use an isolated branch or parallel junction for the eventual trial. Complete a
+full graph build and QEMU boot test before you change the production project.
+First submit additions specific to Tromso, such as Plymouth and core boot
+dependencies, to the upstream project. Otherwise, record them explicitly in
+the trial delta.

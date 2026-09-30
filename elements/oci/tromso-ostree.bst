@@ -27,10 +27,10 @@ config:
     echo -e "[composefs]\nenabled = yes" > /sysroot/usr/lib/ostree/prepare-root.conf
     
     mkdir -p /sysroot/usr/lib/bootc/kargs.d
-    echo "rw console=tty0 console=ttyS0" > /sysroot/usr/lib/bootc/kargs.d/00-aurora.kargs
+    echo "rw console=tty0 console=ttyS0" > /sysroot/usr/lib/bootc/kargs.d/00-tromso.kargs
     
     mkdir -p /sysroot/usr/lib/bootc/install
-    echo -e "[install]\nroot-fs-type = xfs" > /sysroot/usr/lib/bootc/install/00-aurora.conf
+    echo -e "[install]\nroot-fs-type = xfs" > /sysroot/usr/lib/bootc/install/00-tromso.conf
 
     # 4. Standard prepare-image
     prepare-image.sh        --sysroot /sysroot        --seed "%{uuidnamespace}"        --rootpasswd root        --rootsource LABEL=root        --efisource LABEL=EFI        --efipath /boot >/dev/null
@@ -44,7 +44,7 @@ config:
     mkdir barerepo
     ostree init --repo=barerepo
     # THE CRITICAL FIX: --parent=none
-    ostree commit       --repo=barerepo       --consume /sysroot       --branch="aurora/x86_64/latest"       --parent=none       --timestamp="2011-11-11 11:11:11+00:00"       --add-metadata-string="ostree.linux=/usr/lib/modules/${version}/vmlinuz"       --add-metadata-string="ostree.initramfs=/usr/lib/modules/${version}/initramfs.img"       --add-metadata-string="ostree.architecture=x86_64"
+    ostree commit       --repo=barerepo       --consume /sysroot       --branch="tromso/x86_64/latest"       --parent=none       --timestamp="2011-11-11 11:11:11+00:00"       --add-metadata-string="ostree.linux=/usr/lib/modules/${version}/vmlinuz"       --add-metadata-string="ostree.initramfs=/usr/lib/modules/${version}/initramfs.img"       --add-metadata-string="ostree.architecture=x86_64"
 
     ostree init --repo="%{install-root}" --mode=archive
-    ostree pull-local --repo="%{install-root}" barerepo "aurora/x86_64/latest"
+    ostree pull-local --repo="%{install-root}" barerepo "tromso/x86_64/latest"

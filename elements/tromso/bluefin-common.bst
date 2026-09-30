@@ -1,11 +1,11 @@
 kind: manual
-description: Bluefin common shared payload imported for Aurora layering parity
+description: Bluefin common shared payload imported for upstream layering parity
 
 sources:
 - kind: git_repo
   url: github:projectbluefin/common.git
   track: main
-  ref: v2026.08-80-g45080bc5a4fee999abc71a6410048350a41ef726
+  ref: v2026.08-109-g8f343164af3be5135903a991d925fc01b52e66a1
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

@@ -1,5 +1,5 @@
 kind: script
-description: Aurora KDE Linux OCI image (layered on KDE Linux OS)
+description: Tromso KDE Linux OCI image (layered on KDE Linux OS)
 
 build-depends:
   - freedesktop-sdk.bst:components/fakecap.bst
@@ -96,7 +96,6 @@ config:
       # greeter text. Live guest testing showed this changes the framebuffer,
       # while rebuilding font cache alone did not.
       for login_qml in \
-        /layer/usr/share/sddm/themes/01-breeze-aurora/Login.qml \
         /layer/usr/share/sddm/themes/breeze/Login.qml; do
         if [ -f "$login_qml" ]; then
           sed -i 's|^\([[:space:]]*font\.pointSize: fontSize + 1\)$|\1\
@@ -142,12 +141,12 @@ config:
         parent:
           image: /parent
         layer: /layer
-        comment: "Aurora Tromso - KDE Plasma desktop (layered on KDE Linux)"
+        comment: "Tromso - KDE Plasma desktop (layered on KDE Linux)"
         config:
           Labels:
             'com.github.containers.toolbox': 'true'
-            'org.opencontainers.image.title': 'Aurora Tromso'
-            'org.opencontainers.image.description': 'Aurora Tromso KDE Plasma desktop, layered on KDE Linux'
+            'org.opencontainers.image.title': 'Tromso'
+            'org.opencontainers.image.description': 'Tromso KDE Plasma desktop, layered on KDE Linux'
             'org.opencontainers.image.vendor': 'TunaOS'
             'org.opencontainers.image.licenses': 'Apache-2.0'
             'org.opencontainers.image.url': 'https://github.com/tuna-os/tromso'

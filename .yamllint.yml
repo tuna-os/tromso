@@ -38,4 +38,3 @@ rules:
 # is not authored here and must not be linted as project YAML.
 ignore: |
   files/tromso/aurora-common/**
-  files/tromso/aurora-branding/**

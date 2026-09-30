@@ -1,5 +1,5 @@
 kind: script
-description: KDE Linux OCI image (full desktop + system) — Aurora fork without bootc build
+description: KDE Linux OCI image (full desktop + system) — fork without bootc build
 
 build-depends:
 - freedesktop-sdk.bst:components/fakecap.bst

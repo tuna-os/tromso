@@ -1,5 +1,5 @@
 kind: manual
-description: Aurora OS release information with bootc support
+description: Tromso OS release information with bootc support
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
@@ -11,11 +11,11 @@ config:
   install-commands:
   - |
     cat <<ID_EOF > os-release
-    NAME="Aurora"
-    ID=aurora
+    NAME="Tromso"
+    ID=tromso
     ID_LIKE=fedora
     VERSION_ID="20260428"
-    PRETTY_NAME="Aurora KDE Linux"
+    PRETTY_NAME="Tromso KDE Linux"
     ANSI_COLOR="0;34"
     HOME_URL="https://github.com/tuna-os/tromso"
     SUPPORT_URL="https://github.com/tuna-os/tromso/issues"

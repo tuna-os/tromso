@@ -1,4 +1,4 @@
-// Aurora Global
+// Tromso global Firefox prefs
 pref("gfx.webrender.all", true);
 pref("media.hardware-video-decoding.force-enabled", true);
 // Hopefully upstream does this at some point :)

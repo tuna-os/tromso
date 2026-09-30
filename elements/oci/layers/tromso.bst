@@ -1,5 +1,5 @@
 kind: compose
-description: Aurora final layer
+description: Tromso final layer
 
 build-depends:
   - freedesktop-sdk.bst:components/gcc.bst

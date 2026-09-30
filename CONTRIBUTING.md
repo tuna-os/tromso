@@ -1,13 +1,13 @@
 # Contributing
 
-Thanks for your interest in contributing! This project is part of the [TunaOS](https://tunaos.org) ecosystem.
+Thank you for your interest in this project! It is part of the [TunaOS](https://tunaos.org) ecosystem.
 
 ## Getting Started
 
 1. Fork the repo and clone it locally.
 2. Read the [project README](README.md) and
    [CI and ISO pipeline guide](docs/ci-and-iso-pipeline.md).
-3. Open an issue to discuss your change before submitting a PR.
+3. Open an issue to discuss your change before you submit a PR.
 
 BuildStream must run through the repository's pinned container wrapper. Do
 not invoke `bst` directly on the host:
@@ -18,7 +18,7 @@ just bst show --deps all oci/tromso.bst
 
 ## Validation
 
-Run the checks relevant to your change before opening a pull request:
+Run the checks for your change before you open a pull request:
 
 ```bash
 # Parse all Just recipes

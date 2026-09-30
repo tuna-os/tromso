@@ -1,4 +1,4 @@
-# Aurora Tromso — Technical Architecture
+# Tromso — Technical Architecture
 
 > **Note:** `tuna-os/kde-build-meta` was consolidated directly into this repo's
 > `elements/` tree (junction removed, repo archived) — the "two-repo model"
@@ -8,7 +8,7 @@
 
 ## Overview
 
-Aurora Tromso is a bootable OCI/bootc image running KDE Plasma 6. It is built with
+Tromso is a bootable OCI/bootc image running KDE Plasma 6. It is built with
 [BuildStream](https://www.buildstream.build/) on top of freedesktop-sdk, using the same
 methodology as [GNOME OS](https://gitlab.gnome.org/GNOME/gnome-build-meta) and
 [Project Bluefin dakota](https://github.com/projectbluefin/dakota).
@@ -54,20 +54,17 @@ tuna-os/tromso (this repo)
     ├── sdk-deps/
     ├── plugins/                  # BuildStream plugins (junctions)
     ├── test.bst                  # Minimal test element
-    ├── tromso/                   # Aurora-specific additions over KDE Linux base
-    │   ├── deps.bst              # Master stack of all Aurora additions
+    ├── tromso/                   # Tromso-specific additions over KDE Linux base
+    │   ├── deps.bst              # Master stack of all Tromso additions
     │   ├── system-config.bst     # dbus, sshd, networkd, system users
     │   ├── containers-config.bst # containers policy.json for bootc runtime
     │   ├── ldconfig-paths.bst    # ld.so.conf.d for Qt6 libraries in /usr/lib
     │   ├── hardware-enablement.bst  # android-udev, iio-sensor-proxy, etc.
     │   ├── bluefin-common.bst    # Bluefin-compatible common payload
-    │   ├── common.bst            # Aurora branding and config
-    │   ├── logos.bst             # Aurora logos
-    │   ├── wallpapers.bst        # Aurora wallpapers
-    │   ├── docs.bst              # Documentation
+    │   ├── common.bst            # Vendored common config (from get-aurora-dev/common)
     │   ├── brew.bst              # Homebrew (Linuxbrew) integration
     │   ├── tailscale.bst         # Tailscale VPN
-    │   ├── image-overlay.bst     # Aurora image overlay files
+    │   ├── image-overlay.bst     # Tromso image overlay files
     │   ├── multimedia-overrides.bst  # Codec/multimedia config overrides
     │   ├── fcitx5-cluster.bst    # Input method support (CJK, etc.)
     │   ├── sudo-rs.bst           # sudo-rs to preserve setuid binary
@@ -77,13 +74,13 @@ tuna-os/tromso (this repo)
     └── oci/
         ├── tromso.bst            # ← Main build target
         ├── tromso-ostree.bst     # OSTree variant
-        ├── os-release.bst        # Aurora os-release (overrides KDE Linux)
+        ├── os-release.bst        # Tromso os-release (overrides KDE Linux)
         ├── kde-linux/            # KDE Linux base image composition
-        │   ├── image.bst         # Parent OCI image (Aurora fork, no bootc build)
+        │   ├── image.bst         # Parent OCI image (fork, no bootc build)
         │   ├── stack.bst         # KDE Linux full stack
         │   └── filesystem.bst    # Filesystem layout
         └── layers/
-            ├── tromso.bst        # Aurora OCI layer (depends on tromso/deps)
+            ├── tromso.bst        # Tromso OCI layer (depends on tromso/deps)
             ├── tromso-runtime.bst
             └── tromso-stack.bst  # Combined: kde-linux/stack + tromso/deps
 ```
@@ -106,7 +103,7 @@ freedesktop-sdk (base SDK, via elements/freedesktop-sdk.bst junction)
     └── elements/kde-linux-deps/   # KDE Linux base deps
     └── elements/kde-linux-system/ # system config, initramfs, signed modules
             └── oci/kde-linux/     # KDE Linux base image
-                    └── elements/tromso/deps.bst   # Aurora additions
+                    └── elements/tromso/deps.bst   # Tromso additions
                             └── oci/tromso.bst     # Final OCI image
                                     └── ghcr.io/tuna-os/tromso:latest
 ```
@@ -194,7 +191,7 @@ permitted to build or publish the Tromsø OCI image.
 
 ---
 
-## Packages Not Yet in Aurora
+## Packages Not Yet Ported From Aurora
 
 The following packages from the KDE Linux package list require new `.bst` elements
 that have not yet been written:

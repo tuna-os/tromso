@@ -6,7 +6,7 @@
 *.tar.gz
 out/
 ostree-export/
-aurora-rootfs*
+tromso-rootfs*
 bootable*
 qtbase-contents/
 
@@ -51,7 +51,7 @@ __pycache__/
 files/
 
 # Dev/session artifacts — not part of the build
-AURORA_VM_USAGE.sh
+TROMSO_VM_USAGE.sh
 BUILD_GUIDE.md
 BUILD_PROGRESS.md
 COMPLETED.md

@@ -55,8 +55,8 @@ generate-bootable-image $base_dir=base_dir $filesystem=filesystem:
     sudo mkdir -p /mnt/tromso-root-setup
     sudo mount "${LOOP2}p3" /mnt/tromso-root-setup
     DEPLOY2=$(ls -d /mnt/tromso-root-setup/ostree/deploy/default/deploy/*.0 2>/dev/null | head -1)
-    # Set root password (hash for 'aurora') in the deploy root
-    ROOT_HASH=$(openssl passwd -6 'aurora')
+    # Set root password (hash for 'tromso') in the deploy root
+    ROOT_HASH=$(openssl passwd -6 'tromso')
     sudo sed -i "s|^root:[^:]*:|root:${ROOT_HASH}:|" "${DEPLOY2}/etc/shadow"
     # authorized_keys: write to the ostree live var (ostree/deploy/default/var/),
     # which is what /var maps to at runtime via bind mount — NOT the deploy
@@ -108,7 +108,7 @@ boot-vm $base_dir=base_dir:
             if [ -f "$candidate" ]; then cp "$candidate" "$OVMF_VARS"; break; fi
         done
     fi
-    echo "==> Booting Aurora in QEMU (background)..."
+    echo "==> Booting Tromso in QEMU (background)..."
     echo "    SSH:    ssh -p 2222 -i ~/.ssh/id_ed25519 root@127.0.0.1"
     echo "    Serial: telnet 127.0.0.1 4444"
     echo "    Logs:   tail -f /tmp/tromso-serial.log"

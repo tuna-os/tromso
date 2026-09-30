@@ -1,5 +1,5 @@
 kind: cmake
-description: Aurora-layer packaging for Sunshine from upstream source
+description: Tromso-layer packaging for Sunshine from upstream source
 
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
@@ -45,4 +45,4 @@ sources:
 - kind: git_repo
   url: github:LizardByte/Sunshine.git
   track: v[0-9]*
-  ref: v2026.906.14454-0-g71189aecc12f35b3ab81ba9306bf69fc1447a31f
+  ref: v2026.917.185647-0-g6d4a95955e768066552e20d19a9ab5b97618ac62

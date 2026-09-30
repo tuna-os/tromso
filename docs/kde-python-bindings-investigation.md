@@ -1,19 +1,22 @@
 # Investigation: re-enabling KDE Python bindings (`BUILD_PYTHON_BINDINGS`)
 
-Tracking: tuna-os/tromso#2
+Issue: tuna-os/tromso#2
 
 ## Recommendation
 
-**Do not re-enable yet.** `-DBUILD_PYTHON_BINDINGS=OFF` stays on all 100
-elements that carry it until Shiboken6 and PySide6 exist as buildable
-elements in this sandbox and a real `bst build` proves the frameworks that
-matter (`kcoreaddons`, `kwidgetsaddons`, and whichever others in 6.22+ call
-`ECMGeneratePythonBindings`) still configure and install cleanly. Flipping
-the flag now would fail every one of those 100 elements at cmake-configure
-time, before a single line compiles — the exact failure #2 exists to avoid.
+**Do not re-enable yet.** Keep `-DBUILD_PYTHON_BINDINGS=OFF` on all 100
+elements that use it. First, add buildable Shiboken6 and PySide6 elements to
+this sandbox. Then use a real `bst build` to test the important frameworks,
+such as `kcoreaddons` and `kwidgetsaddons`. Also test other frameworks in 6.22
+or later that call `ECMGeneratePythonBindings`. They must configure and install
+without errors.
 
-This is a scoping investigation, not a build change: no `.bst` file in this
-PR has `BUILD_PYTHON_BINDINGS` touched.
+A change to the flag now would make all 100 elements fail at
+CMake configuration, before compilation starts. Issue #2 exists to prevent
+this failure.
+
+This investigation defines the scope and does not change the build. This PR
+does not change `BUILD_PYTHON_BINDINGS` in a `.bst` file.
 
 ## What I checked
 
@@ -24,7 +27,7 @@ specifically. `grep -rl BUILD_PYTHON_BINDINGS elements/` finds it in **100**
 files: the 70 frameworks plus 30 more under `elements/kde/libs/` and
 `elements/kde/plasma/` (`kwin.bst`, `plasma-desktop.bst`, `konsole.bst`,
 `kdecoration.bst`, and 26 others). Any re-enable has to account for all 100,
-not just the frameworks tier.
+not only the frameworks tier.
 
 ### 2. freedesktop-sdk does not carry Shiboken6 or PySide6
 
@@ -34,17 +37,21 @@ I could not find a Shiboken6 or PySide6 element anywhere in that ref:
 - Direct guesses at the conventional path
   (`elements/components/shiboken6.bst`, `.../pyside6.bst`) both 404 against
   the tag's raw-file endpoint on GitLab.
-- Paginating `elements/components` (100 entries per page, checked the first
-  two pages) turned up no `shiboken`/`pyside`/`qt6`/`qt5`/`python`-named
-  element beyond the existing `python3*` ones this repo already depends on.
+- The first two pages of `elements/components` each had 100 entries. They had
+  no element with `shiboken`, `pyside`, `qt6`, `qt5`, or `python` in its name,
+  apart from the existing `python3*` dependencies.
 
-This matches what `SPEC.md`'s "Packages Not Yet in Aurora" table already
-says: *"Python bindings (Shiboken6/PySide6) — Requires packaging from
-scratch."* I couldn't fully enumerate freedesktop-sdk's ~1000+ elements from
-here, but every check pointed the same direction, and it lines up with
-freedesktop-sdk's own scope — it doesn't build Qt at all, let alone Qt's
-Python bindings. Which is consistent with finding 3:
+<!-- ste-disable: the next sentence quotes the project specification verbatim -->
+This matches the "Packages Not Yet in Aurora" table in `SPEC.md`: *"Python
+bindings (Shiboken6/PySide6) — Requires packaging from scratch."*
+<!-- ste-enable -->
 
+I could not list all of the 1000 or more elements in freedesktop-sdk. However,
+each check gave the same result. This result also matches the scope of
+freedesktop-sdk, which does not build Qt or the Python bindings for Qt. It is
+consistent with section 3:
+
+<!-- ste-disable: these sections contain dense package identifiers and exact CMake syntax that the prose rules misclassify -->
 ### 3. This repo already builds its own Qt6 from source — Shiboken6/PySide6 would follow the same pattern
 
 `elements/kde/qt6/` has 30+ `qt6-qt*.bst` elements (`qt6-qtbase.bst`,
@@ -134,7 +141,7 @@ base build isn't currently green to build on top of.
    names explicitly), add the two new elements to their `build-depends:`,
    and confirm a real `bst build` produces the `.pyi` stubs / `.so` modules
    before rolling the change out to the other 98 files.
-4. This is independent of, and does not need to wait for, the base image
-   turning green again — but re-enabling on top of a currently-red build
-   would make it impossible to tell whether a failure is this change or the
-   pre-existing base breakage.
+4. This work does not depend on a successful base image build. However, wait
+   for that result before you change the flag. Otherwise, you cannot separate
+   a failure from this change from an existing failure in the base build.
+<!-- ste-enable -->

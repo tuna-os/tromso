@@ -2,9 +2,9 @@
 
 ## Supported Versions
 
-Aurora Tromso images are built on every push to `main` and published to GHCR.
-Only the most recent build of each tag is actively supported. Older tags are
-pruned periodically.
+Tromso images are built on every push to `main` and published to GHCR.
+Only the most recent build of each tag has active support. A periodic job
+removes older tags.
 
 | Tag | Status |
 |---|---|
@@ -29,24 +29,26 @@ You can expect:
 
 ## Security Model
 
-Aurora Tromso images are:
-- Built in CI from pinned BuildStream elements with content-addressed caching
+Tromso images are:
+- Built in CI from fixed BuildStream elements with a content-addressed cache
 - Published as OCI images to `ghcr.io/tuna-os/tromso`
 - Built inside a pinned `bst2` container with local CASD
 
 ## Supply Chain Security
 
-- Base elements are pinned by git ref / tarball SHA256 inside this repo's `elements/` tree (`kde/`, `kde-linux-deps/`, `kde-linux-system/`, `core/`, `core-deps/`, …); the former `kde-build-meta` junction was removed and its elements consolidated in — see `AGENTS.md`
-- The `freedesktop-sdk` base SDK is pinned via the `elements/freedesktop-sdk.bst` junction
-- Build dependencies are resolved via BuildStream's CASD content-addressable store
-- The build container (`bst2`) is pinned by digest
+- Git references or SHA256 values for tarballs fix the base elements in the `elements/` tree.
+  See `AGENTS.md` for the paths. The project removed the former `kde-build-meta`
+  junction and moved its elements into this repository.
+- The `elements/freedesktop-sdk.bst` junction fixes the version of the `freedesktop-sdk` base SDK.
+- The content-addressable CASD store of BuildStream resolves build dependencies.
+- A digest fixes the version of the build container (`bst2`).
 
 ## Disclosure Policy
 
 We follow coordinated disclosure:
-1. Reporter submits vulnerability privately
-2. We investigate and develop a fix
-3. Fix is deployed to new builds
-4. Advisory is published after deployment
+1. The reporter submits a vulnerability through a private channel.
+2. We investigate and develop a fix.
+3. We deploy the fix to new builds.
+4. We publish an advisory after deployment.
 
 See `AGENTS.md` and `SPEC.md` for full build architecture details.

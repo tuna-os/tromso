@@ -1,5 +1,5 @@
 kind: stack
-description: Hardware enablement packages for Aurora (fingerprint, sensors, mobile devices)
+description: Hardware enablement packages for Tromso (fingerprint, sensors, mobile devices)
 
 depends:
   # Fingerprint authentication

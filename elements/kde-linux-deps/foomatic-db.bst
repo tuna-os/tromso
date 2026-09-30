@@ -2,7 +2,7 @@ kind: autotools
 description: Foomatic printer database (20240504)
 # NOTE: The FDO freedesktop-sdk already ships foomatic-db as a component of
 # cups-daemon (components/foomatic-db.bst). This element exists to track it
-# explicitly in the Aurora dep tree. Prefer freedesktop-sdk.bst:components/cups-daemon.bst
+# explicitly in the Tromso dep tree. Prefer freedesktop-sdk.bst:components/cups-daemon.bst
 # which pulls in foomatic-db transitively. If a newer snapshot is needed,
 # update the ref below.
 

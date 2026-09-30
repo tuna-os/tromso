@@ -1,5 +1,5 @@
 kind: cmake
-description: Aurora KCM for Universal Blue image rebasing
+description: KCM for Universal Blue image rebasing
 
 environment:
   LD_LIBRARY_PATH: /usr/lib
