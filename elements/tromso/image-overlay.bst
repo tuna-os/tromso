@@ -10,6 +10,13 @@ sources:
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
+# The artwork guard below uses `find`, but `manual` elements build in a
+# minimal sandbox without findutils (nightly multi-runner red since
+# 2026-09-26: `sh: find: command not found`, exit 127). Same pattern as
+# elements/kde-linux-deps/microcode.bst.
+build-depends:
+- freedesktop-sdk.bst:components/findutils.bst
+
 variables:
   strip-binaries: ""
 
