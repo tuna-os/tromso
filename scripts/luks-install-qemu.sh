@@ -34,7 +34,7 @@ COMPOSEFS_JSON=$(printf '{\n  "disk": "%s",\n  "filesystem": "%s",\n  "image": "
 BOOTCDIRECT_JSON=$(printf '{\n  "disk": "%s",\n  "filesystem": "%s",\n  "image": "",\n  "targetImgref": "%s",\n  "composeFsBackend": false,\n  "bootloader": "%s",\n  "hostname": "tromso-luks-test",\n  "encryption": {"type": "luks-passphrase", "passphrase": "%s"},\n  "flatpaks": []\n}\n' \
 	"${DISK}" "${FILESYSTEM}" "${PAYLOAD_IMAGE}" "${BOOTLOADER}" "${PASSPHRASE}")
 
-install_qemu_run_fisherman "${RECIPE_TMP}" "${COMPOSEFS_JSON}" "${BOOTCDIRECT_JSON}"
+install_qemu_run_fisherman "${RECIPE_TMP}" "luks-recipe.json" "${COMPOSEFS_JSON}" "${BOOTCDIRECT_JSON}"
 
 echo "Patching BLS entries to enable dual serial+VT console and LUKS unlock..."
 $SSH 'sudo bash -c "

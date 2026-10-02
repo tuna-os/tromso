@@ -31,7 +31,7 @@ COMPOSEFS_JSON=$(printf '{\n  "disk": "%s",\n  "filesystem": "%s",\n  "image": "
 BOOTCDIRECT_JSON=$(printf '{\n  "disk": "%s",\n  "filesystem": "%s",\n  "image": "",\n  "targetImgref": "%s",\n  "composeFsBackend": false,\n  "bootloader": "%s",\n  "hostname": "tromso-plain-test",\n  "encryption": {"type": "none"},\n  "flatpaks": []\n}\n' \
 	"${DISK}" "${FILESYSTEM}" "${PAYLOAD_IMAGE}" "${BOOTLOADER}")
 
-install_qemu_run_fisherman "${RECIPE_TMP}" "${COMPOSEFS_JSON}" "${BOOTCDIRECT_JSON}"
+install_qemu_run_fisherman "${RECIPE_TMP}" "plain-recipe.json" "${COMPOSEFS_JSON}" "${BOOTCDIRECT_JSON}"
 
 echo "Patching BLS entries to enable dual serial+VT console..."
 $SSH 'sudo bash -c "

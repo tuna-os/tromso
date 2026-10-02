@@ -50,31 +50,32 @@ install_qemu_init() {
     "'
 }
 
-# install_qemu_run_fisherman <recipe_tmp_path> <composefs_json> <bootcdirect_json>
+# install_qemu_run_fisherman <recipe_tmp_path> <remote_recipe_name> <composefs_json> <bootcdirect_json>
 #
 # Writes whichever recipe JSON matches COMPOSEFS_BACKEND to recipe_tmp_path,
 # uploads it, and runs fisherman — building a bootcDirect-patched binary from
 # FISHER_REPO when composefs is off. Dumps diagnostics and re-raises on failure.
 install_qemu_run_fisherman() {
 	local recipe_tmp="$1"
-	local composefs_json="$2"
-	local bootcdirect_json="$3"
+	local remote_recipe_name="$2"
+	local composefs_json="$3"
+	local bootcdirect_json="$4"
 
 	if [[ "${COMPOSEFS_BACKEND}" == "true" ]]; then
 		# Composefs path (dakota): podman-based install with VFS containers-storage.
-		printf '%s' "${composefs_json}" >"${recipe_tmp}"
-		$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/$(basename "${recipe_tmp}")"
+		printf '%s\n' "${composefs_json}" >"${recipe_tmp}"
+		$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/${remote_recipe_name}"
 		echo "Uploaded recipe — running fisherman (takes several minutes)..."
 		$SCP "scripts/fisherman-install.sh" liveuser@127.0.0.1:/tmp/fisherman-install.sh
-		$SSH "sudo bash /tmp/fisherman-install.sh /tmp/$(basename "${recipe_tmp}")"
+		$SSH "sudo bash /tmp/fisherman-install.sh /tmp/${remote_recipe_name}"
 	else
 		# Ostree path (stable, lts): bootcDirect — fisherman runs bootc natively.
 		# Empty image triggers bootcDirect; targetImgref sets the day-2 rebase ref.
 		# Fisherman emits --source-imgref containers-storage:<targetImgref> when
 		# targetImgref is present and image is empty, resolving the payload from
 		# the overlay additionalimagestore embedded in the squashfs.
-		printf '%s' "${bootcdirect_json}" >"${recipe_tmp}"
-		$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/$(basename "${recipe_tmp}")"
+		printf '%s\n' "${bootcdirect_json}" >"${recipe_tmp}"
+		$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/${remote_recipe_name}"
 		echo "Uploaded recipe — building patched fisherman for bootcDirect..."
 		local fisherman_bin
 		fisherman_bin=$(mktemp /tmp/fisherman-XXXXXX)
@@ -84,7 +85,7 @@ install_qemu_run_fisherman() {
 		$SSH 'chmod +x /tmp/fisherman'
 		echo "Running fisherman (bootcDirect, takes several minutes)..."
 		$SCP "scripts/fisherman-install.sh" liveuser@127.0.0.1:/tmp/fisherman-install.sh
-		if ! $SSH "sudo FISHERMAN_BIN=/tmp/fisherman bash /tmp/fisherman-install.sh /tmp/$(basename "${recipe_tmp}")"; then
+		if ! $SSH "sudo FISHERMAN_BIN=/tmp/fisherman bash /tmp/fisherman-install.sh /tmp/${remote_recipe_name}"; then
 			echo "=== INSTALL FAILURE DIAGNOSTICS ==="
 			echo "--- dmesg ---"
 			$SSH 'sudo dmesg | tail -n 100' || true
