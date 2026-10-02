@@ -118,6 +118,12 @@ jobs:
       # A timed-out chunk still publishes only `:latest`, never its exact-key
       # tag, so nothing is ever marked complete that isn't.
       soft_chunk_budget: true
+      # 270m (the bst-ci default) does not fit: run 36824268469's chunk3
+      # spent 38 min restoring caches, 270 min building, then was cancelled
+      # 57 min into pushing its CAS at the 360-minute job limit, so the
+      # salvage never landed and the chunk could never make progress.
+      # 200m leaves ~2h for restore + archive/push.
+      chunk_budget_minutes: "200"
 
   # ── Phase 4: Final assembly + push ──────────────────────────────────
   build_final:
@@ -382,6 +388,12 @@ jobs:
       # certainly exhaust the budget — the same reasoning applies with more
       # force, and it still cannot publish an unsuffixed tag either way.
       soft_chunk_budget: true
+      # 270m (the bst-ci default) does not fit: run 36824268469's chunk3
+      # spent 38 min restoring caches, 270 min building, then was cancelled
+      # 57 min into pushing its CAS at the 360-minute job limit, so the
+      # salvage never landed and the chunk could never make progress.
+      # 200m leaves ~2h for restore + archive/push.
+      chunk_budget_minutes: "200"
       arch: aarch64
 
   build_final_aarch64:
