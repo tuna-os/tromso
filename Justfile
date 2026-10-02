@@ -45,9 +45,18 @@ export:
     if [ "$(id -u)" -ne 0 ]; then
         SUDO_CMD="sudo"
     fi
-    echo "==> Exporting Tromso OCI image..."
-    rm -rf .build-out
-    just bst artifact checkout oci/tromso.bst --directory /src/.build-out
+    # CI checks the artifact out in its own step and deletes the CAS before
+    # calling this recipe: the merged cache and the squashed image do not fit
+    # on a GitHub runner together. With EXPORT_REUSE_CHECKOUT=1, .build-out is
+    # already the artifact and must not be re-requested from BuildStream.
+    if [ "${EXPORT_REUSE_CHECKOUT:-0}" = "1" ]; then
+        [ -d .build-out ] || { echo "ERROR: EXPORT_REUSE_CHECKOUT=1 but .build-out is missing" >&2; exit 1; }
+        echo "==> Reusing the existing .build-out checkout..."
+    else
+        echo "==> Exporting Tromso OCI image..."
+        rm -rf .build-out
+        just bst artifact checkout oci/tromso.bst --directory /src/.build-out
+    fi
     echo "==> Loading and squashing OCI image..."
     IMAGE_ID=$($SUDO_CMD podman pull -q oci:.build-out)
     rm -rf .build-out

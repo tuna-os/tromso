@@ -173,39 +173,26 @@ jobs:
           mkdir -p ~/.cache/buildstream
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-          if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-core:latest" -o .; then
-            if [ -f cas-core.tar.zst ]; then
-              # --exclude=sources: each pushed tarball is a full
-              # ~/.cache/buildstream snapshot (see the archive step in
-              # tuna-os/bst-ci's multirunner-build.yml), source downloads
-              # included. build_final only needs the built artifacts (cas/)
-              # to assemble final_target — every element it references is
-              # already cached, so it never re-stages sources for them.
-              # Merging 11 full per-chunk sources/ trees onto one small
-              # runner disk is what exhausted it in run 33295159787
-              # ("No space left on device" mid-extract); skipping sources/
-              # here cuts what actually hits disk to the artifacts we use.
-              zstd -d -c -T0 cas-core.tar.zst | tar --exclude=sources -xf - -C "$HOME/.cache/buildstream"
-              rm -f cas-core.tar.zst
-            fi
-          fi
+          # Streamed, never staged: `oras pull -o .` wrote each tarball to the
+          # runner disk next to the cache it was unpacking into, and build_final
+          # in run 36971374464 died in this step with "No space left on device".
+          # scripts/cas-restore-stream.sh pipes the blob through zstd and tar
+          # (sources/ excluded) and resumes GHCR's mid-stream PROTOCOL_ERROR
+          # cuts. A missing chunk costs rebuild time here, never correctness.
+          BASE="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}"
+          scripts/cas-restore-stream.sh "${BASE}-core:latest" \
+            || echo "::warning::core CAS unavailable — build_final rebuilds it"
+          df -h /
 
           echo "$MATRIX_KEYS" | jq -r '.[]' | while read -r chunk; do
             CACHE_KEY=$(echo "$CACHE_KEYS" | jq -r --arg c "$chunk" '.[$c] // empty')
-            PULLED=false
-            if [ -n "$CACHE_KEY" ]; then
-              if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-${chunk}:${CACHE_KEY}" -o .; then
-                PULLED=true
-              fi
+            if [ -n "$CACHE_KEY" ] \
+               && scripts/cas-restore-stream.sh "${BASE}-${chunk}:${CACHE_KEY}"; then
+              :
+            elif ! scripts/cas-restore-stream.sh "${BASE}-${chunk}:latest"; then
+              echo "::warning::no CAS for ${chunk} — build_final rebuilds it"
             fi
-            if [ "$PULLED" = "false" ]; then
-              oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}-${chunk}:latest" -o . || continue
-            fi
-            TARBALL="cas-${chunk}.tar.zst"
-            if [ -f "$TARBALL" ]; then
-              zstd -d -c -T0 "$TARBALL" | tar --exclude=sources -xf - -C "$HOME/.cache/buildstream"
-              rm -f "$TARBALL"
-            fi
+            df -h /
           done
           du -sh ~/.cache/buildstream
 
@@ -248,6 +235,23 @@ jobs:
         if: always()
         run: rm -f client.key client.crt
 
+      - name: Check out the artifact and free the CAS
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+        run: |
+          # The merged CAS and the squashed image do not fit on one runner
+          # together (xfce-linux#159 hit exactly this). Take the artifact out
+          # of the cache, then drop the cache; export works from .build-out.
+          df -h /
+          rm -rf .build-out
+          just bst artifact checkout \
+            "${{ needs.multirunner.outputs.final_target }}" --directory /src/.build-out
+          du -sh .build-out
+          # Removed inside the bst container: its root owns the cache tree.
+          podman run --rm -v "${HOME}/.cache/buildstream:/cache:rw" "$BST2_IMAGE" \
+            sh -c 'rm -rf /cache/cas /cache/artifacts /cache/sources'
+          df -h /
+
       - name: Capture build timestamp
         id: timestamp
         run: echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
@@ -260,6 +264,8 @@ jobs:
           OCI_IMAGE_REVISION: ${{ github.sha }}
           OCI_IMAGE_VERSION: latest
           OCI_IMAGE_CREATED: ${{ steps.timestamp.outputs.created }}
+          # The CAS is gone by now (previous step); .build-out is the artifact.
+          EXPORT_REUSE_CHECKOUT: '1'
         run: |
           just export
           echo "image_ref=${{ env.IMAGE_NAME }}:latest" >> "$GITHUB_OUTPUT"
@@ -445,33 +451,26 @@ jobs:
           mkdir -p ~/.cache/buildstream
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-          if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}${ARCH_SUFFIX}-core:latest" -o .; then
-            if [ -f cas-core.tar.zst ]; then
-              # --exclude=sources: see the x86_64 build_final job above —
-              # build_final only needs cas/ to assemble final_target, and
-              # merging every chunk's full sources/ tree onto one runner
-              # disk is what exhausted it in run 33295159787.
-              zstd -d -c -T0 cas-core.tar.zst | tar --exclude=sources -xf - -C "$HOME/.cache/buildstream"
-              rm -f cas-core.tar.zst
-            fi
-          fi
+          # Streamed, never staged: `oras pull -o .` wrote each tarball to the
+          # runner disk next to the cache it was unpacking into, and build_final
+          # in run 36971374464 died in this step with "No space left on device".
+          # scripts/cas-restore-stream.sh pipes the blob through zstd and tar
+          # (sources/ excluded) and resumes GHCR's mid-stream PROTOCOL_ERROR
+          # cuts. A missing chunk costs rebuild time here, never correctness.
+          BASE="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}${ARCH_SUFFIX}"
+          scripts/cas-restore-stream.sh "${BASE}-core:latest" \
+            || echo "::warning::core CAS unavailable — build_final rebuilds it"
+          df -h /
 
           echo "$MATRIX_KEYS" | jq -r '.[]' | while read -r chunk; do
             CACHE_KEY=$(echo "$CACHE_KEYS" | jq -r --arg c "$chunk" '.[$c] // empty')
-            PULLED=false
-            if [ -n "$CACHE_KEY" ]; then
-              if oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}${ARCH_SUFFIX}-${chunk}:${CACHE_KEY}" -o .; then
-                PULLED=true
-              fi
+            if [ -n "$CACHE_KEY" ] \
+               && scripts/cas-restore-stream.sh "${BASE}-${chunk}:${CACHE_KEY}"; then
+              :
+            elif ! scripts/cas-restore-stream.sh "${BASE}-${chunk}:latest"; then
+              echo "::warning::no CAS for ${chunk} — build_final rebuilds it"
             fi
-            if [ "$PULLED" = "false" ]; then
-              oras pull "ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}${ARCH_SUFFIX}-${chunk}:latest" -o . || continue
-            fi
-            TARBALL="cas-${chunk}.tar.zst"
-            if [ -f "$TARBALL" ]; then
-              zstd -d -c -T0 "$TARBALL" | tar --exclude=sources -xf - -C "$HOME/.cache/buildstream"
-              rm -f "$TARBALL"
-            fi
+            df -h /
           done
           du -sh ~/.cache/buildstream
 
