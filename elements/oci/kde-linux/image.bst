@@ -4,6 +4,8 @@ description: KDE Linux OCI image (full desktop + system) — fork without bootc 
 build-depends:
 - freedesktop-sdk.bst:components/fakecap.bst
 - freedesktop-sdk.bst:components/oci-builder.bst
+# glib-compile-schemas, run below
+- freedesktop-sdk.bst:components/glib.bst
 - freedesktop-sdk.bst:vm/prepare-image.bst
 - oci/kde-linux/init-scripts.bst
 - filename: oci/platform/image.bst
