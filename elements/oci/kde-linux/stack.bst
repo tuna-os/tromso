@@ -57,5 +57,10 @@ public:
     - sh -c 'for f in /lib/modules/*/*.json /lib/modules/*/*.so /lib/modules/*/*.a; do rm -f "$f"; done'
     # Restore sudo's setuid bit in the final composed image.
     - chmod u+s /usr/bin/sudo || true
-    # Match Arch's kwin packaging so the greeter compositor can request realtime priority.
-    - setcap cap_sys_nice+ep /usr/bin/kwin_wayland
+    # No setcap here. Integration commands run in BuildStream's sandbox, which
+    # cannot write security.capability xattrs, so `setcap` exits 1 and fails
+    # every compose element that stages this stack (filesystem.bst,
+    # tromso-runtime.bst). kwin_wayland's cap_sys_nice is applied instead in
+    # the OCI assembly scripts (oci/kde-linux/image.bst, oci/tromso.bst), which
+    # run under freedesktop-sdk's fakecap LD_PRELOAD; build-oci then writes the
+    # capability into the layer tar as a SCHILY.xattr header.

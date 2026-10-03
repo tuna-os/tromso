@@ -42,6 +42,12 @@ config:
   - |
     systemd-sysusers --root /layer
 
+  # Match Arch's kwin packaging so the greeter compositor can request realtime
+  # priority. Done here, under fakecap, because the sandbox running stack.bst
+  # integration commands cannot set file capabilities.
+  - |
+    setcap cap_sys_nice+ep /layer/usr/bin/kwin_wayland
+
   - |
     glib-compile-schemas /layer/usr/share/glib-2.0/schemas
 

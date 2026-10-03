@@ -274,6 +274,18 @@ jobs:
         run: |
           sudo podman images
           just lint
+          # kwin_wayland's cap_sys_nice is set under fakecap during OCI
+          # assembly (the bst sandbox cannot setcap). Fail if it did not
+          # survive build-oci, the podman import and the export re-tag.
+          ref="localhost/${{ steps.export.outputs.image_ref }}"
+          mnt=$(sudo podman image mount "$ref")
+          caps=$(sudo getcap "$mnt/usr/bin/kwin_wayland" || true)
+          sudo podman image umount "$ref" >/dev/null
+          echo "getcap: ${caps:-<none>}"
+          case "$caps" in
+            *cap_sys_nice*) ;;
+            *) echo "::error::/usr/bin/kwin_wayland lacks cap_sys_nice in the exported image"; exit 1 ;;
+          esac
 
       - name: Upload build logs
         if: always()
