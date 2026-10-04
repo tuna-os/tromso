@@ -319,12 +319,16 @@ jobs:
             sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
               "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
             for i in 1 2 3; do
-              sudo podman push "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
+              sudo podman push --digestfile "/tmp/digest-${tag}" \
+                "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
               echo "Retry $i..."; sleep 5
             done
           done
-          digest=$(sudo podman inspect "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
-            --format '{{.Digest}}')
+          # The digest of the manifest as pushed. `podman inspect .Digest` on
+          # the local image is the digest it was imported with, which push
+          # changes by recompressing the layers; cosign then 404s on it (run
+          # 37128881064).
+          digest=$(sudo cat "/tmp/digest-${{ github.sha }}")
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
@@ -565,12 +569,16 @@ jobs:
             sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
               "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
             for i in 1 2 3; do
-              sudo podman push "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
+              sudo podman push --digestfile "/tmp/digest-${tag}" \
+                "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
               echo "Retry $i..."; sleep 5
             done
           done
-          digest=$(sudo podman inspect "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}-aarch64" \
-            --format '{{.Digest}}')
+          # The digest of the manifest as pushed. `podman inspect .Digest` on
+          # the local image is the digest it was imported with, which push
+          # changes by recompressing the layers; cosign then 404s on it (run
+          # 37128881064).
+          digest=$(sudo cat "/tmp/digest-${{ github.sha }}-aarch64")
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
