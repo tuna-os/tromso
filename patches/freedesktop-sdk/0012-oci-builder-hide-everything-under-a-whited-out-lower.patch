@@ -1,0 +1,82 @@
+From 0c2cda48a1d6beec4d66446affab0533aaa34e9d Mon Sep 17 00:00:00 2001
+From: hanthor <jreilly1821@gmail.com>
+Date: Sun, 4 Oct 2026 00:39:43 +0000
+Subject: [PATCH] oci-builder: hide everything under a whited-out lower
+ directory
+
+analyze_lowers() handled a whiteout of a directory (.wh.<dir>) by dropping
+only the directory's own entry, leaving its descendants in lower_files. If
+the upper layer then recreated that directory, create_layer() emitted
+whiteouts for those descendants inside it. Under overlayfs the recreated
+directory sits on a whiteout, so it is not merged and those whiteouts show
+up as character devices that cannot be stat'ed; buildah commit fails on
+them with 'lstat ...: no such file or directory'.
+
+Apply each layer's whiteouts to the layers below it only, and treat a
+whiteout as covering everything beneath the path.
+
+Signed-off-by: hanthor <hanthor@users.noreply.github.com>
+---
+ files/oci/oci_builder/layer_builder.py | 41 ++++++++++++++++++++------
+ 1 file changed, 32 insertions(+), 9 deletions(-)
+
+diff --git a/files/oci/oci_builder/layer_builder.py b/files/oci/oci_builder/layer_builder.py
+index d8aa1f8..0089b5c 100644
+--- a/files/oci/oci_builder/layer_builder.py
++++ b/files/oci/oci_builder/layer_builder.py
+@@ -61,20 +61,43 @@ def file_sha256(file_handle):
+     return sha256.hexdigest()
+ 
+ 
++def _under(name, roots):
++    """True if name, or any directory above it, is in roots."""
++    while name:
++        if name in roots:
++            return True
++        name = os.path.dirname(name)
++    return False
++
++
+ def analyze_lowers(lowers):
+     lower_files = {}
+     for lower in lowers:
+-        for lower_member in lower.getmembers():
+-            dirname, basename = os.path.split(lower_member.name)
++        members = lower.getmembers()
++        # A layer's whiteouts hide entries of the layers below it, never its
++        # own. A whiteout of a directory hides everything beneath it too:
++        # forgetting the descendants made create_layer() emit whiteouts for
++        # files that no longer exist, inside a directory the upper layer
++        # recreates. overlayfs then lists those whiteouts as unstattable
++        # character devices, which breaks `buildah commit` and anything else
++        # that walks the tree.
++        removed = set()
++        opaque = set()
++        for member in members:
++            dirname, basename = os.path.split(member.name)
+             if basename == ".wh..wh..opq":
+-                prefix = dirname + "/"
+-                to_delete = [k for k in lower_files if k.startswith(prefix)]
+-                for k in to_delete:
+-                    del lower_files[k]
++                opaque.add(dirname)
+             elif basename.startswith(".wh."):
+-                del lower_files[os.path.join(dirname, basename[4:])]
+-            else:
+-                lower_files[lower_member.name] = lower
++                removed.add(os.path.join(dirname, basename[4:]))
++        if "" in opaque:
++            lower_files.clear()
++        elif removed or opaque:
++            for name in list(lower_files):
++                if _under(name, removed) or _under(os.path.dirname(name), opaque):
++                    del lower_files[name]
++        for member in members:
++            if not os.path.basename(member.name).startswith(".wh."):
++                lower_files[member.name] = lower
+ 
+     lower_dir_contents = {}
+     for file in lower_files:
+-- 
+2.43.0
+

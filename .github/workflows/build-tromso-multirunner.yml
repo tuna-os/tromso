@@ -280,7 +280,18 @@ jobs:
           ref="localhost/${{ steps.export.outputs.image_ref }}"
           mnt=$(sudo podman image mount "$ref")
           caps=$(sudo getcap "$mnt/usr/bin/kwin_wayland" || true)
+          # A whiteout that build-oci emits under a directory a lower layer
+          # already whited out surfaces in the merged tree as a character
+          # device that cannot be stat'ed, and buildah commit (the ISO
+          # pipeline's squash) dies on it. The image ships no device nodes,
+          # so any character device here is one of those.
+          leaked=$(sudo find "$mnt" -xdev -type c 2>/dev/null | sed "s|^$mnt||" || true)
           sudo podman image umount "$ref" >/dev/null
+          if [ -n "$leaked" ]; then
+            echo "$leaked" | head -50
+            echo "::error::$(echo "$leaked" | wc -l) leaked overlay whiteouts in the exported image"
+            exit 1
+          fi
           echo "getcap: ${caps:-<none>}"
           case "$caps" in
             *cap_sys_nice*) ;;

@@ -96,6 +96,9 @@ junction.refs
 arch-pkgbuilds/
 kde-linux-packages.txt
 patches/
+# ...but never the BuildStream patch queues at the repo root: the rule above
+# silently dropped new freedesktop-sdk patches from commits.
+!/patches/
 
 # Old local-build Containerfiles
 /Containerfile
