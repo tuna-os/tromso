@@ -88,6 +88,22 @@ jobs:
           echo "kde_tar_path=${tar_path}" >> /tmp/race.env
           cat /tmp/race.env
 
+      - name: Capture package DB (solver-vs-layer diagnosis)
+        run: |
+          set -euo pipefail
+          # The pkgdb records exactly what the solver installed. If a
+          # requested package is absent here, the solver dropped it; if
+          # present here but missing from the tar, the layer assembly did.
+          tine/bin/tine buck build --show-output //tine-poc:kde-rootfs[pkgdb] | tee /tmp/race-pkgdb.txt
+          db_path=$(awk '{print $2}' /tmp/race-pkgdb.txt | head -n 1)
+          if [ -z "${db_path}" ] || [ ! -e "${db_path}" ]; then
+            echo "::error::kde-rootfs pkgdb not found in --show-output"
+            exit 1
+          fi
+          mkdir -p /tmp/pkgdb-out
+          cp -r "${db_path}" /tmp/pkgdb-out/
+          ls -la /tmp/pkgdb-out/
+
       - name: Export bootc OCI (lint explicitly skipped)
         run: |
           set -euo pipefail
@@ -201,3 +217,12 @@ jobs:
           path: race-manifest.json
           retention-days: 30
           if-no-files-found: error
+
+      - name: Upload package DB
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tine-race-pkgdb
+          path: /tmp/pkgdb-out/
+          retention-days: 30
+          if-no-files-found: warn
