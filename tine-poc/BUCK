@@ -56,6 +56,14 @@ image.rootfs_archive(
         "kernel",
         "kernel-modules",
         "dracut",
+        "dracut-config-generic",
+        "ostree",
+        "bootc",
+        "bootupd",
+        "systemd-boot-unsigned",
+        "shim-x64",
+        "grub2-efi-x64",
+        "selinux-policy-targeted",
         "linux-firmware",
         "NetworkManager",
         "accountsservice",
@@ -91,6 +99,10 @@ image.rootfs_archive(
         # Display-manager wiring mirrors elements/tromso/system-config.bst.
         image.run(["/usr/bin/systemctl", "enable", "sddm.service"], chroot = True),
         image.run(["/usr/bin/systemctl", "set-default", "graphical.target"], chroot = True),
+        # Kernel %post does not yield an initramfs in tine's box (verified
+        # missing in race-38fa511d), and bootc requires initramfs.img next
+        # to vmlinuz. Generate it explicitly; no $() — Buck claims that.
+        image.run(["/usr/bin/bash", "-c", "for k in /usr/lib/modules/*; do [ -f \"$k/vmlinuz\" ] || continue; /usr/bin/dracut --force --no-hostonly \"$k/initramfs.img\" \"${k##*/}\"; done"], chroot = True),
     ],
     install_docs = False,
     format = "tar",

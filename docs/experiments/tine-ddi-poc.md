@@ -68,6 +68,12 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   before the probe (run 37678608395 green).
 - Same run: `kde_tar_bytes=59` → buck-out outputs are CAS symlinks and
   plain `du` measured the link → `stat -L -c %s`.
+- 2026-10-07, corral `bootc create tine-kde` red at `bootc install
+  to-disk` with zero output → layer inspection of `race-38fa511d`:
+  image ships vmlinuz but no `bootc` binary and no `initramfs.img`
+  (kernel %post/dracut never ran in tine's box) → added `bootc`,
+  `bootupd`, `systemd-boot-unsigned`, `shim-x64`, `grub2-efi-x64`,
+  `selinux-policy-targeted`, `ostree` + explicit chrooted dracut op.
 
 ## Race result (2026-10-07, run 37681045503, `ubuntu-24.04` cold cache)
 
