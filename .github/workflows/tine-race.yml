@@ -81,7 +81,9 @@ jobs:
             echo "::error::kde-rootfs tar not found in --show-output"
             exit 1
           fi
-          echo "kde_tar_bytes=$(du -sb "${tar_path}" | cut -f1)" >> /tmp/race.env
+          # buck-out outputs are symlinks into CAS: du without -L reports
+          # the link size (~tens of bytes), so dereference for real bytes.
+          echo "kde_tar_bytes=$(stat -L -c %s "${tar_path}")" >> /tmp/race.env
           echo "kde_tar_path=${tar_path}" >> /tmp/race.env
           cat /tmp/race.env
 

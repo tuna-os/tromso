@@ -60,6 +60,15 @@ the last green multi-runner duration. Artifact: `tine-race-manifest`
 (30 days). Fair-reading caveat lives in the manifest: functional parity,
 not identical inputs (Fedora binary RPMs vs source-built KDE).
 
+## Troubleshooting log (symptom → cause → fix)
+
+- 2026-10-07, run 37677974715 red: `unshare -Urm` denied on
+  `ubuntu-24.04` → GH runners AppArmor-restrict unprivileged userns →
+  best-effort `sysctl kernel.apparmor_restrict_unprivileged_userns=0`
+  before the probe (run 37678608395 green).
+- Same run: `kde_tar_bytes=59` → buck-out outputs are CAS symlinks and
+  plain `du` measured the link → `stat -L -c %s`.
+
 ## Next steps (in order)
 
 1. Run `oci-export.sh` where user namespaces + bootc exist (this dev host
