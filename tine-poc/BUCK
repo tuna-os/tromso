@@ -104,6 +104,10 @@ image.rootfs_archive(
         # missing in race-38fa511d), and bootc requires initramfs.img next
         # to vmlinuz. Generate it explicitly; no $() — Buck claims that.
         image.run(["/usr/bin/bash", "-c", "for k in /usr/lib/modules/*; do [ -f \"$k/vmlinuz\" ] || continue; /usr/bin/dracut --force --no-hostonly \"$k/initramfs.img\" \"${k##*/}\"; done"], chroot = True),
+        # No RPM ships /usr/lib/ostree/prepare-root.conf (verified via the
+        # snapshot filelists: only a doc sample inside bootc). Author the
+        # canonical composefs content (bootc-dev/bootc baseimage) directly.
+        image.write_file("/usr/lib/ostree/prepare-root.conf", "[composefs]\nenabled = true\n"),
     ],
     install_docs = False,
     format = "tar",
