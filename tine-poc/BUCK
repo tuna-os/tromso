@@ -61,6 +61,13 @@ image.rootfs_archive(
         "composefs",
         "bootc",
         "bootupd",
+        # bootc install shells out to mkfs/tune2fs from the target image
+        # itself (verified: "Creating root filesystem (btrfs)" then bare
+        # ENOENT — mkfs.btrfs absent). util-linux comes via deps already.
+        "btrfs-progs",
+        "xfsprogs",
+        "dosfstools",
+        "e2fsprogs",
         "systemd-boot-unsigned",
         "shim-x64",
         "grub2-efi-x64",

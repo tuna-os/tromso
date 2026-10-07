@@ -76,8 +76,13 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   `selinux-policy-targeted`, `ostree` + explicit chrooted dracut op.
 - Same day, `race-f35ac4ca` install failed audibly:
   `Failed to find ostree/prepare-root.conf` (corral picks the
-  composefs backend once systemd-boot exists; the conf ships in the
-  `composefs` package, which was excluded) → added `composefs`.
+  composefs backend once systemd-boot exists). Filelists proof: no RPM
+  ships it live, only a doc sample in `bootc` → author canonical
+  `[composefs] enabled = true` via `image.write_file`.
+- `race-0e89b443`: `Creating root filesystem (btrfs) on /dev/vdc3`
+  then bare ENOENT → bootc execs `mkfs.*` from the target image and ours
+  lacked all of them → added `btrfs-progs`, `xfsprogs`, `dosfstools`,
+  `e2fsprogs`.
 
 ## Race result (2026-10-07, run 37681045503, `ubuntu-24.04` cold cache)
 
