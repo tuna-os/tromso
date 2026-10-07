@@ -105,7 +105,21 @@ jobs:
           echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
           docker pull "${TROMso_REF}"
           echo "tromso_oci_bytes=$(docker image inspect "${TROMso_REF}" --format '{{.Size}}')" >> /tmp/race.env
-          run_json=$(gh run list --workflow build-tromso-multirunner.yml --branch main --status success --limit 1 --json databaseId,createdAt,updatedAt)
+          # The runs API occasionally returns an empty list right after
+          # other API activity; retry rather than failing the whole race.
+          run_json=""
+          for attempt in 1 2 3 4 5; do
+            run_json=$(gh run list --workflow build-tromso-multirunner.yml --branch main --status success --limit 1 --json databaseId,createdAt,updatedAt)
+            if [ "${run_json}" != "[]" ]; then
+              break
+            fi
+            echo "empty runs response (attempt ${attempt}/5), retrying..."
+            sleep 30
+          done
+          if [ "${run_json}" = "[]" ]; then
+            echo "::error::no successful build-tromso-multirunner runs found after 5 attempts"
+            exit 1
+          fi
           echo "${run_json}" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['databaseId'])"
           echo "${run_json}" | python3 -c "
           import json, sys
