@@ -101,7 +101,9 @@ jobs:
             exit 1
           fi
           mkdir -p /tmp/pkgdb-out
-          cp -r "${db_path}" /tmp/pkgdb-out/
+          # buck-out outputs are symlinks into CAS: dereference, or the
+          # artifact is a dangling link (as happened 2026-10-07).
+          cp -L "${db_path}" /tmp/pkgdb-out/
           ls -la /tmp/pkgdb-out/
 
       - name: Export bootc OCI (lint explicitly skipped)
