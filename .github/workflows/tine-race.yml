@@ -34,6 +34,17 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Enable unprivileged user namespaces
+        run: |
+          set -euo pipefail
+          # Ubuntu 24.04 restricts unprivileged userns via AppArmor; tine
+          # needs them for every build action. Best-effort lift (keys may
+          # not exist on all kernels); the probe below is the real verdict.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 2>/dev/null \
+            || echo "apparmor userns key not accepted"
+          sudo sysctl -w kernel.unprivileged_userns_clone=1 2>/dev/null \
+            || echo "userns_clone key not accepted"
+
       - name: Probe build prerequisites
         run: |
           set -euo pipefail
