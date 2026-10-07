@@ -13,7 +13,7 @@ on:
 permissions:
   contents: read
   actions: read
-  packages: read
+  packages: write
 
 concurrency:
   group: tine-race-${{ github.ref }}
@@ -21,6 +21,7 @@ concurrency:
 
 env:
   TROMso_REF: ghcr.io/tuna-os/tromso:latest
+  TINE_REF: ghcr.io/tuna-os/tine-kde
 
 jobs:
   race:
@@ -97,6 +98,18 @@ jobs:
           buildah push "tine-kde:race" "oci:/tmp/tine-oci"
           echo "kde_oci_bytes=$(du -sb /tmp/tine-oci | cut -f1)" >> /tmp/race.env
 
+      - name: Push tine-kde to GHCR (for corral/KubeVirt boot test)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_TOKEN}" | buildah login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          tag="race-${GITHUB_SHA::8}"
+          buildah tag "tine-kde:race" "${TINE_REF}:${tag}"
+          buildah push "${TINE_REF}:${tag}"
+          echo "tine_ref=${TINE_REF}:${tag}" >> /tmp/race.env
+          echo "Pushed ${TINE_REF}:${tag}"
+
       - name: Tromso baseline (published image + last green build)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -151,6 +164,7 @@ jobs:
                   'kde_rootfs_secs': int(env['kde_rootfs_secs']),
                   'kde_tar_bytes': int(env['kde_tar_bytes']),
                   'kde_oci_bytes': int(env['kde_oci_bytes']),
+                  'ghcr_ref': env.get('tine_ref', 'PUSH FAILED OR SKIPPED'),
                   'bootc_lint': 'SKIPPED (no bootc on runner)',
               },
               'tromso_bst': {
