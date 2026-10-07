@@ -120,6 +120,13 @@ image.rootfs_archive(
         # the bootloader is installed at install time, so remove them).
         image.run(["/usr/bin/mkdir", "-p", "/sysroot"], chroot = True),
         image.run(["/usr/bin/bash", "-c", "rm -rf /boot/efi /boot/grub2 /boot/loader; mkdir -p /boot"], chroot = True),
+        # Diagnosability: serial console kargs (KubeVirt console is silent
+        # otherwise), sshd for corral's --root-ssh-authorized-keys login.
+        image.write_file("/usr/lib/bootc/kargs.d/10-console.toml", "kargs = [\"console=ttyS0,115200\"]\n"),
+        image.run(["/usr/bin/systemctl", "enable", "sshd.service"], chroot = True),
+        # Nothing enables the network by default in this rootfs (no route
+        # to the booted VM); enable NetworkManager explicitly.
+        image.run(["/usr/bin/systemctl", "enable", "NetworkManager.service"], chroot = True),
     ],
     install_docs = False,
     format = "tar",

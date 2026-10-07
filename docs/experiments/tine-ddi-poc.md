@@ -88,6 +88,14 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   op; WARN `nonempty-boot` (`/boot/efi`, `/boot/grub2` from shim/grub2)
   → `rm -rf` op keeping empty `/boot`. Also fixed `oci-export.sh`:
   lint takes `--rootfs DIR`, not an image ref.
+- OPEN: same BUCK+pin builds DIFFERENT tars per host. CI `race-0e89b443`
+  layer lacks `mkfs.btrfs` et al, but its own `pkgdb.sqlite` (decoded via
+  string scan: solver DID record `btrfs-progs`, `xfsprogs`, `dosfstools`,
+  `e2fsprogs`) and the utah-VM-built tar from identical inputs HAS all of
+  them; tar→buildah copy verified lossless. So files vanish between rpm
+  install and tar on the GH runner only — suspect tine install/finalize
+  host-dependence, not the solver. Repro: rebuild in VM (in flight) to
+  test determinism; next step upstream issue to amutable-systems/tine.
 
 ## Harness validation via utah (2026-10-07)
 
