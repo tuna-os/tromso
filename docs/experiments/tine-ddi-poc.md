@@ -69,11 +69,25 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
 - Same run: `kde_tar_bytes=59` → buck-out outputs are CAS symlinks and
   plain `du` measured the link → `stat -L -c %s`.
 
+## Race result (2026-10-07, run 37681045503, `ubuntu-24.04` cold cache)
+
+| side | build time | shipped bytes |
+|---|---|---|
+| tine `boot-demo` DDI (raw disk) | 69 s | — (disk artifact, not measured) |
+| tine `kde-rootfs` tar | 106 s | 2.24 GB (uncompressed) |
+| tine kde OCI (`containers.bootc` labels, lint SKIPPED) | same build | 1.01 GB on disk (gzip-compressed layers) |
+| tromso bst `ghcr.io/tuna-os/tromso:latest` | ~487 min (run 37580695717) | 8.52 GB (`docker inspect` = uncompressed) |
+
+Fair reading: the time gap mostly measures binary-RPM assembly vs
+from-source compilation, not tool superiority. The size gap is partly
+real (tine image is a minimal KDE set; tromso ships the full stack) and
+partly compression accounting (compare 8.52 GB ↔ 2.24 GB uncompressed,
+≈3.8×). Blocking before any switch talk: `bootc container lint` has
+never passed — no bootc binary on GH runners or this dev host.
+
 ## Next steps (in order)
 
-1. Run `oci-export.sh` where user namespaces + bootc exist (this dev host
-   has neither: `unshare -Urm` is denied, no `bootc` binary) and record
-   wall time + size vs the `bst` tromso image.
+1. Run `bootc container lint` on the tine OCI where bootc exists.
 2. Boot `boot-demo` in QEMU where `/dev/kvm` exists.
 3. Verdict: keep tine for DDIs, drop it, or revisit after upstream KDE
    BuildStream work (issue #85) lands.
