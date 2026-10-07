@@ -70,7 +70,9 @@ buildah rm "${CTR}" >/dev/null
 if [ "${SKIP_LINT}" -eq 1 ]; then
   echo "==> WARNING: bootc container lint SKIPPED (--skip-lint); ${TAG} is unvalidated"
 else
+  # lint takes a rootfs dir, not an image ref (it is designed for
+  # `RUN bootc container lint` inside a Containerfile build).
   echo "==> Running bootc container lint..."
-  bootc container lint "${TAG}"
+  bootc container lint --rootfs "${WORK}"
   echo "==> OK: ${TAG} passed bootc container lint"
 fi

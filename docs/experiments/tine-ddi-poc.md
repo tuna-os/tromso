@@ -83,6 +83,23 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   then bare ENOENT → bootc execs `mkfs.*` from the target image and ours
   lacked all of them → added `btrfs-progs`, `xfsprogs`, `dosfstools`,
   `e2fsprogs`.
+- `bootc container lint` (run in the utah VM against the VM-built image,
+  12 pass): FAIL `baseimage-root: Missing /sysroot` → `mkdir /sysroot`
+  op; WARN `nonempty-boot` (`/boot/efi`, `/boot/grub2` from shim/grub2)
+  → `rm -rf` op keeping empty `/boot`. Also fixed `oci-export.sh`:
+  lint takes `--rootfs DIR`, not an image ref.
+
+## Harness validation via utah (2026-10-07)
+
+`ghcr.io/projectbluefin/utah:testing` (Bluefin-on-Hummingbird bootc
+image) through the same corral/KubeVirt path (`corral bootc create
+utah-test`, composefs/btrfs backend): `CORRAL_BUILD_OK`, VM boots, SSH
+works (`NAME="Utah"`, bootc 1.16.13). The harness is proven — remaining
+failures are tine image content, not the cluster. Reference answers
+from the live utah VM (`rpm -qf`): `mkfs.btrfs` ← `btrfs-progs`,
+`mkfs.vfat` ← `dosfstools`, `prepare-root.conf` owned by NO package
+(image-authored, matching our `write_file`), `bootc`/`bootupd` present.
+(`mkfs.xfs` absent even there — xfs backend unsupported by reference.)
 
 ## Race result (2026-10-07, run 37681045503, `ubuntu-24.04` cold cache)
 

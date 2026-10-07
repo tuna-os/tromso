@@ -115,6 +115,11 @@ image.rootfs_archive(
         # snapshot filelists: only a doc sample inside bootc). Author the
         # canonical composefs content (bootc-dev/bootc baseimage) directly.
         image.write_file("/usr/lib/ostree/prepare-root.conf", "[composefs]\nenabled = true\n"),
+        # bootc container lint baseimage-root fails without /sysroot, and
+        # rejects payload in /boot (shim/grub2 drop efi/grub2 dirs there;
+        # the bootloader is installed at install time, so remove them).
+        image.run(["/usr/bin/mkdir", "-p", "/sysroot"], chroot = True),
+        image.run(["/usr/bin/bash", "-c", "rm -rf /boot/efi /boot/grub2 /boot/loader; mkdir -p /boot"], chroot = True),
     ],
     install_docs = False,
     format = "tar",
