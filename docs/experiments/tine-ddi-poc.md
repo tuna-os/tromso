@@ -49,6 +49,17 @@ an initramfs inside tine's box (lint will say), and whether the chrooted
 `systemctl enable sddm` / `set-default graphical.target` ops behave like
 their `elements/tromso/system-config.bst` equivalents.
 
+## Head-to-head race (`.github/workflows/tine-race.yml`)
+
+Non-required experiment workflow: on `workflow_dispatch` or push to
+`exp/tine-ddi-poc`, one `ubuntu-24.04` runner (cold cache) times the tine
+`boot-demo` + `kde-rootfs` builds, exports the OCI layout
+(`--skip-lint`: no bootc on runners — recorded in the manifest, not
+hidden), then baselines against `ghcr.io/tuna-os/tromso:latest` size and
+the last green multi-runner duration. Artifact: `tine-race-manifest`
+(30 days). Fair-reading caveat lives in the manifest: functional parity,
+not identical inputs (Fedora binary RPMs vs source-built KDE).
+
 ## Next steps (in order)
 
 1. Run `oci-export.sh` where user namespaces + bootc exist (this dev host

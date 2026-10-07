@@ -1,0 +1,162 @@
+# EXPERIMENT ONLY — head-to-head tine vs BuildStream on identical runner class.
+# Not a required check, never will be: it exists to produce numbers, not gates.
+# Triggers: manual dispatch, or any push to the experiment branch (the workflow
+# must live on main before dispatch appears in the UI, so push-to-branch is
+# how the first runs happen).
+name: tine-race (experiment)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [exp/tine-ddi-poc]
+
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
+concurrency:
+  group: tine-race-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TROMso_REF: ghcr.io/tuna-os/tromso:latest
+
+jobs:
+  race:
+    name: Build tine images, compare with tromso baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout (with tine submodule)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Probe build prerequisites
+        run: |
+          set -euo pipefail
+          python3 --version
+          command -v zstd
+          if unshare -Urm true 2>/dev/null; then
+            echo "userns: available"
+          else
+            echo "::error::unprivileged user namespaces unavailable — tine cannot build on this runner"
+            exit 1
+          fi
+          df -h /
+
+      - name: Install buildah
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y -q buildah zstd
+
+      - name: Build tine images (timed)
+        run: |
+          set -euo pipefail
+          tine/bin/tine init </dev/null
+          : > /tmp/race.env
+          start=$(date +%s)
+          tine/bin/tine buck build //tine-poc:boot-demo
+          echo "boot_demo_secs=$(( $(date +%s) - start ))" >> /tmp/race.env
+          start=$(date +%s)
+          tine/bin/tine buck build //tine-poc:kde-rootfs
+          echo "kde_rootfs_secs=$(( $(date +%s) - start ))" >> /tmp/race.env
+          tine/bin/tine buck build --show-output //tine-poc:boot-demo //tine-poc:kde-rootfs | tee /tmp/race-outputs.txt
+          tar_path=$(awk '$1 ~ /kde-rootfs$/ {print $2}' /tmp/race-outputs.txt | head -n 1)
+          if [ -z "${tar_path}" ] || [ ! -f "${tar_path}" ]; then
+            echo "::error::kde-rootfs tar not found in --show-output"
+            exit 1
+          fi
+          echo "kde_tar_bytes=$(du -sb "${tar_path}" | cut -f1)" >> /tmp/race.env
+          echo "kde_tar_path=${tar_path}" >> /tmp/race.env
+          cat /tmp/race.env
+
+      - name: Export bootc OCI (lint explicitly skipped)
+        run: |
+          set -euo pipefail
+          # No bootc binary on ubuntu-24.04 runners: record the gap instead of
+          # faking a pass. The manifest marks lint as SKIPPED.
+          ./tine-poc/oci-export.sh tine-kde:race --skip-lint
+          rm -rf /tmp/tine-oci
+          buildah push "tine-kde:race" "oci:/tmp/tine-oci"
+          echo "kde_oci_bytes=$(du -sb /tmp/tine-oci | cut -f1)" >> /tmp/race.env
+
+      - name: Tromso baseline (published image + last green build)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          docker pull "${TROMso_REF}"
+          echo "tromso_oci_bytes=$(docker image inspect "${TROMso_REF}" --format '{{.Size}}')" >> /tmp/race.env
+          run_json=$(gh run list --workflow build-tromso-multirunner.yml --branch main --status success --limit 1 --json databaseId,createdAt,updatedAt)
+          echo "${run_json}" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['databaseId'])"
+          echo "${run_json}" | python3 -c "
+          import json, sys
+          from datetime import datetime, timezone
+          r = json.load(sys.stdin)[0]
+          fmt = '%Y-%m-%dT%H:%M:%SZ'
+          mins = (datetime.strptime(r['updatedAt'], fmt).replace(tzinfo=timezone.utc) - datetime.strptime(r['createdAt'], fmt).replace(tzinfo=timezone.utc)).total_seconds() / 60
+          print('tromso_build_minutes={:.0f}'.format(mins))
+          print('tromso_run_id={}'.format(r['databaseId']))
+          " >> /tmp/race.env
+          cat /tmp/race.env
+
+      - name: Write manifest and summary
+        run: |
+          set -euo pipefail
+          python3 - <<'EOF'
+          import os
+          env = {}
+          with open('/tmp/race.env') as f:
+              for line in f:
+                  line = line.strip()
+                  if line and '=' in line and not line.startswith('#'):
+                      k, v = line.split('=', 1)
+                      env[k] = v
+          manifest = {
+              'runner': 'ubuntu-24.04 (GitHub-hosted, cold cache)',
+              'tine': {
+                  'boot_demo_secs': int(env['boot_demo_secs']),
+                  'kde_rootfs_secs': int(env['kde_rootfs_secs']),
+                  'kde_tar_bytes': int(env['kde_tar_bytes']),
+                  'kde_oci_bytes': int(env['kde_oci_bytes']),
+                  'bootc_lint': 'SKIPPED (no bootc on runner)',
+              },
+              'tromso_bst': {
+                  'ref': os.environ.get('TROMso_REF', ''),
+                  'image_bytes': int(env['tromso_oci_bytes']),
+                  'last_green_build_minutes': float(env['tromso_build_minutes']),
+                  'last_green_run_id': env['tromso_run_id'],
+              },
+              'caveat': 'Functional parity (bootable KDE Plasma desktop), NOT identical inputs: '
+                         'tine assembles pinned Fedora binary RPMs; BuildStream compiles the KDE '
+                         'stack from source. Time comparison favors whoever externalizes compile '
+                         'time; size comparison is apples-to-apples on shipped bytes.',
+          }
+          import json
+          with open('race-manifest.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+          t = manifest['tine']
+          b = manifest['tromso_bst']
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('## tine vs tromso race (experiment)\n\n')
+              f.write('| side | build time | shipped bytes |\n|---|---|---|\n')
+              f.write('| tine kde-rootfs (tar) | {} s | {} |\n'.format(t['kde_rootfs_secs'], t['kde_tar_bytes']))
+              f.write('| tine kde OCI (bootc labels, lint SKIPPED) | — (same build) | {} |\n'.format(t['kde_oci_bytes']))
+              f.write('| tromso bst {} | ~{} min (run {}) | {} |\n'.format(b['ref'], b['last_green_build_minutes'], b['last_green_run_id'], b['image_bytes']))
+              f.write('\n{}\n'.format(manifest['caveat']))
+          EOF
+          cat race-manifest.json
+
+      - name: Upload race manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tine-race-manifest
+          path: race-manifest.json
+          retention-days: 30
+          if-no-files-found: error

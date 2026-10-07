@@ -6,10 +6,19 @@
 #
 # Pipeline: tine buck build -> rootfs tar -> buildah from scratch (+ bootc
 # labels) -> bootc container lint. Needs user namespaces (tine builds),
-# buildah, and bootc on PATH. Tested on: <not yet run — see docs>.
+# buildah, and bootc on PATH (bootc only when lint runs).
+# Tested on: <not yet run — see docs>.
 set -euo pipefail
 
-TAG="${1:-tine-kde:latest}"
+TAG="tine-kde:latest"
+SKIP_LINT=0
+for arg in "$@"; do
+  case "${arg}" in
+    --skip-lint) SKIP_LINT=1 ;;
+    -*) echo "ERROR: unknown flag: ${arg}" >&2; exit 1 ;;
+    *) TAG="${arg}" ;;
+  esac
+done
 
 need() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -18,7 +27,9 @@ need() {
   }
 }
 need buildah
-need bootc
+if [ "${SKIP_LINT}" -ne 1 ]; then
+  need bootc
+fi
 
 case "$(uname -m)" in
   x86_64) OCI_ARCH="amd64" ;;
@@ -56,6 +67,10 @@ buildah config \
 buildah commit "${CTR}" "${TAG}"
 buildah rm "${CTR}" >/dev/null
 
-echo "==> Running bootc container lint..."
-bootc container lint "${TAG}"
-echo "==> OK: ${TAG} passed bootc container lint"
+if [ "${SKIP_LINT}" -eq 1 ]; then
+  echo "==> WARNING: bootc container lint SKIPPED (--skip-lint); ${TAG} is unvalidated"
+else
+  echo "==> Running bootc container lint..."
+  bootc container lint "${TAG}"
+  echo "==> OK: ${TAG} passed bootc container lint"
+fi
