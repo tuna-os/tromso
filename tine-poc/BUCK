@@ -58,6 +58,7 @@ image.rootfs_archive(
         "dracut",
         "dracut-config-generic",
         "ostree",
+        "composefs",
         "bootc",
         "bootupd",
         "systemd-boot-unsigned",

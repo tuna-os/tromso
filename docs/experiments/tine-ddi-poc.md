@@ -74,6 +74,10 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   (kernel %post/dracut never ran in tine's box) → added `bootc`,
   `bootupd`, `systemd-boot-unsigned`, `shim-x64`, `grub2-efi-x64`,
   `selinux-policy-targeted`, `ostree` + explicit chrooted dracut op.
+- Same day, `race-f35ac4ca` install failed audibly:
+  `Failed to find ostree/prepare-root.conf` (corral picks the
+  composefs backend once systemd-boot exists; the conf ships in the
+  `composefs` package, which was excluded) → added `composefs`.
 
 ## Race result (2026-10-07, run 37681045503, `ubuntu-24.04` cold cache)
 
