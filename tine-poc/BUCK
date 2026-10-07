@@ -1,0 +1,97 @@
+# EXPERIMENT ONLY — not wired to CI, Justfile, or elements/.
+# Try tine (Buck2-based DDI builder) next to the BuildStream pipeline.
+# Run everything through tine/bin/tine from the repo root, e.g.:
+#   tine/bin/tine init                    # one-time: registers the tine cell
+#   tine/bin/tine buck build //tine-poc:boot-demo.fedora
+#   tine/bin/tine buck run //tine-poc:boot-demo-vm.fedora
+"""Minimal Fedora bootable-disk PoC plus a KDE desktop sketch (package list TBD)."""
+
+load("@tine//distribution:defs.bzl", "distribution")
+load("@tine//image:defs.bzl", "image")
+load("@tine//package:defs.bzl", "package")
+
+# Consumer-owned solve context rooted at tine's Fedora Rawhide catalog.
+# A real product would track its own catalog instead of following tine's.
+package.manager(
+    name = "image.package-manager",
+    base = "tine//catalog:fedora.rawhide.package-manager",
+)
+
+# Smallest thing that proves the DDI path: bootable verity GPT disk.
+image.bootable_disk(
+    name = "boot-demo",
+    package_manager = ":image.package-manager",
+    definitions = image.DEFAULT_USR_VERITY_PARTITIONS,
+    version = "unversioned",
+    package_sets = ["bootable"],
+    packages = ["bash"],
+    install_docs = False,
+    output_size = "2G",
+)
+
+image.vm(
+    name = "boot-demo-vm",
+    autologin = "root",
+    credentials = {
+        "firstboot.timezone": "UTC",
+    },
+    box = "tine//catalog:fedora.rawhide.box",
+    image = ":boot-demo",
+)
+
+# KDE Plasma rootfs (tar) for comparison with elements/oci/tromso.bst and
+# as input to oci-export.sh (bootc-compatible OCI). Package names verified
+# against tine//catalog snapshot fedora.rawhide.x86_64.json on 2026-10-07.
+image.rootfs_archive(
+    name = "kde-rootfs",
+    package_manager = ":image.package-manager",
+    packages = [
+        "bash",
+        "coreutils",
+        "systemd",
+        "glibc",
+        "dbus",
+        "polkit",
+        "fedora-release-common",
+        "kernel",
+        "kernel-modules",
+        "dracut",
+        "linux-firmware",
+        "NetworkManager",
+        "accountsservice",
+        "upower",
+        "udisks2",
+        "pipewire",
+        "wireplumber",
+        "mesa-dri-drivers",
+        "xorg-x11-server-Xwayland",
+        "sddm",
+        "sddm-wayland-plasma",
+        "sddm-breeze",
+        "plasma-desktop",
+        "plasma-workspace",
+        "kwin",
+        "dolphin",
+        "konsole",
+        "kate",
+        "kinfocenter",
+        "plasma-nm",
+        "plasma-pa",
+        "powerdevil",
+        "kscreen",
+        "bluedevil",
+        "plasma-firewall",
+        "kde-gtk-config",
+        "breeze-gtk",
+        "plasma-lookandfeel-fedora",
+        "kde-settings",
+        "xdg-desktop-portal-kde",
+    ],
+    ops = [
+        # Display-manager wiring mirrors elements/tromso/system-config.bst.
+        image.run(["/usr/bin/systemctl", "enable", "sddm.service"], chroot = True),
+        image.run(["/usr/bin/systemctl", "set-default", "graphical.target"], chroot = True),
+    ],
+    install_docs = False,
+    format = "tar",
+)
