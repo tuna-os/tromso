@@ -94,8 +94,16 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   `e2fsprogs`) and the utah-VM-built tar from identical inputs HAS all of
   them; tar→buildah copy verified lossless. So files vanish between rpm
   install and tar on the GH runner only — suspect tine install/finalize
-  host-dependence, not the solver. Repro: rebuild in VM (in flight) to
-  test determinism; next step upstream issue to amutable-systems/tine.
+  host-dependence, not the solver. Next step: upstream issue to
+  amutable-systems/tine (deferred while booting: latest CI image
+  `race-2c40823f` HAS the tools, so current line is green regardless).
+- `race-83f7d6e4` installs (`CORRAL_BUILD_OK`) but the guest drops to a
+  dracut emergency shell at `initrd-switch-root`: unpacked initramfs has
+  NO ostree dracut module (its `check()` declines unless forced; the
+  `50ostree` dir ships in the `ostree` package but dracut skips it) →
+  `--add ostree` on the dracut op. Read via
+  `virsh dumpxml` → serial `-log` file in the virt-launcher pod
+  (`virtctl console` alone shows nothing after the fact).
 
 ## Harness validation via utah (2026-10-07)
 
