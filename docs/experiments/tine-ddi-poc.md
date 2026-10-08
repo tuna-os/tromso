@@ -114,6 +114,12 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   "Initial Setup" (interactive timezone prompt stalls boot): pre-seed
   `/etc/locale.conf`, `/etc/hostname`, `/etc/localtime` symlink via ops
   (zoneinfo ships; factory locale.conf is not applied).
+- Same image, SSH `Permission denied (publickey)` despite correct key
+  file (600, right key): file labeled `var_t`, sshd enforcing → denied.
+  bootc writes the key via tmpfiles without proper context. Fix in
+  image: first-boot oneshot `restorecon -R /root/.ssh` before sshd,
+  plus mask `systemd-firstboot.service` (only remaining prompt was root
+  password; image is key-only by design).
 
 ## Harness validation via utah (2026-10-07)
 
