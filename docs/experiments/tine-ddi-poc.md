@@ -161,12 +161,38 @@ partly compression accounting (compare 8.52 GB ↔ 2.24 GB uncompressed,
 ≈3.8×). Blocking before any switch talk: `bootc container lint` has
 never passed — no bootc binary on GH runners or this dev host.
 
-## Next steps (in order)
+## BOOT SUCCESS (2026-10-08, `race-12dc062a` via corral/KubeVirt)
 
-1. Run `bootc container lint` on the tine OCI where bootc exists.
-2. Boot `boot-demo` in QEMU where `/dev/kvm` exists.
-3. Verdict: keep tine for DDIs, drop it, or revisit after upstream KDE
-   BuildStream work (issue #85) lands.
+`corral bootc create tine-kde` → `CORRAL_BUILD_OK` → VM boots to
+`graphical.target`, SSH as root works first try. Verified live:
+Plasma 6.7.91, SDDM 0.21, KWin, bootc 1.16; NetworkManager, sshd,
+display-manager active; seat0 holds greeter session c1. The `boot-demo`
+DDI path (`bootable_disk`) was not re-tested — all cycles went to the
+bootc OCI, which is the harder and more valuable target.
+
+## Verdict (experiment)
+
+- tine CAN produce a bootable KDE Plasma bootc image from Fedora binary
+  RPMs: 106 s build on a cold GH runner, ~1 GB OCI, boots under KVM.
+- It CANNOT replace the tromso pipeline as-is: different inputs
+  (Fedora RPMs vs source-built KDE/freedesktop-sdk), no OCI-native
+  rule (our export is a tar→buildah shim), and every bootc requirement
+  (kernel+initramfs+dracut modules, bootloader stack, prepare-root,
+  sysroot, kargs, firstboot seeding, /root symlink, key labeling) had
+  to be discovered by booting and fixed by hand.
+- Recommended: keep the race workflow + `tine-poc/` as a living
+  prototype (cheap, ~10 min/run, non-blocking); revisit a switch only
+  if tine gains OCI output or the KDE-on-RPM tradeoff becomes wanted.
+  Upstream issue worth filing: same pin+BUCK produced different tars
+  per host (`race-0e89b443` lacked files its own pkgdb records).
+
+## Next steps (if continuing)
+
+1. `bootc container lint --fatal-warnings` green in CI (needs bootc on
+   runners or a lint job on the KubeVirt cluster).
+2. GUI proof: SDDM greeter screenshot / test login (needs VNC or
+   `corral viewer` from a headed machine).
+3. Upstream issue to amutable-systems/tine on the host-dependent tar.
 
 ## Guard rails for this experiment
 
