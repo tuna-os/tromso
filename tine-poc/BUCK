@@ -128,6 +128,12 @@ image.rootfs_archive(
         # Nothing enables the network by default in this rootfs (no route
         # to the booted VM); enable NetworkManager explicitly.
         image.run(["/usr/bin/systemctl", "enable", "NetworkManager.service"], chroot = True),
+        # Pre-seed firstboot answers or the boot stalls at an interactive
+        # "Initial Setup" timezone prompt (verified on serial). zoneinfo
+        # ships in the image; factory locale.conf does not get applied.
+        image.write_file("/etc/locale.conf", "LANG=C.UTF-8\n"),
+        image.write_file("/etc/hostname", "tine-kde\n"),
+        image.run(["/usr/bin/ln", "-sf", "../usr/share/zoneinfo/UTC", "/etc/localtime"], chroot = True),
     ],
     install_docs = False,
     format = "tar",

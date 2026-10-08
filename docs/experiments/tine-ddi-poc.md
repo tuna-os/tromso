@@ -110,6 +110,10 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   dracut module too (`51bootc/` ships in image, declined like ostree)
   → `--add "ostree bootc"`. Interactive emergency-shell diagnosis works
   via staged stdin to `virtctl console`.
+- `race-02648877` boots past switch-root into systemd-firstboot
+  "Initial Setup" (interactive timezone prompt stalls boot): pre-seed
+  `/etc/locale.conf`, `/etc/hostname`, `/etc/localtime` symlink via ops
+  (zoneinfo ships; factory locale.conf is not applied).
 
 ## Harness validation via utah (2026-10-07)
 
