@@ -116,10 +116,11 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   (zoneinfo ships; factory locale.conf is not applied).
 - Same image, SSH `Permission denied (publickey)` despite correct key
   file (600, right key): file labeled `var_t`, sshd enforcing → denied.
-  bootc writes the key via tmpfiles without proper context. Fix in
-  image: first-boot oneshot `restorecon -R /root/.ssh` before sshd,
-  plus mask `systemd-firstboot.service` (only remaining prompt was root
-  password; image is key-only by design).
+  A custom relabel oneshot died (its `/etc` wants-symlink vanished from
+  the deployed tree). Fix: `z` rules in `/usr/lib/tmpfiles.d/` relabel
+  unconditionally every boot and live in the image, plus mask
+  `systemd-firstboot.service` (only remaining prompt was root password;
+  image is key-only by design).
 
 ## Harness validation via utah (2026-10-07)
 

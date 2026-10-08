@@ -135,10 +135,11 @@ image.rootfs_archive(
         image.write_file("/etc/hostname", "tine-kde\n"),
         image.run(["/usr/bin/ln", "-sf", "../usr/share/zoneinfo/UTC", "/etc/localtime"], chroot = True),
         # bootc injects the install-time SSH key via tmpfiles, but it lands
-        # mislabeled (var_t) and sshd (enforcing) refuses it. Relabel on
-        # first boot, before sshd can accept connections.
-        image.write_file("/usr/lib/systemd/system/tine-poc-ssh-labels.service", "[Unit]\nDescription=Tine PoC: label root SSH keys on first boot\nConditionFirstBoot=yes\nAfter=local-fs.target systemd-tmpfiles-setup.service\nBefore=sshd.service sshd.socket\nDefaultDependencies=no\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/restorecon -R /root/.ssh\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n"),
-        image.run(["/usr/bin/systemctl", "enable", "tine-poc-ssh-labels.service"], chroot = True),
+        # mislabeled (var_t) and sshd (enforcing) refuses it; a custom
+        # oneshot proved fragile (its /etc wants-symlink vanished at
+        # deploy). tmpfiles z-rules relabel unconditionally every boot and
+        # live in /usr/lib, so use those instead.
+        image.write_file("/usr/lib/tmpfiles.d/tine-poc-ssh.conf", "z /root/.ssh 0700 root root -\nz /root/.ssh/authorized_keys 0600 root root -\n"),
         # With locale/hostname/timezone pre-seeded, firstboot only ever
         # prompts for a root password and stalls headless boots. The image
         # is key-only by design (see unit above), so mask it; machine-id is
