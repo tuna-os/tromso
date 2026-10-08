@@ -143,6 +143,11 @@ image.rootfs_archive(
         # var.mount and before sshd.
         image.write_file("/usr/lib/systemd/system/tine-poc-ssh-labels.service", "[Unit]\nDescription=Tine PoC: label root SSH keys after /var mount\nAfter=var.mount systemd-tmpfiles-setup.service\nBefore=sshd.service sshd.socket\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/chcon -u system_u -t ssh_home_t /root/.ssh /root/.ssh/authorized_keys\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n"),
         image.run(["/usr/bin/bash", "-c", "mkdir -p /usr/lib/systemd/system/multi-user.target.wants && ln -sf ../tine-poc-ssh-labels.service /usr/lib/systemd/system/multi-user.target.wants/tine-poc-ssh-labels.service"], chroot = True),
+        # sshd reads ~root/.ssh, but the install-time key lands in
+        # /var/roothome/.ssh. Working images (utah) ship /root as a
+        # symlink to var/roothome; ours was a real dir, so sshd never saw
+        # the key (and the relabel unit hit the wrong path too).
+        image.run(["/usr/bin/bash", "-c", "rm -rf /root && ln -s var/roothome /root"], chroot = True),
         # With locale/hostname/timezone pre-seeded, firstboot only ever
         # prompts for a root password and stalls headless boots. The image
         # is key-only by design (see unit above), so mask it; machine-id is

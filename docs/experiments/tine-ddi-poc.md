@@ -124,6 +124,12 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   so `var_t` "matches". Fix: explicit `chcon -t ssh_home_t` (matches
   working utah reference exactly), plus masked firstboot (image is
   key-only by design).
+- Real root cause a round later: deployed `/root` was a REAL DIR while
+  the key lands in `/var/roothome/.ssh` — sshd never even looked at the
+  key file (and the relabel unit pathed the wrong tree, hence "No such
+  file"). Working images ship `/root -> var/roothome` (utah reference)
+  → replace the dir with that symlink in an op. The chcon unit stays
+  (label is still wrong without it).
 - Same journal: `pam_systemd.so` missing (SDDM/logind sessions broken) →
   added `systemd-pam` (split-subpackage class of bug, same as mkfs).
 
