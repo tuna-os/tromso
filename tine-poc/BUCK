@@ -74,6 +74,7 @@ image.rootfs_archive(
         "selinux-policy-targeted",
         "linux-firmware",
         "NetworkManager",
+        "openssh-server",
         "accountsservice",
         "upower",
         "udisks2",
