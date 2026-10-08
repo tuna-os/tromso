@@ -118,10 +118,12 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   file (600, right key): file labeled `var_t`, sshd enforcing → denied.
   Guest journal (copied off-disk via debug pod) shows why fixes kept
   missing: tmpfiles `z` fails (`/var` still read-only at tmpfiles time)
-  and an `/etc` wants-symlink vanishes from the deployed tree. Fix:
-  oneshot with STATIC enablement in `/usr/lib` (`After=var.mount`,
-  `Before=sshd`), plus mask `systemd-firstboot.service` (only remaining
-  prompt was root password; image is key-only by design).
+  and an `/etc` wants-symlink vanishes from the deployed tree. Static
+  oneshot in `/usr/lib` runs clean — but `restorecon` no-ops: it
+  resolves `/root` → `/var/roothome`, for which policy has no mapping,
+  so `var_t` "matches". Fix: explicit `chcon -t ssh_home_t` (matches
+  working utah reference exactly), plus masked firstboot (image is
+  key-only by design).
 - Same journal: `pam_systemd.so` missing (SDDM/logind sessions broken) →
   added `systemd-pam` (split-subpackage class of bug, same as mkfs).
 
