@@ -104,6 +104,12 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   `--add ostree` on the dracut op. Read via
   `virsh dumpxml` → serial `-log` file in the virt-launcher pod
   (`virtctl console` alone shows nothing after the fact).
+- Still emergency: `ostree-prepare-root` correctly SKIPS (needs bare
+  `ostree` karg; composefs flow uses bootc's own `bootc-root-setup`,
+  conditioned on `composefs*` kargs) — but our initrd lacks bootc's
+  dracut module too (`51bootc/` ships in image, declined like ostree)
+  → `--add "ostree bootc"`. Interactive emergency-shell diagnosis works
+  via staged stdin to `virtctl console`.
 
 ## Harness validation via utah (2026-10-07)
 
