@@ -164,12 +164,17 @@ jobs:
                   if line and '=' in line and not line.startswith('#'):
                       k, v = line.split('=', 1)
                       env[k] = v
+          def num(v):
+              try:
+                  return int(v)
+              except (TypeError, ValueError):
+                  return v
           manifest = {
               'runner': 'ubuntu-24.04 (GitHub-hosted, cold cache)',
               'tine': {
-                  'utah_rootfs_secs': int(env['utah_rootfs_secs']),
-                  'utah_tar_bytes': int(env['utah_tar_bytes']),
-                  'utah_oci_bytes': int(env['utah_oci_bytes']),
+                  'utah_rootfs_secs': num(env['utah_rootfs_secs']),
+                  'utah_tar_bytes': num(env['utah_tar_bytes']),
+                  'utah_oci_bytes': num(env.get('utah_oci_bytes', 'UNKNOWN')),
                   'ghcr_ref': env.get('tine_ref', 'PUSH FAILED OR SKIPPED'),
                   'bootc_lint': 'SKIPPED (no bootc on runner)',
               },
