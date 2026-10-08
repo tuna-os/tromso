@@ -75,6 +75,7 @@ image.rootfs_archive(
         "linux-firmware",
         "NetworkManager",
         "openssh-server",
+        "systemd-pam",
         "accountsservice",
         "upower",
         "udisks2",
@@ -135,11 +136,13 @@ image.rootfs_archive(
         image.write_file("/etc/hostname", "tine-kde\n"),
         image.run(["/usr/bin/ln", "-sf", "../usr/share/zoneinfo/UTC", "/etc/localtime"], chroot = True),
         # bootc injects the install-time SSH key via tmpfiles, but it lands
-        # mislabeled (var_t) and sshd (enforcing) refuses it; a custom
-        # oneshot proved fragile (its /etc wants-symlink vanished at
-        # deploy). tmpfiles z-rules relabel unconditionally every boot and
-        # live in /usr/lib, so use those instead.
-        image.write_file("/usr/lib/tmpfiles.d/tine-poc-ssh.conf", "z /root/.ssh 0700 root root -\nz /root/.ssh/authorized_keys 0600 root root -\n"),
+        # mislabeled (var_t) and sshd (enforcing) refuses it. tmpfiles
+        # z-rules fail here (/var still read-only at tmpfiles time), and an
+        # /etc wants-symlink vanishes from the deployed tree — so ship a
+        # oneshot with STATIC enablement in /usr/lib, ordered after
+        # var.mount and before sshd.
+        image.write_file("/usr/lib/systemd/system/tine-poc-ssh-labels.service", "[Unit]\nDescription=Tine PoC: label root SSH keys after /var mount\nAfter=var.mount systemd-tmpfiles-setup.service\nBefore=sshd.service sshd.socket\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/restorecon -R /root/.ssh\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n"),
+        image.run(["/usr/bin/bash", "-c", "mkdir -p /usr/lib/systemd/system/multi-user.target.wants && ln -sf ../tine-poc-ssh-labels.service /usr/lib/systemd/system/multi-user.target.wants/tine-poc-ssh-labels.service"], chroot = True),
         # With locale/hostname/timezone pre-seeded, firstboot only ever
         # prompts for a root password and stalls headless boots. The image
         # is key-only by design (see unit above), so mask it; machine-id is

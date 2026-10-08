@@ -116,11 +116,14 @@ not identical inputs (Fedora binary RPMs vs source-built KDE).
   (zoneinfo ships; factory locale.conf is not applied).
 - Same image, SSH `Permission denied (publickey)` despite correct key
   file (600, right key): file labeled `var_t`, sshd enforcing → denied.
-  A custom relabel oneshot died (its `/etc` wants-symlink vanished from
-  the deployed tree). Fix: `z` rules in `/usr/lib/tmpfiles.d/` relabel
-  unconditionally every boot and live in the image, plus mask
-  `systemd-firstboot.service` (only remaining prompt was root password;
-  image is key-only by design).
+  Guest journal (copied off-disk via debug pod) shows why fixes kept
+  missing: tmpfiles `z` fails (`/var` still read-only at tmpfiles time)
+  and an `/etc` wants-symlink vanishes from the deployed tree. Fix:
+  oneshot with STATIC enablement in `/usr/lib` (`After=var.mount`,
+  `Before=sshd`), plus mask `systemd-firstboot.service` (only remaining
+  prompt was root password; image is key-only by design).
+- Same journal: `pam_systemd.so` missing (SDDM/logind sessions broken) →
+  added `systemd-pam` (split-subpackage class of bug, same as mkfs).
 
 ## Harness validation via utah (2026-10-07)
 
