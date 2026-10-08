@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # EXPERIMENT ONLY — export tine's kde-rootfs tar as a bootc-compatible OCI image.
 #
-# Usage: ./tine-poc/oci-export.sh [image-tag]
+# Usage: ./tine-poc/oci-export.sh [image-tag] [--rule //tine-poc:target] [--skip-lint]
 # Example: ./tine-poc/oci-export.sh tine-kde:latest
+# Example: ./tine-poc/oci-export.sh tine-utah:race --rule //tine-poc:utah-race-rootfs --skip-lint
 #
 # Pipeline: tine buck build -> rootfs tar -> buildah from scratch (+ bootc
 # labels) -> bootc container lint. Needs user namespaces (tine builds),
@@ -11,12 +12,14 @@
 set -euo pipefail
 
 TAG="tine-kde:latest"
+RULE="//tine-poc:kde-rootfs"
 SKIP_LINT=0
-for arg in "$@"; do
-  case "${arg}" in
-    --skip-lint) SKIP_LINT=1 ;;
-    -*) echo "ERROR: unknown flag: ${arg}" >&2; exit 1 ;;
-    *) TAG="${arg}" ;;
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --skip-lint) SKIP_LINT=1; shift ;;
+    --rule) RULE="$2"; shift 2 ;;
+    -*) echo "ERROR: unknown flag: $1" >&2; exit 1 ;;
+    *) TAG="$1"; shift ;;
   esac
 done
 
@@ -40,13 +43,13 @@ case "$(uname -m)" in
     ;;
 esac
 
-echo "==> Building //tine-poc:kde-rootfs with tine..."
-tine/bin/tine buck build //tine-poc:kde-rootfs
+echo "==> Building ${RULE} with tine..."
+tine/bin/tine buck build "${RULE}"
 
 echo "==> Locating rootfs tar..."
-TAR="$(tine/bin/tine buck build --show-output //tine-poc:kde-rootfs | awk '{print $2}' | head -n 1)"
+TAR="$(tine/bin/tine buck build --show-output "${RULE}" | awk '{print $2}' | head -n 1)"
 if [ -z "${TAR}" ] || [ ! -f "${TAR}" ]; then
-  echo "ERROR: could not locate kde-rootfs tar output (got: '${TAR}')" >&2
+  echo "ERROR: could not locate rootfs tar output for ${RULE} (got: '${TAR}')" >&2
   exit 1
 fi
 echo "    tar: ${TAR}"
@@ -61,7 +64,7 @@ buildah copy "${CTR}" "${WORK}/" /
 buildah config \
   --label "containers.bootc=1" \
   --label "ostree.bootable=1" \
-  --label "org.opencontainers.image.title=tine-kde (experiment)" \
+  --label "org.opencontainers.image.title=${TAG} (tine experiment)" \
   --os linux --arch "${OCI_ARCH}" \
   "${CTR}"
 buildah commit "${CTR}" "${TAG}"

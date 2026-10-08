@@ -1,0 +1,220 @@
+# EXPERIMENT ONLY — tine vs utah Containerfile on the same package names.
+# Not a required check, never will be: it exists to produce numbers, not gates.
+name: tine-utah-race (experiment)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [exp/tine-utah-race]
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+
+concurrency:
+  group: tine-utah-race-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TINE_REF: ghcr.io/tuna-os/tine-utah
+  # Recorded 2026-10-08: Build Utah run 37737888033, job
+  # "build_main / image (main, utah, testing, x86_64)" (id 113181999231):
+  # runner setup+checkout ~184s, Build Image step 06:34:15 -> 06:39:33 (318s),
+  # OCI export+scan+upload ~185s. Fallback if the live query below fails.
+  UTAH_BASELINE_BUILD_STEP_SECS: 318
+  UTAH_BASELINE_RUN: 37737888033
+
+jobs:
+  race:
+    name: Build utah package set with tine, compare with utah baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout (with tine submodule)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Enable unprivileged user namespaces
+        run: |
+          set -euo pipefail
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 2>/dev/null \
+            || echo "apparmor userns key not accepted"
+          sudo sysctl -w kernel.unprivileged_userns_clone=1 2>/dev/null \
+            || echo "userns_clone key not accepted"
+
+      - name: Probe build prerequisites
+        run: |
+          set -euo pipefail
+          python3 --version
+          command -v zstd
+          if unshare -Urm true 2>/dev/null; then
+            echo "userns: available"
+          else
+            echo "::error::unprivileged user namespaces unavailable — tine cannot build on this runner"
+            exit 1
+          fi
+          df -h /
+
+      - name: Install buildah and skopeo
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y -q buildah skopeo zstd
+
+      - name: Build utah-race rootfs (timed)
+        run: |
+          set -euo pipefail
+          tine/bin/tine init </dev/null
+          : > /tmp/race.env
+          start=$(date +%s)
+          tine/bin/tine buck build //tine-poc:utah-race-rootfs
+          echo "utah_rootfs_secs=$(( $(date +%s) - start ))" >> /tmp/race.env
+          tine/bin/tine buck build --show-output //tine-poc:utah-race-rootfs | tee /tmp/race-outputs.txt
+          tar_path=$(awk '$1 ~ /utah-race-rootfs$/ {print $2}' /tmp/race-outputs.txt | head -n 1)
+          if [ -z "${tar_path}" ] || [ ! -f "${tar_path}" ]; then
+            echo "::error::utah-race-rootfs tar not found in --show-output"
+            exit 1
+          fi
+          echo "utah_tar_bytes=$(stat -L -c %s "${tar_path}")" >> /tmp/race.env
+          cat /tmp/race.env
+
+      - name: Capture package DB
+        run: |
+          set -euo pipefail
+          tine/bin/tine buck build --show-output //tine-poc:utah-race-rootfs[pkgdb] | tee /tmp/race-pkgdb.txt
+          db_path=$(awk '{print $2}' /tmp/race-pkgdb.txt | head -n 1)
+          if [ -z "${db_path}" ] || [ ! -e "${db_path}" ]; then
+            echo "::error::utah-race-rootfs pkgdb not found in --show-output"
+            exit 1
+          fi
+          mkdir -p /tmp/pkgdb-out
+          cp -L "${db_path}" /tmp/pkgdb-out/
+          ls -la /tmp/pkgdb-out/
+
+      - name: Export bootc OCI (lint explicitly skipped)
+        run: |
+          set -euo pipefail
+          # No bootc binary on ubuntu-24.04 runners: record the gap instead of
+          # faking a pass. The manifest marks lint as SKIPPED.
+          ./tine-poc/oci-export.sh tine-utah:race --rule //tine-poc:utah-race-rootfs --skip-lint
+          rm -rf /tmp/tine-oci
+          buildah push "tine-utah:race" "oci:/tmp/tine-oci"
+          echo "utah_oci_bytes=$(du -sb /tmp/tine-oci | cut -f1)" >> /tmp/race.env
+
+      - name: Push tine-utah to GHCR (for corral/KubeVirt boot test)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_TOKEN}" | buildah login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          tag="race-${GITHUB_SHA::8}"
+          buildah tag "tine-utah:race" "${TINE_REF}:${tag}"
+          buildah push "${TINE_REF}:${tag}"
+          echo "tine_ref=${TINE_REF}:${tag}" >> /tmp/race.env
+          echo "Pushed ${TINE_REF}:${tag}"
+
+      - name: Utah baseline (live Build Image step + published size)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Latest green "Build Utah" run, then the main-variant image job's
+          # "Build Image" step duration. Falls back to recorded constants.
+          echo "utah_build_step_secs=${UTAH_BASELINE_BUILD_STEP_SECS}" >> /tmp/race.env
+          echo "utah_run_id=${UTAH_BASELINE_RUN}" >> /tmp/race.env
+          run_id=$(gh run list --repo projectbluefin/utah --workflow build.yml \
+            --branch testing --status success --limit 1 --json databaseId \
+            --jq '.[0].databaseId' 2>/dev/null || true)
+          if [ -n "${run_id}" ]; then
+            echo "utah_run_id=${run_id}" >> /tmp/race.env
+            job_id=$(gh run view "${run_id}" --repo projectbluefin/utah --json jobs \
+              --jq '.jobs[] | select(.name=="build_main / image (main, utah, testing, x86_64)") | .databaseId' 2>/dev/null || true)
+            if [ -n "${job_id}" ]; then
+              secs=$(gh api "repos/projectbluefin/utah/actions/jobs/${job_id}" \
+                --jq '[.steps[] | select(.name=="Build Image") | ((.completed_at|fromdateiso8601)-(.started_at|fromdateiso8601))] | .[0] | floor' 2>/dev/null || true)
+              if [ -n "${secs}" ] && [ "${secs}" -gt 0 ]; then
+                # replace fallback with live value
+                sed -i '/^utah_build_step_secs=/d' /tmp/race.env
+                echo "utah_build_step_secs=${secs}" >> /tmp/race.env
+              fi
+            fi
+          fi
+          # Published utah:testing size (sum of compressed layers).
+          size=$(skopeo inspect --raw docker://quay.io/projectbluefin/utah:testing 2>/dev/null \
+            | python3 -c "import json,sys; print(sum(l.get('size',0) for l in json.load(sys.stdin).get('layers',[])))" 2>/dev/null || true)
+          if [ -n "${size}" ] && [ "${size}" -gt 0 ]; then
+            echo "utah_oci_bytes=${size}" >> /tmp/race.env
+          else
+            echo "utah_oci_bytes=UNKNOWN" >> /tmp/race.env
+          fi
+          cat /tmp/race.env
+
+      - name: Write manifest and summary
+        run: |
+          set -euo pipefail
+          python3 - <<'EOF'
+          import os
+          env = {}
+          with open('/tmp/race.env') as f:
+              for line in f:
+                  line = line.strip()
+                  if line and '=' in line and not line.startswith('#'):
+                      k, v = line.split('=', 1)
+                      env[k] = v
+          manifest = {
+              'runner': 'ubuntu-24.04 (GitHub-hosted, cold cache)',
+              'tine': {
+                  'utah_rootfs_secs': int(env['utah_rootfs_secs']),
+                  'utah_tar_bytes': int(env['utah_tar_bytes']),
+                  'utah_oci_bytes': int(env['utah_oci_bytes']),
+                  'ghcr_ref': env.get('tine_ref', 'PUSH FAILED OR SKIPPED'),
+                  'bootc_lint': 'SKIPPED (no bootc on runner)',
+              },
+              'utah_containerfile': {
+                  'build_image_step_secs': int(env['utah_build_step_secs']),
+                  'run_id': env['utah_run_id'],
+                  'published_testing_oci_bytes': env['utah_oci_bytes'],
+              },
+              'caveat': 'Same package NAMES (utah manifests, minus 2 absent from '
+                         'tine catalog, plus boot-critical adds utah inherits from '
+                         'its Hummingbird base), NOT same versions/distro: utah '
+                         'ships factory-built GNOME 51; tine resolves from Fedora '
+                         'rawhide. Time comparison is image-assembly only: utah '
+                         'Build Image step (base pull + dnf + lint) vs tine '
+                         'buck build (RPM fetch + install + tar).',
+          }
+          import json
+          with open('utah-race-manifest.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+          t = manifest['tine']
+          u = manifest['utah_containerfile']
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('## tine vs utah race (experiment)\n\n')
+              f.write('| side | build time | shipped bytes |\n|---|---|---|\n')
+              f.write('| tine utah-race-rootfs (tar) | {} s | {} |\n'.format(t['utah_rootfs_secs'], t['utah_tar_bytes']))
+              f.write('| tine utah OCI (bootc labels, lint SKIPPED) | — (same build) | {} |\n'.format(t['utah_oci_bytes']))
+              f.write('| utah Containerfile Build Image step (run {}) | {} s | published testing: {} |\n'.format(u['run_id'], u['build_image_step_secs'], u['published_testing_oci_bytes']))
+              f.write('\n{}\n'.format(manifest['caveat']))
+          EOF
+          cat utah-race-manifest.json
+
+      - name: Upload race manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tine-utah-race-manifest
+          path: utah-race-manifest.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload package DB
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tine-utah-race-pkgdb
+          path: /tmp/pkgdb-out/
+          retention-days: 30
+          if-no-files-found: warn

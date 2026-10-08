@@ -9,6 +9,7 @@
 load("@tine//distribution:defs.bzl", "distribution")
 load("@tine//image:defs.bzl", "image")
 load("@tine//package:defs.bzl", "package")
+load(":utah_race_pkgs.bzl", "UTAH_RACE_PACKAGES")
 
 # Consumer-owned solve context rooted at tine's Fedora Rawhide catalog.
 # A real product would track its own catalog instead of following tine's.
@@ -152,6 +153,40 @@ image.rootfs_archive(
         # prompts for a root password and stalls headless boots. The image
         # is key-only by design (see unit above), so mask it; machine-id is
         # still generated on boot by systemd-machine-id-setup.
+        image.run(["/usr/bin/systemctl", "mask", "systemd-firstboot.service"], chroot = True),
+    ],
+    install_docs = False,
+    format = "tar",
+)
+
+# Utah race: same package names as projectbluefin/utah's manifests
+# (packages/utah.toml + packages/bluefin.toml, see utah_race_pkgs.bzl),
+# assembled by tine instead of buildah. GNOME version skew is deliberate:
+# utah ships factory-built GNOME 51 on a Hummingbird base; tine resolves the
+# same names from Fedora rawhide. This races image-assembly speed, not
+# desktop versions. Boot wiring mirrors the kde-rootfs lessons (dracut
+# initramfs, prepare-root.conf, /sysroot, /root symlink, SSH labels unit)
+# with gdm instead of sddm.
+image.rootfs_archive(
+    name = "utah-race-rootfs",
+    package_manager = ":image.package-manager",
+    packages = UTAH_RACE_PACKAGES,
+    ops = [
+        image.run(["/usr/bin/systemctl", "enable", "gdm.service"], chroot = True),
+        image.run(["/usr/bin/systemctl", "set-default", "graphical.target"], chroot = True),
+        image.run(["/usr/bin/bash", "-c", "for k in /usr/lib/modules/*; do [ -f \"$k/vmlinuz\" ] || continue; /usr/bin/dracut --force --no-hostonly --add \"ostree bootc\" \"$k/initramfs.img\" \"${k##*/}\"; done"], chroot = True),
+        image.write_file("/usr/lib/ostree/prepare-root.conf", "[composefs]\nenabled = true\n"),
+        image.run(["/usr/bin/mkdir", "-p", "/sysroot"], chroot = True),
+        image.run(["/usr/bin/bash", "-c", "rm -rf /boot/efi /boot/grub2 /boot/loader; mkdir -p /boot"], chroot = True),
+        image.write_file("/usr/lib/bootc/kargs.d/10-console.toml", "kargs = [\"console=ttyS0,115200\"]\n"),
+        image.run(["/usr/bin/systemctl", "enable", "sshd.service"], chroot = True),
+        image.run(["/usr/bin/systemctl", "enable", "NetworkManager.service"], chroot = True),
+        image.write_file("/etc/locale.conf", "LANG=C.UTF-8\n"),
+        image.write_file("/etc/hostname", "tine-utah\n"),
+        image.run(["/usr/bin/ln", "-sf", "../usr/share/zoneinfo/UTC", "/etc/localtime"], chroot = True),
+        image.write_file("/usr/lib/systemd/system/tine-poc-ssh-labels.service", "[Unit]\nDescription=Tine PoC: label root SSH keys after /var mount\nAfter=var.mount systemd-tmpfiles-setup.service\nBefore=sshd.service sshd.socket\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/chcon -u system_u -t ssh_home_t /root/.ssh /root/.ssh/authorized_keys\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n"),
+        image.run(["/usr/bin/bash", "-c", "mkdir -p /usr/lib/systemd/system/multi-user.target.wants && ln -sf ../tine-poc-ssh-labels.service /usr/lib/systemd/system/multi-user.target.wants/tine-poc-ssh-labels.service"], chroot = True),
+        image.run(["/usr/bin/bash", "-c", "rm -rf /root && ln -s var/roothome /root"], chroot = True),
         image.run(["/usr/bin/systemctl", "mask", "systemd-firstboot.service"], chroot = True),
     ],
     install_docs = False,
