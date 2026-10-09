@@ -230,6 +230,15 @@ jobs:
           skopeo inspect --config "docker://${minimal_ref}" > /tmp/config-os_minimal.json
           skopeo inspect --raw "docker://${bootc_os}" > /tmp/manifest-bootc_os.json
           skopeo inspect --raw "docker://${minimal_ref}" > /tmp/manifest-os_minimal.json
+          # Both refs resolve to OCI indexes: descend to the amd64 manifest
+          # for the real layer lists.
+          for side in bootc_os os_minimal; do
+            if [ "${side}" = bootc_os ]; then ref="${bootc_os}"; else ref="${minimal_ref}"; fi
+            repo="${ref%@*}"
+            sub=$(python3 -c "import json; idx = json.load(open('/tmp/manifest-${side}.json')); print(next(m['digest'] for m in idx.get('manifests', []) if (m.get('platform') or {}).get('architecture') == 'amd64'))")
+            skopeo inspect --raw "docker://${repo}@${sub}" > "/tmp/image-${side}.json"
+            echo "${side}_amd64=${sub}" | tee -a /tmp/configdiff.env
+          done
 
       - name: Write config diff and summary
         run: |
@@ -238,7 +247,8 @@ jobs:
           import json, os
           cfg = {s: json.load(open(f'/tmp/config-{s}.json'))
                  for s in ['bootc_os', 'os_minimal']}
-          man = {s: json.load(open(f'/tmp/manifest-{s}.json'))
+          # Per-arch image manifests (descended from the top-level index).
+          man = {s: json.load(open(f'/tmp/image-{s}.json'))
                  for s in ['bootc_os', 'os_minimal']}
 
           def oci_cfg(side):
