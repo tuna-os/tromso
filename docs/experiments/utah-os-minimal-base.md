@@ -38,14 +38,28 @@ Hummingbird rebuilds. The 11 Fedora RPMs are identical in both.
   These resolve from Hummingbird's repo (Fedora builds) and the factory;
   no base swap touches them.
 
+## Definitive difference (config + layer diff, run 37987401651)
+
+- Layers: 32 each, **26 shared digests**. The 6 unique layers pair up at
+  near-identical sizes (3,776,363 vs 3,776,362 bytes; 9,671,088 vs
+  9,671,090; …; totals 440,338,705 vs 440,338,506 — 199 bytes apart on
+  440 MB). Same content, different compression/metadata.
+- Image config: identical except `created` and Labels. bootc-os says
+  `"An experimental minimal bootable container image"`,
+  containerfile `images/bootc-os/hummingbird/default/Containerfile`;
+  os-minimal says `"A minimal bootable container image"`, containerfile
+  `generated/images/os-minimal/hummingbird/default/Containerfile`.
+
+So os-minimal is a rebuild/repack of the same rootfs under the
+productized recipe (note `generated/` and the dropped "experimental"):
+same 262 RPMs, same versions, same bytes on disk, new layer compression.
+
 ## Verdict
 
-A base swap between these two tags is a no-op for purity. "More pure
-Hummingbird" can only come from the factory side (utah-packages
-rebuilding Fedora bits as hum1.bfin), which is already the mechanism for
-GNOME. Follow-ups if still interesting:
-
-1. Diff the two image CONFIGs (entrypoint/cmd/labels) to say what
-   "minimal" actually means — cheap, no build needed.
-2. Skip the full os-minimal build test: identical input set ⇒ identical
-   build behavior modulo container config.
+A base swap between these two tags is a no-op, functionally and for
+purity. "More pure Hummingbird" can only come from the factory side
+(utah-packages rebuilding Fedora bits as hum1.bfin), which is already
+the mechanism for GNOME. No build test needed: identical input set ⇒
+identical build. If Hummingbird ever lets the two recipes diverge, the
+`gap_needs_manifest_add` field in base-diff.json is the exact ADD list —
+today it is empty.
