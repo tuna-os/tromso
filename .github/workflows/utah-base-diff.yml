@@ -1,0 +1,195 @@
+# EXPERIMENT ONLY — diff Hummingbird bootc-os vs os-minimal as a utah base.
+# Goal: less Fedora poisoning, more pure Hummingbird. This job diffs the two
+# bases' RPM sets, classifies each package's provenance by disttag
+# (.hum1. = Hummingbird rebuild, .fc44 = Fedora), and maps the gaps
+# (in bootc-os, missing from os-minimal) against what utah needs
+# (its manifests + boot-critical set) to produce the manifest ADD list a
+# base switch would require. A full os-minimal build test comes later.
+# Not a required check, never will be.
+name: utah-base-diff (experiment)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [exp/utah-os-minimal-base]
+    paths:
+      - .github/workflows/utah-base-diff.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: utah-base-diff-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UTAH_REPO: projectbluefin/utah
+  UTAH_BRANCH: main
+  OS_MINIMAL_REF: quay.io/hummingbird-community/os-minimal:latest@sha256:b696a563751a0f945688171327c42142841c319533e001408eda9bba73cd4950
+
+jobs:
+  diff:
+    name: Diff base images, classify provenance, map gaps
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout (no submodules)
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Install buildah
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y -q buildah
+
+      - name: Clone utah, read base pin and manifests
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/utah-src
+          git clone --depth 1 --branch "${UTAH_BRANCH}" \
+            "https://github.com/${UTAH_REPO}.git" /tmp/utah-src
+          : > /tmp/basediff.env
+          echo "utah_sha=$(git -C /tmp/utah-src rev-parse HEAD)" >> /tmp/basediff.env
+          echo "bootc_os=$(grep -E '^ARG BASE_IMAGE=' /tmp/utah-src/Containerfile | cut -d= -f2-)" >> /tmp/basediff.env
+          python3 - <<'EOF'
+          import tomllib
+          want = set()
+          for f in ['/tmp/utah-src/packages/utah.toml',
+                    '/tmp/utah-src/packages/bluefin.toml']:
+              d = tomllib.load(open(f, 'rb'))
+              def walk(o):
+                  if isinstance(o, dict):
+                      for k, v in o.items():
+                          if k == 'packages' and isinstance(v, list):
+                              want.update(v)
+                          else:
+                              walk(v)
+              walk(d)
+          open('/tmp/utah-names.txt', 'w').write('\n'.join(sorted(want)) + '\n')
+          print(f"{len(want)} manifest names")
+          EOF
+          cat /tmp/basediff.env
+
+      - name: List RPMs in both bases
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC1091
+          source /tmp/basediff.env
+          for side in bootc_os os_minimal; do
+            if [ "${side}" = bootc_os ]; then ref="${bootc_os}"; else ref="${OS_MINIMAL_REF}"; fi
+            ctr=$(buildah from "${ref}")
+            buildah run "${ctr}" -- rpm -qa --qf '%{NAME}|%{EPOCH}|%{VERSION}|%{RELEASE}|%{ARCH}\n' \
+              | sort -u > "/tmp/rpms-${side}.txt"
+            echo "${side}_count=$(wc -l < /tmp/rpms-${side}.txt)" >> /tmp/basediff.env
+            buildah rm "${ctr}" >/dev/null
+          done
+          cat /tmp/basediff.env
+
+      - name: Write diff manifest and summary
+        run: |
+          set -euo pipefail
+          python3 - <<'EOF'
+          import os
+          env = {}
+          with open('/tmp/basediff.env') as f:
+              for line in f:
+                  line = line.strip()
+                  if line and '=' in line:
+                      k, v = line.split('=', 1)
+                      env[k] = v
+
+          def load(path):
+              pkgs = {}
+              for line in open(path):
+                  line = line.strip()
+                  if not line:
+                      continue
+                  name, epoch, ver, rel, arch = line.split('|')
+                  pkgs[name] = {'evr': f'{epoch}:{ver}-{rel}.{arch}', 'release': rel}
+              return pkgs
+
+          bootc_os = load('/tmp/rpms-bootc_os.txt')
+          minimal = load('/tmp/rpms-os_minimal.txt')
+
+          def provenance(release):
+              if '.hum1' in release or '.hum.' in release or '.bfin' in release:
+                  return 'hummingbird'
+              if '.fc44' in release or '.fc45' in release:
+                  return 'fedora'
+              return 'other'
+
+          def prov_counts(pkgs):
+              counts = {'hummingbird': 0, 'fedora': 0, 'other': 0}
+              for p in pkgs.values():
+                  counts[provenance(p['release'])] += 1
+              return counts
+
+          names_os, names_min = set(bootc_os), set(minimal)
+          only_os = sorted(names_os - names_min)
+          only_min = sorted(names_min - names_os)
+          common = names_os & names_min
+          # Version drift inside the common set (same name, different EVR).
+          drifted = sorted(n for n in common if bootc_os[n]['evr'] != minimal[n]['evr'])
+
+          want = {l.strip() for l in open('/tmp/utah-names.txt') if l.strip()}
+          # Boot-critical: must come from base or manifests, else unbootable.
+          boot_critical = {'kernel', 'kernel-core', 'kernel-modules',
+                           'dracut', 'ostree', 'bootc', 'bootupd', 'composefs',
+                           'systemd', 'selinux-policy-targeted', 'linux-firmware',
+                           'shim-x64', 'grub2-efi-x64', 'systemd-boot-unsigned',
+                           'NetworkManager', 'gdm'}
+          needed = want | boot_critical
+          # The gap that matters: needed by utah, in bootc-os, absent from os-minimal.
+          gap = sorted(n for n in only_os if n in needed)
+          # Needed by utah but in NEITHER base: must come from repos (no action).
+          from_repos = sorted(n for n in needed if n not in names_os and n not in names_min)
+          # Boot-critical missing from os-minimal entirely (base or manifests).
+          boot_gap = sorted(n for n in boot_critical if n not in names_min and n not in want)
+
+          manifest = {
+              'utah_sha': env.get('utah_sha', 'UNKNOWN'),
+              'bootc_os': env.get('bootc_os', 'UNKNOWN'),
+              'os_minimal': os.environ.get('OS_MINIMAL_REF', ''),
+              'counts': {'bootc_os': len(bootc_os), 'os_minimal': len(minimal)},
+              'provenance': {'bootc_os': prov_counts(bootc_os),
+                             'os_minimal': prov_counts(minimal)},
+              'only_in_bootc_os': only_os,
+              'only_in_os_minimal': only_min,
+              'drifted_common': {n: {'bootc_os': bootc_os[n]['evr'],
+                                     'os_minimal': minimal[n]['evr']} for n in drifted},
+              'gap_needs_manifest_add': gap,
+              'needed_from_repos_either_way': from_repos,
+              'boot_critical_missing_from_minimal': boot_gap,
+          }
+          import json
+          with open('base-diff.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('## bootc-os vs os-minimal (experiment)\n\n')
+              for side in ['bootc_os', 'os_minimal']:
+                  p = manifest['provenance'][side]
+                  f.write(f"{side}: {manifest['counts'][side]} RPMs — "
+                          f"hummingbird {p['hummingbird']}, fedora {p['fedora']}, "
+                          f"other {p['other']}\n\n")
+              f.write(f"Only in bootc-os: {len(only_os)}; "
+                      f"only in os-minimal: {len(only_min)}; "
+                      f"drifted versions: {len(drifted)}.\n\n")
+              f.write(f"ADD to manifests if switching ({len(gap)}): "
+                      f"{', '.join(gap)}\n\n")
+              f.write(f"Boot-critical missing from os-minimal ({len(boot_gap)}): "
+                      f"{', '.join(boot_gap)}\n")
+          EOF
+          cat base-diff.json
+
+      - name: Upload diff manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: utah-base-diff
+          path: base-diff.json
+          retention-days: 30
+          if-no-files-found: error
