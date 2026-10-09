@@ -75,22 +75,25 @@ jobs:
         run: |
           set -euo pipefail
           ctr=$(buildah from quay.io/fedora/fedora:44)
-          buildah run "${ctr}" -- dnf install -y -q dnf-plugins-core
           # utah's repo file + key, verbatim. All other repos stay disabled:
-          # the point is what Hummingbird alone can satisfy.
+          # the point is what Hummingbird alone can satisfy. dnf5 is the
+          # F44 default and needs no plugins for repoquery; call it
+          # explicitly so a plugins install can never shadow it with dnf4.
           buildah copy "${ctr}" /tmp/utah-src/packages/hummingbird.repo /etc/yum.repos.d/
           buildah copy "${ctr}" /tmp/utah-src/packages/RPM-GPG-KEY-redhat-release-2 /etc/pki/rpm-gpg/
           buildah copy "${ctr}" /tmp/utah-names.txt /tmp/utah-names.txt
           # Snapshot identity: repomd revision of the repo we resolved against.
-          buildah run "${ctr}" -- dnf --disablerepo='*' \
+          buildah run "${ctr}" -- dnf5 --disablerepo='*' \
             --enablerepo=public-hummingbird-x86_64-rpms -q repoinfo \
             | tee /tmp/repoinfo.txt
           grep -aE "^(Repo ID|Revision|Updated)" /tmp/repoinfo.txt | head -n 5 || true
-          # One repoquery for all names: available NEVRAs. Single --arch
-          # value: dnf4 rejects comma lists (exit 2); x86_64 keeps noarch.
+          # One repoquery for all names. Pipe-separated queryformat keeps
+          # parsing unambiguous (names contain dashes).
           buildah run "${ctr}" -- bash -c \
-            "dnf --disablerepo='*' --enablerepo=public-hummingbird-x86_64-rpms -q \
-               repoquery --nevra --arch=x86_64 $(tr '\n' ' ' < /tmp/utah-names.txt)" \
+            "dnf5 --disablerepo='*' --enablerepo=public-hummingbird-x86_64-rpms -q \
+               repoquery --arch=x86_64 \
+               --queryformat '%{name}|%{epoch}|%{version}|%{release}|%{arch}\n' \
+               $(tr '\n' ' ' < /tmp/utah-names.txt)" \
             | tee /tmp/resolved-nevra.txt | wc -l
           buildah rm "${ctr}" >/dev/null
 
@@ -107,19 +110,16 @@ jobs:
                       k, v = line.split('=', 1)
                       env[k] = v
           want = [l.strip() for l in open('/tmp/utah-names.txt') if l.strip()]
-          # repoquery --nevra lines look like name-epoch:version-release.arch;
-          # map back to names (name may contain dashes: match longest known name).
+          # dnf5 --queryformat lines: name|epoch|version|release|arch.
           have = {}
           for line in open('/tmp/resolved-nevra.txt'):
               line = line.strip()
               if not line:
                   continue
-              m = re.match(r'^(.+)-(\d+:)?([^-]+)-([^-]+)\.(x86_64|noarch)$', line)
-              if not m:
+              parts = line.split('|')
+              if len(parts) != 5:
                   continue
-              base = m.group(1)
-              cand = [w for w in want if base == w or base.startswith(w + '-')]
-              name = max(cand, key=len) if cand else base
+              name = parts[0]
               have.setdefault(name, []).append(line)
           missing = sorted(set(want) - set(have))
           gnome = {p: have[p] for p in
