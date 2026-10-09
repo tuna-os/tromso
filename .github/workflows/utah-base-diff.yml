@@ -193,3 +193,123 @@ jobs:
           path: base-diff.json
           retention-days: 30
           if-no-files-found: error
+
+  config-diff:
+    name: Diff image configs and layer structure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (no submodules)
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Install buildah and skopeo
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y -q buildah skopeo
+
+      - name: Resolve pins and capture configs
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/utah-src
+          git clone --depth 1 --branch "${UTAH_BRANCH}" \
+            "https://github.com/${UTAH_REPO}.git" /tmp/utah-src
+          bootc_os=$(grep -E '^ARG BASE_IMAGE=' /tmp/utah-src/Containerfile | cut -d= -f2-)
+          # Fresh os-minimal:latest digest (anonymous quay API).
+          minimal_digest=$(curl -fsSL "https://quay.io/api/v1/repository/hummingbird-community/os-minimal/tag/?specificTag=latest" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['tags'][0]['manifest_digest'])")
+          minimal_ref="quay.io/hummingbird-community/os-minimal@${minimal_digest}"
+          echo "bootc_os=${bootc_os}" | tee /tmp/configdiff.env
+          echo "os_minimal=${minimal_ref}" | tee -a /tmp/configdiff.env
+          # Config + manifest blobs only — no layers downloaded.
+          skopeo inspect --config "docker://${bootc_os}" > /tmp/config-bootc_os.json
+          skopeo inspect --config "docker://${minimal_ref}" > /tmp/config-os_minimal.json
+          skopeo inspect --raw "docker://${bootc_os}" > /tmp/manifest-bootc_os.json
+          skopeo inspect --raw "docker://${minimal_ref}" > /tmp/manifest-os_minimal.json
+
+      - name: Write config diff and summary
+        run: |
+          set -euo pipefail
+          python3 - <<'EOF'
+          import json, os
+          cfg = {s: json.load(open(f'/tmp/config-{s}.json'))
+                 for s in ['bootc_os', 'os_minimal']}
+          man = {s: json.load(open(f'/tmp/manifest-{s}.json'))
+                 for s in ['bootc_os', 'os_minimal']}
+
+          def oci_cfg(side):
+              # skopeo --config returns the OCI image config directly.
+              c = cfg[side]
+              return {
+                  'architecture': c.get('architecture'),
+                  'os': c.get('os'),
+                  'created': c.get('created'),
+                  'config': {k: c.get('config', {}).get(k) for k in
+                             ['Env', 'Entrypoint', 'Cmd', 'Labels',
+                              'ExposedPorts', 'Volumes', 'StopSignal',
+                              'WorkingDir', 'User']},
+              }
+
+          a, b = oci_cfg('bootc_os'), oci_cfg('os_minimal')
+          config_diff = {}
+          for key in ['architecture', 'os', 'created']:
+              if a[key] != b[key]:
+                  config_diff[key] = {'bootc_os': a[key], 'os_minimal': b[key]}
+          for key in a['config']:
+              if a['config'][key] != b['config'][key]:
+                  config_diff[f'config.{key}'] = {'bootc_os': a['config'][key],
+                                                  'os_minimal': b['config'][key]}
+          # Labels side-by-side even when equal (they state intent).
+          labels = {'bootc_os': a['config'].get('Labels') or {},
+                    'os_minimal': b['config'].get('Labels') or {}}
+
+          def layers(side):
+              m = man[side]
+              ls = m.get('layers', [])
+              return [{'digest': l.get('digest'),
+                       'size': l.get('size'),
+                       'mediaType': l.get('mediaType')} for l in ls]
+
+          la, lb = layers('bootc_os'), layers('os_minimal')
+          da = {l['digest'] for l in la}
+          db = {l['digest'] for l in lb}
+          manifest = {
+              'mediaType': {s: man[s].get('mediaType') for s in man},
+              'schemaVersion': {s: man[s].get('schemaVersion') for s in man},
+              'layer_counts': {'bootc_os': len(la), 'os_minimal': len(lb)},
+              'compressed_bytes': {
+                  'bootc_os': sum(l['size'] or 0 for l in la),
+                  'os_minimal': sum(l['size'] or 0 for l in lb)},
+              'shared_layer_digests': sorted(da & db),
+              'only_in_bootc_os_layers': [l for l in la if l['digest'] not in db],
+              'only_in_os_minimal_layers': [l for l in lb if l['digest'] not in da],
+              'config_diff': config_diff,
+              'labels': labels,
+          }
+          with open('config-diff.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('## image config + layer diff (experiment)\n\n')
+              f.write(f"Layers: bootc-os {len(la)} "
+                      f"({manifest['compressed_bytes']['bootc_os'] / 1e9:.2f} GB), "
+                      f"os-minimal {len(lb)} "
+                      f"({manifest['compressed_bytes']['os_minimal'] / 1e9:.2f} GB); "
+                      f"shared: {len(da & db)}.\n\n")
+              if config_diff:
+                  f.write(f"Differing config keys: {', '.join(config_diff)}\n")
+              else:
+                  f.write("Image configs identical (arch/os/created/env/cmd/labels).\n")
+          EOF
+          cat config-diff.json
+
+      - name: Upload config diff
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: utah-config-diff
+          path: config-diff.json
+          retention-days: 30
+          if-no-files-found: error
