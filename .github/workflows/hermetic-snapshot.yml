@@ -205,17 +205,20 @@ jobs:
           EOF
           cat /tmp/snap2.env
 
-      - name: Mount pinned factory image
+      - name: Extract pinned factory repository
         run: |
           set -euo pipefail
           # shellcheck disable=SC1091
           source /tmp/snap2.env
           fctr=$(buildah from "${factory_image}")
           echo "factory_ctr=${fctr}" >> /tmp/snap2.env
-          mnt=$(buildah mount "${fctr}")
-          echo "factory_mnt=${mnt}" >> /tmp/snap2.env
-          ls "${mnt}/repository/repodata/repomd.xml"
-          echo "factory_desc=$(buildah inspect "${fctr}" --format '{{.OCIv1.created}} {{.ImageName}}' || true)" >> /tmp/snap2.env
+          # No buildah mount (needs unshare in rootless mode): stream the
+          # repository out through the container boundary with tar.
+          mkdir -p /tmp/factory-repo
+          buildah run "${fctr}" -- tar -c -C / repository | tar -x -C /tmp/factory-repo
+          ls /tmp/factory-repo/repository/repodata/repomd.xml
+          du -sh /tmp/factory-repo
+          df -h / | tail -n 1
 
       - name: Download closure, build snapshot repo, install from it
         run: |
@@ -232,7 +235,7 @@ jobs:
             "printf '[factory]\nname=factory\nbaseurl=file:///factory-repo\nenabled=1\ngpgcheck=0\npriority=1\n' > /etc/yum.repos.d/factory.repo"
           buildah run "${ctr}" -- dnf5 install -y -q createrepo_c
           OPTS="--disablerepo=* --enablerepo=public-hummingbird-x86_64-rpms --enablerepo=factory"
-          VOL="-v ${factory_mnt}/repository:/factory-repo:ro -v /tmp/snap:/snap"
+          VOL="-v /tmp/factory-repo/repository:/factory-repo:ro -v /tmp/snap:/snap"
           buildah run ${VOL} "${ctr}" -- bash -c \
             "dnf5 ${OPTS} -q repoinfo | grep -aE '^(Repo ID|Revision|Updated)' ; \
              cd /snap/dl && dnf5 ${OPTS} -q download --resolve --alldeps \
@@ -251,8 +254,7 @@ jobs:
           echo "snapshot_rpms=$(ls /tmp/snap/repo/*.rpm | wc -l)" >> /tmp/snap2.env
           echo "snapshot_bytes=$(du -sb /tmp/snap/repo | cut -f1)" >> /tmp/snap2.env
           echo "installroot_bytes=$(du -sb /tmp/snap/root | cut -f1)" >> /tmp/snap2.env
-          buildah rm "${ctr}" >/dev/null
-          buildah umount "${factory_ctr}" >/dev/null
+          buildah rm "${ctr}" "${factory_ctr}" >/dev/null
 
       - name: Write phase-2 manifest and summary
         run: |
