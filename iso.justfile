@@ -325,9 +325,15 @@ luks-test-qemu target installer_channel="stable":
     set -euo pipefail
     DISK="/var/tmp/tromso-luks-install-{{target}}-{{installer_channel}}.qcow2"
     SCRATCH="/var/tmp/tromso-luks-scratch-{{target}}-{{installer_channel}}.img"
-    just luks-qemu-disk="$DISK" luks-scratch-disk="$SCRATCH" luks-boot-qemu-live {{target}}
+    just luks-qemu-disk="$DISK" luks-scratch-disk="$SCRATCH" \
+         luks-qemu-monitor-live="{{luks-qemu-monitor-live}}" \
+         luks-qemu-serial-live="{{luks-qemu-serial-live}}" \
+         luks-boot-qemu-live {{target}}
     just luks-qemu-ssh-port={{luks-qemu-ssh-port}} luks-install-qemu {{target}}
-    just luks-qemu-disk="$DISK" luks-scratch-disk="$SCRATCH" luks-boot-qemu-installed {{target}}
+    just luks-qemu-disk="$DISK" luks-scratch-disk="$SCRATCH" \
+         luks-qemu-monitor-installed="{{luks-qemu-monitor-installed}}" \
+         luks-qemu-serial-installed="{{luks-qemu-serial-installed}}" \
+         luks-boot-qemu-installed {{target}}
     just luks-qemu-monitor-installed={{luks-qemu-monitor-installed}} \
          luks-qemu-serial-installed={{luks-qemu-serial-installed}} \
          luks-unlock-qemu {{target}}
