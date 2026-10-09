@@ -250,13 +250,16 @@ jobs:
           source /tmp/snap2.env
           mkdir -p /tmp/snap/dl /tmp/snap/repo /tmp/snap/root
           ctr=$(buildah from quay.io/fedora/fedora:44)
+          # Tools first, while only Fedora repos exist: once Hummingbird is
+          # enabled its priority=10 hum1 rebuilds try to replace the dnf5
+          # stack itself and the transaction fails.
+          buildah run "${ctr}" -- dnf5 install -y -q createrepo_c
           buildah copy "${ctr}" /tmp/utah-src/packages/hummingbird.repo /etc/yum.repos.d/
           buildah copy "${ctr}" /tmp/utah-src/packages/RPM-GPG-KEY-redhat-release-2 /etc/pki/rpm-gpg/
           buildah copy "${ctr}" /tmp/utah-names.txt /tmp/utah-names.txt
           # Factory as a container-local file:// repo (no key, like utah's own file).
           buildah run "${ctr}" -- bash -c \
             "printf '[factory]\nname=factory\nbaseurl=file:///factory-repo\nenabled=1\ngpgcheck=0\npriority=1\n' > /etc/yum.repos.d/factory.repo"
-          buildah run "${ctr}" -- dnf5 install -y -q createrepo_c
           OPTS="--disablerepo=* --enablerepo=public-hummingbird-x86_64-rpms --enablerepo=factory"
           VOL="-v /tmp/factory-repo/repository:/factory-repo:ro -v /tmp/snap:/snap"
           buildah run ${VOL} "${ctr}" -- bash -c \
