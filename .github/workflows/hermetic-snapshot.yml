@@ -210,13 +210,13 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC1091
           source /tmp/snap2.env
-          fctr=$(buildah from "${factory_image}")
-          echo "factory_ctr=${fctr}" >> /tmp/snap2.env
           # No buildah mount (needs unshare in rootless mode) and the image
-          # ships no tar: push to an OCI dir and unpack the layers on the host.
+          # ships no tar: pull by ref and push to an OCI dir, then unpack
+          # the layers on the host. No working containers (rootless
+          # container-name push is unreliable).
+          buildah pull "${factory_image}"
           rm -rf /tmp/factory-oci
-          buildah push "${fctr}" "oci:/tmp/factory-oci"
-          buildah rm "${fctr}" >/dev/null
+          buildah push "${factory_image}" "oci:/tmp/factory-oci"
           mkdir -p /tmp/factory-repo
           python3 - <<'EOF'
           import gzip, json, subprocess, tarfile
