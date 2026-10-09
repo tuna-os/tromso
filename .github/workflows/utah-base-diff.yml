@@ -217,7 +217,8 @@ jobs:
           rm -rf /tmp/utah-src
           git clone --depth 1 --branch "${UTAH_BRANCH}" \
             "https://github.com/${UTAH_REPO}.git" /tmp/utah-src
-          bootc_os=$(grep -E '^ARG BASE_IMAGE=' /tmp/utah-src/Containerfile | cut -d= -f2-)
+          # skopeo rejects name:tag@digest — strip the tag when pinning by digest.
+          bootc_os=$(grep -E '^ARG BASE_IMAGE=' /tmp/utah-src/Containerfile | cut -d= -f2- | sed -E 's|([^/]+):[^@]+(@sha256:)|\1\2|')
           # Fresh os-minimal:latest digest (anonymous quay API).
           minimal_digest=$(curl -fsSL "https://quay.io/api/v1/repository/hummingbird-community/os-minimal/tag/?specificTag=latest" \
             | python3 -c "import json,sys; print(json.load(sys.stdin)['tags'][0]['manifest_digest'])")
