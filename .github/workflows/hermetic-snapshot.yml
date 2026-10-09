@@ -85,11 +85,12 @@ jobs:
           buildah run "${ctr}" -- dnf --disablerepo='*' \
             --enablerepo=public-hummingbird-x86_64-rpms -q repoinfo \
             | tee /tmp/repoinfo.txt
-          grep -aiE "^(Repo-(id|revision|updated))" /tmp/repoinfo.txt | head -n 5 || true
-          # One repoquery for all names: available NEVRAs.
+          grep -aE "^(Repo ID|Revision|Updated)" /tmp/repoinfo.txt | head -n 5 || true
+          # One repoquery for all names: available NEVRAs. Single --arch
+          # value: dnf4 rejects comma lists (exit 2); x86_64 keeps noarch.
           buildah run "${ctr}" -- bash -c \
             "dnf --disablerepo='*' --enablerepo=public-hummingbird-x86_64-rpms -q \
-               repoquery --nevra --arch=x86_64,noarch $(tr '\n' ' ' < /tmp/utah-names.txt)" \
+               repoquery --nevra --arch=x86_64 $(tr '\n' ' ' < /tmp/utah-names.txt)" \
             | tee /tmp/resolved-nevra.txt | wc -l
           buildah rm "${ctr}" >/dev/null
 
