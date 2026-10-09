@@ -171,7 +171,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -q
-          sudo apt-get install -y -q buildah
+          sudo apt-get install -y -q buildah zstd
           df -h / | tail -n 1
 
       - name: Clone utah, read factory pin
@@ -212,10 +212,33 @@ jobs:
           source /tmp/snap2.env
           fctr=$(buildah from "${factory_image}")
           echo "factory_ctr=${fctr}" >> /tmp/snap2.env
-          # No buildah mount (needs unshare in rootless mode): stream the
-          # repository out through the container boundary with tar.
+          # No buildah mount (needs unshare in rootless mode) and the image
+          # ships no tar: push to an OCI dir and unpack the layers on the host.
+          rm -rf /tmp/factory-oci
+          buildah push "${fctr}" "oci:/tmp/factory-oci"
+          buildah rm "${fctr}" >/dev/null
           mkdir -p /tmp/factory-repo
-          buildah run "${fctr}" -- tar -c -C / repository | tar -x -C /tmp/factory-repo
+          python3 - <<'EOF'
+          import gzip, json, subprocess, tarfile
+          idx = json.load(open('/tmp/factory-oci/index.json'))
+          man = json.load(open('/tmp/factory-oci/blobs/sha256/{}'.format(
+              idx['manifests'][0]['digest'].split(':', 1)[1])))
+          for layer in man['layers']:
+              blob = '/tmp/factory-oci/blobs/sha256/{}'.format(
+                  layer['digest'].split(':', 1)[1])
+              mt = layer.get('mediaType', '')
+              if 'zstd' in mt:
+                  src = subprocess.Popen(
+                      ['unzstd', '-c', blob], stdout=subprocess.PIPE).stdout
+              elif 'gzip' in mt:
+                  src = gzip.open(blob, 'rb')
+              else:
+                  src = open(blob, 'rb')
+              with tarfile.open(fileobj=src, mode='r|*') as tf:
+                  tf.extractall('/tmp/factory-repo', filter='data')
+              src.close()
+          print('extracted layers:', len(man['layers']))
+          EOF
           ls /tmp/factory-repo/repository/repodata/repomd.xml
           du -sh /tmp/factory-repo
           df -h / | tail -n 1
@@ -254,7 +277,7 @@ jobs:
           echo "snapshot_rpms=$(ls /tmp/snap/repo/*.rpm | wc -l)" >> /tmp/snap2.env
           echo "snapshot_bytes=$(du -sb /tmp/snap/repo | cut -f1)" >> /tmp/snap2.env
           echo "installroot_bytes=$(du -sb /tmp/snap/root | cut -f1)" >> /tmp/snap2.env
-          buildah rm "${ctr}" "${factory_ctr}" >/dev/null
+          buildah rm "${ctr}" >/dev/null
 
       - name: Write phase-2 manifest and summary
         run: |
