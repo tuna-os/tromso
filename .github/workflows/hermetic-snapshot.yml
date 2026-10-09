@@ -155,3 +155,147 @@ jobs:
           path: snapshot-phase1.json
           retention-days: 30
           if-no-files-found: error
+
+  snapshot-install:
+    name: Phase 2 — snapshot factory+Hummingbird, install from snapshot only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout (no submodules — tine not needed)
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Install buildah
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y -q buildah
+          df -h / | tail -n 1
+
+      - name: Clone utah, read factory pin
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/utah-src
+          git clone --depth 1 --branch "${UTAH_BRANCH}" \
+            "https://github.com/${UTAH_REPO}.git" /tmp/utah-src
+          : > /tmp/snap2.env
+          echo "utah_sha=$(git -C /tmp/utah-src rev-parse HEAD)" >> /tmp/snap2.env
+          # Factory pin straight from utah's Containerfile ARGs.
+          img=$(grep -E '^ARG PACKAGE_IMAGE=' /tmp/utah-src/Containerfile | cut -d= -f2-)
+          sha=$(grep -E '^ARG PACKAGE_IMAGE_SHA=' /tmp/utah-src/Containerfile | cut -d= -f2-)
+          echo "factory_image=${img}@${sha}" >> /tmp/snap2.env
+          python3 - <<'EOF'
+          import tomllib
+          want = set()
+          for f in ['/tmp/utah-src/packages/utah.toml',
+                    '/tmp/utah-src/packages/bluefin.toml']:
+              d = tomllib.load(open(f, 'rb'))
+              def walk(o):
+                  if isinstance(o, dict):
+                      for k, v in o.items():
+                          if k == 'packages' and isinstance(v, list):
+                              want.update(v)
+                          else:
+                              walk(v)
+              walk(d)
+          open('/tmp/utah-names.txt', 'w').write('\n'.join(sorted(want)) + '\n')
+          print(f"{len(want)} package names")
+          EOF
+          cat /tmp/snap2.env
+
+      - name: Mount pinned factory image
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC1091
+          source /tmp/snap2.env
+          fctr=$(buildah from "${factory_image}")
+          echo "factory_ctr=${fctr}" >> /tmp/snap2.env
+          mnt=$(buildah mount "${fctr}")
+          echo "factory_mnt=${mnt}" >> /tmp/snap2.env
+          ls "${mnt}/repository/repodata/repomd.xml"
+          echo "factory_desc=$(buildah inspect "${fctr}" --format '{{.OCIv1.created}} {{.ImageName}}' || true)" >> /tmp/snap2.env
+
+      - name: Download closure, build snapshot repo, install from it
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC1091
+          source /tmp/snap2.env
+          mkdir -p /tmp/snap/dl /tmp/snap/repo /tmp/snap/root
+          ctr=$(buildah from quay.io/fedora/fedora:44)
+          buildah copy "${ctr}" /tmp/utah-src/packages/hummingbird.repo /etc/yum.repos.d/
+          buildah copy "${ctr}" /tmp/utah-src/packages/RPM-GPG-KEY-redhat-release-2 /etc/pki/rpm-gpg/
+          buildah copy "${ctr}" /tmp/utah-names.txt /tmp/utah-names.txt
+          # Factory as a container-local file:// repo (no key, like utah's own file).
+          buildah run "${ctr}" -- bash -c \
+            "printf '[factory]\nname=factory\nbaseurl=file:///factory-repo\nenabled=1\ngpgcheck=0\npriority=1\n' > /etc/yum.repos.d/factory.repo"
+          buildah run "${ctr}" -- dnf5 install -y -q createrepo_c
+          OPTS="--disablerepo=* --enablerepo=public-hummingbird-x86_64-rpms --enablerepo=factory"
+          VOL="-v ${factory_mnt}/repository:/factory-repo:ro -v /tmp/snap:/snap"
+          buildah run ${VOL} "${ctr}" -- bash -c \
+            "dnf5 ${OPTS} -q repoinfo | grep -aE '^(Repo ID|Revision|Updated)' ; \
+             cd /snap/dl && dnf5 ${OPTS} -q download --resolve --alldeps \
+               $(tr '\n' ' ' < /tmp/utah-names.txt)"
+          buildah run ${VOL} "${ctr}" -- bash -c \
+            "cp /snap/dl/*.rpm /snap/repo/ && createrepo_c -q /snap/repo"
+          buildah run "${ctr}" -- bash -c \
+            "printf '[snapshot]\nname=snapshot\nbaseurl=file:///snap/repo\nenabled=1\ngpgcheck=0\n' > /etc/yum.repos.d/snapshot.repo"
+          # The hermetic moment: ONLY the snapshot repo exists for this transaction.
+          buildah run ${VOL} "${ctr}" -- bash -c \
+            "dnf5 --disablerepo='*' --enablerepo=snapshot -q \
+               --installroot=/snap/root --releasever=44 \
+               install $(tr '\n' ' ' < /tmp/utah-names.txt)"
+          buildah run ${VOL} "${ctr}" -- \
+            rpm -r /snap/root -qa --qf '%{NAME}\n' | sort -u > /tmp/snap/installed.txt
+          echo "snapshot_rpms=$(ls /tmp/snap/repo/*.rpm | wc -l)" >> /tmp/snap2.env
+          echo "snapshot_bytes=$(du -sb /tmp/snap/repo | cut -f1)" >> /tmp/snap2.env
+          echo "installroot_bytes=$(du -sb /tmp/snap/root | cut -f1)" >> /tmp/snap2.env
+          buildah rm "${ctr}" >/dev/null
+          buildah umount "${factory_ctr}" >/dev/null
+
+      - name: Write phase-2 manifest and summary
+        run: |
+          set -euo pipefail
+          python3 - <<'EOF'
+          import os
+          env = {}
+          with open('/tmp/snap2.env') as f:
+              for line in f:
+                  line = line.strip()
+                  if line and '=' in line and not line.startswith('#'):
+                      k, v = line.split('=', 1)
+                      env[k] = v
+          want = {l.strip() for l in open('/tmp/utah-names.txt') if l.strip()}
+          installed = {l.strip() for l in open('/tmp/snap/installed.txt') if l.strip()}
+          missing = sorted(want - installed)
+          manifest = {
+              'utah_sha': env.get('utah_sha', 'UNKNOWN'),
+              'factory_image': env.get('factory_image', 'UNKNOWN'),
+              'snapshot_rpms': int(env.get('snapshot_rpms', 0)),
+              'snapshot_bytes': int(env.get('snapshot_bytes', 0)),
+              'installroot_bytes': int(env.get('installroot_bytes', 0)),
+              'want': len(want),
+              'installed_want': len(want) - len(missing),
+              'missing_from_snapshot_install': missing,
+          }
+          import json
+          with open('snapshot-phase2.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('## hermetic snapshot phase 2 (experiment)\n\n')
+              f.write(f"Snapshot: {manifest['snapshot_rpms']} RPMs. "
+                      f"Snapshot-only install: {manifest['installed_want']}/{manifest['want']} "
+                      f"wanted names present.\n\n")
+              f.write(f"Missing ({len(missing)}): {', '.join(missing)}\n")
+          EOF
+          cat snapshot-phase2.json
+
+      - name: Upload phase-2 manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: hermetic-snapshot-phase2
+          path: snapshot-phase2.json
+          retention-days: 30
+          if-no-files-found: error
