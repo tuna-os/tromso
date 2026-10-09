@@ -221,7 +221,14 @@ jobs:
           buildah push "${factory_image}" "oci:/tmp/factory-oci"
           mkdir -p /tmp/factory-repo
           python3 - <<'EOF'
-          import gzip, json, subprocess, tarfile
+          import gzip, json, os, subprocess, tarfile
+          def snap_filter(member, dest):
+              # Bootable images ship absolute symlinks (/etc -> ...); keep
+              # them inside the destination by relativizing the target.
+              if (member.issym() or member.islnk()) and os.path.isabs(member.linkname):
+                  member_dir = os.path.join(dest, os.path.dirname(member.name))
+                  member.linkname = os.path.relpath(member.linkname, member_dir)
+              return member
           idx = json.load(open('/tmp/factory-oci/index.json'))
           man = json.load(open('/tmp/factory-oci/blobs/sha256/{}'.format(
               idx['manifests'][0]['digest'].split(':', 1)[1])))
@@ -237,7 +244,7 @@ jobs:
               else:
                   src = open(blob, 'rb')
               with tarfile.open(fileobj=src, mode='r|*') as tf:
-                  tf.extractall('/tmp/factory-repo', filter='data')
+                  tf.extractall('/tmp/factory-repo', filter=snap_filter)
               src.close()
           print('extracted layers:', len(man['layers']))
           EOF
@@ -255,7 +262,14 @@ jobs:
           buildah push "${base_image}" "oci:/tmp/base-oci"
           mkdir -p /tmp/snap/root
           python3 - <<'EOF'
-          import gzip, json, subprocess, tarfile
+          import gzip, json, os, subprocess, tarfile
+          def snap_filter(member, dest):
+              # Bootable images ship absolute symlinks (/etc -> ...); keep
+              # them inside the destination by relativizing the target.
+              if (member.issym() or member.islnk()) and os.path.isabs(member.linkname):
+                  member_dir = os.path.join(dest, os.path.dirname(member.name))
+                  member.linkname = os.path.relpath(member.linkname, member_dir)
+              return member
           idx = json.load(open('/tmp/base-oci/index.json'))
           man = json.load(open('/tmp/base-oci/blobs/sha256/{}'.format(
               idx['manifests'][0]['digest'].split(':', 1)[1])))
@@ -271,7 +285,7 @@ jobs:
               else:
                   src = open(blob, 'rb')
               with tarfile.open(fileobj=src, mode='r|*') as tf:
-                  tf.extractall('/tmp/snap/root', filter='data')
+                  tf.extractall('/tmp/snap/root', filter=snap_filter)
               src.close()
           print('extracted layers:', len(man['layers']))
           EOF
