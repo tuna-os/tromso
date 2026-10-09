@@ -186,6 +186,8 @@ jobs:
           img=$(grep -E '^ARG PACKAGE_IMAGE=' /tmp/utah-src/Containerfile | cut -d= -f2-)
           sha=$(grep -E '^ARG PACKAGE_IMAGE_SHA=' /tmp/utah-src/Containerfile | cut -d= -f2-)
           echo "factory_image=${img}@${sha}" >> /tmp/snap2.env
+          # Base image pin (already digest-pinned in the ARG default).
+          echo "base_image=$(grep -E '^ARG BASE_IMAGE=' /tmp/utah-src/Containerfile | cut -d= -f2-)" >> /tmp/snap2.env
           python3 - <<'EOF'
           import tomllib
           want = set()
@@ -241,6 +243,39 @@ jobs:
           EOF
           ls /tmp/factory-repo/repository/repodata/repomd.xml
           du -sh /tmp/factory-repo
+          df -h / | tail -n 1
+
+      - name: Extract base image as installroot seed
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC1091
+          source /tmp/snap2.env
+          buildah pull "${base_image}"
+          rm -rf /tmp/base-oci
+          buildah push "${base_image}" "oci:/tmp/base-oci"
+          mkdir -p /tmp/snap/root
+          python3 - <<'EOF'
+          import gzip, json, subprocess, tarfile
+          idx = json.load(open('/tmp/base-oci/index.json'))
+          man = json.load(open('/tmp/base-oci/blobs/sha256/{}'.format(
+              idx['manifests'][0]['digest'].split(':', 1)[1])))
+          for layer in man['layers']:
+              blob = '/tmp/base-oci/blobs/sha256/{}'.format(
+                  layer['digest'].split(':', 1)[1])
+              mt = layer.get('mediaType', '')
+              if 'zstd' in mt:
+                  src = subprocess.Popen(
+                      ['unzstd', '-c', blob], stdout=subprocess.PIPE).stdout
+              elif 'gzip' in mt:
+                  src = gzip.open(blob, 'rb')
+              else:
+                  src = open(blob, 'rb')
+              with tarfile.open(fileobj=src, mode='r|*') as tf:
+                  tf.extractall('/tmp/snap/root', filter='data')
+              src.close()
+          print('extracted layers:', len(man['layers']))
+          EOF
+          du -sh /tmp/snap/root
           df -h / | tail -n 1
 
       - name: Download closure, build snapshot repo, install from it
@@ -300,6 +335,7 @@ jobs:
           manifest = {
               'utah_sha': env.get('utah_sha', 'UNKNOWN'),
               'factory_image': env.get('factory_image', 'UNKNOWN'),
+              'base_image': env.get('base_image', 'UNKNOWN'),
               'snapshot_rpms': int(env.get('snapshot_rpms', 0)),
               'snapshot_bytes': int(env.get('snapshot_bytes', 0)),
               'installroot_bytes': int(env.get('installroot_bytes', 0)),
