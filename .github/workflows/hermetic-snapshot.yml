@@ -1,0 +1,156 @@
+# EXPERIMENT ONLY — can utah's package set resolve hermetically?
+# Phase 1 (this file): resolve utah's manifests against Hummingbird repodata
+# only (no factory bind-mount, no downloads beyond repodata) and report
+# coverage + versions. Phase 2 (if phase 1 shows a closable gap): snapshot
+# the resolved RPMs and install from the snapshot alone.
+# Not a required check, never will be.
+name: hermetic-snapshot (experiment)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [exp/tine-utah-race]
+    paths:
+      - .github/workflows/hermetic-snapshot.yml
+      - tine-poc/snapshot/**
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: hermetic-snapshot-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UTAH_REPO: projectbluefin/utah
+  UTAH_BRANCH: main
+
+jobs:
+  resolve:
+    name: Resolve utah manifests against Hummingbird snapshot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout (no submodules — tine not needed)
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Install buildah
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y -q buildah
+
+      - name: Clone utah at pinned commit
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/utah-src
+          git clone --depth 1 --branch "${UTAH_BRANCH}" \
+            "https://github.com/${UTAH_REPO}.git" /tmp/utah-src
+          : > /tmp/snap.env
+          echo "utah_sha=$(git -C /tmp/utah-src rev-parse HEAD)" >> /tmp/snap.env
+          python3 - <<'EOF'
+          import tomllib
+          want = set()
+          for f in ['/tmp/utah-src/packages/utah.toml',
+                    '/tmp/utah-src/packages/bluefin.toml']:
+              d = tomllib.load(open(f, 'rb'))
+              def walk(o):
+                  if isinstance(o, dict):
+                      for k, v in o.items():
+                          if k == 'packages' and isinstance(v, list):
+                              want.update(v)
+                          else:
+                              walk(v)
+              walk(d)
+          with open('/tmp/utah-names.txt', 'w') as f:
+              f.write('\n'.join(sorted(want)) + '\n')
+          print(f"{len(want)} package names")
+          EOF
+
+      - name: Resolve against Hummingbird in Fedora container
+        run: |
+          set -euo pipefail
+          ctr=$(buildah from quay.io/fedora/fedora:44)
+          buildah run "${ctr}" -- dnf install -y -q dnf-plugins-core
+          # utah's repo file + key, verbatim. All other repos stay disabled:
+          # the point is what Hummingbird alone can satisfy.
+          buildah copy "${ctr}" /tmp/utah-src/packages/hummingbird.repo /etc/yum.repos.d/
+          buildah copy "${ctr}" /tmp/utah-src/packages/RPM-GPG-KEY-redhat-release-2 /etc/pki/rpm-gpg/
+          buildah copy "${ctr}" /tmp/utah-names.txt /tmp/utah-names.txt
+          # Snapshot identity: repomd revision of the repo we resolved against.
+          buildah run "${ctr}" -- dnf --disablerepo='*' \
+            --enablerepo=public-hummingbird-x86_64-rpms -q repoinfo \
+            | tee /tmp/repoinfo.txt
+          grep -aiE "^(Repo-(id|revision|updated))" /tmp/repoinfo.txt | head -n 5 || true
+          # One repoquery for all names: available NEVRAs.
+          buildah run "${ctr}" -- bash -c \
+            "dnf --disablerepo='*' --enablerepo=public-hummingbird-x86_64-rpms -q \
+               repoquery --nevra --arch=x86_64,noarch $(tr '\n' ' ' < /tmp/utah-names.txt)" \
+            | tee /tmp/resolved-nevra.txt | wc -l
+          buildah rm "${ctr}" >/dev/null
+
+      - name: Write snapshot manifest and summary
+        run: |
+          set -euo pipefail
+          python3 - <<'EOF'
+          import os, re
+          env = {}
+          with open('/tmp/snap.env') as f:
+              for line in f:
+                  line = line.strip()
+                  if line and '=' in line:
+                      k, v = line.split('=', 1)
+                      env[k] = v
+          want = [l.strip() for l in open('/tmp/utah-names.txt') if l.strip()]
+          # repoquery --nevra lines look like name-epoch:version-release.arch;
+          # map back to names (name may contain dashes: match longest known name).
+          have = {}
+          for line in open('/tmp/resolved-nevra.txt'):
+              line = line.strip()
+              if not line:
+                  continue
+              m = re.match(r'^(.+)-(\d+:)?([^-]+)-([^-]+)\.(x86_64|noarch)$', line)
+              if not m:
+                  continue
+              base = m.group(1)
+              cand = [w for w in want if base == w or base.startswith(w + '-')]
+              name = max(cand, key=len) if cand else base
+              have.setdefault(name, []).append(line)
+          missing = sorted(set(want) - set(have))
+          gnome = {p: have[p] for p in
+                   ['gnome-shell', 'mutter', 'gtk4', 'libadwaita', 'nautilus',
+                    'gnome-control-center', 'gnome-session', 'gnome-settings-daemon',
+                    'gsettings-desktop-schemas', 'xdg-desktop-portal-gnome']
+                   if p in have}
+          manifest = {
+              'utah_sha': env.get('utah_sha', 'UNKNOWN'),
+              'repo': 'public-hummingbird-x86_64-rpms (alone; factory excluded)',
+              'want': len(want),
+              'resolved': len(have),
+              'missing': missing,
+              'gnome_versions': gnome,
+          }
+          import json
+          with open('snapshot-phase1.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('## hermetic snapshot phase 1 (experiment)\n\n')
+              f.write(f"utah@{manifest['utah_sha'][:12]}: "
+                      f"{manifest['resolved']}/{manifest['want']} names resolve "
+                      f"against Hummingbird alone.\n\n")
+              f.write(f"Missing ({len(missing)}): {', '.join(missing)}\n")
+          EOF
+          cat snapshot-phase1.json
+
+      - name: Upload snapshot manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: hermetic-snapshot-phase1
+          path: snapshot-phase1.json
+          retention-days: 30
+          if-no-files-found: error

@@ -6,6 +6,12 @@ on:
   workflow_dispatch:
   push:
     branches: [exp/tine-utah-race]
+    # Snapshot/docs iterations must not rebuild the 5GB image: they touch
+    # only ignored paths. (Required-check rule doesn't apply — experiment.)
+    paths-ignore:
+      - docs/experiments/**
+      - .github/workflows/hermetic-snapshot.yml
+      - tine-poc/snapshot/**
 
 permissions:
   contents: read
