@@ -17,6 +17,13 @@ FLATPAK_CACHE="/var/cache/flatpak-dl"
 mkdir -p "${FLATPAK_CACHE}/tmp"
 export TMPDIR="${FLATPAK_CACHE}/tmp"
 mkdir -p /run/dbus
+
+# The system dbus-daemon refuses to start without a valid machine-id. Minimal
+# build containers don't have one populated, so generate it on demand.
+if [ ! -s /etc/machine-id ]; then
+    systemd-machine-id-setup || dbus-uuidgen --ensure=/etc/machine-id
+fi
+
 dbus-daemon --system --fork --nopidfile
 sleep 1
 

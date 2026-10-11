@@ -11,6 +11,14 @@
 # (unlocking LUKS first when needed), locates /etc in the deployment directory
 # tree, and writes the hostname directly.
 #
+# Exit contract: this script is the e2e install gate. It exits non-zero unless
+# the install completed AND every patch it decided was required actually
+# landed. A patch that could not be applied is a failed install, not a
+# warning: when fisherman exits non-zero because the hostname write failed,
+# this wrapper is the only thing that writes the hostname, so a silent patch
+# failure makes CI report a pass for a system the installer never finished.
+# A patch that is not required on this layout is skipped, which is a pass.
+#
 # Upstream bug: https://github.com/tuna-os/fisherman/issues
 #
 # Usage: fisherman-install.sh <recipe.json>
@@ -43,20 +51,39 @@ if [[ $FISH_RC -ne 0 ]]; then
 		exit "$FISH_RC"
 	fi
 else
-	echo "==> fisherman succeeded — applying post-install overrides directly"
+	echo "==> fisherman succeeded"
+fi
+
+# The hostname patch is the only thing this wrapper applies, so when fisherman
+# wrote the hostname itself there is nothing left to do. Mounting the installed
+# root anyway would only add a way for a successful install to fail the gate.
+if [[ $PATCH_HOSTNAME -eq 0 ]]; then
+	echo "==> no post-install patch required"
+	exit 0
 fi
 
 # Detect whether this is a LUKS install (crypto_LUKS partition on /dev/vda)
 # or a plain btrfs install.
 # Use -r (raw) to suppress lsblk tree characters (├─/└─) in the NAME field.
-LUKS_DEV=$(lsblk -nrpo NAME,FSTYPE /dev/vda |
-	awk '$2=="crypto_LUKS"{print $1;exit}')
-ROOT_DEV=$(lsblk -nrpo NAME,FSTYPE /dev/vda |
-	awk '$2=="btrfs"||$2=="xfs"{print $1;exit}')
+# lsblk's own failure is tolerated here and reported as "no partition found"
+# below: under set -e an unreadable /dev/vda would otherwise abort the script
+# with lsblk's exit code, losing the reason and skipping the teardown.
+BLOCKDEVS=$(lsblk -nrpo NAME,FSTYPE /dev/vda 2>&1) || BLOCKDEVS=""
+LUKS_DEV=$(awk '$2=="crypto_LUKS"{print $1;exit}' <<<"$BLOCKDEVS")
+ROOT_DEV=$(awk '$2=="btrfs"||$2=="xfs"{print $1;exit}' <<<"$BLOCKDEVS")
 
 MNT=$(mktemp -d /tmp/post-install-fix-XXXX)
 MAPPER="post-install-fix-$$"
 MOUNTED=0
+
+# fail records a reason the installed system is not in the state this script
+# was supposed to leave it in. Reasons are collected rather than exited on so
+# the log still shows every problem and the mounts are still released below.
+FAILURES=()
+fail() {
+	echo "ERROR: $1"
+	FAILURES+=("$1")
+}
 
 if [[ -n "$LUKS_DEV" ]]; then
 	# LUKS install: extract passphrase from recipe JSON and unlock the container.
@@ -66,17 +93,17 @@ d = json.load(open(sys.argv[1]))
 print(d.get('encryption', {}).get('passphrase', ''))
 " "$RECIPE" 2>/dev/null || echo "")
 	if [[ -z "$PASSPHRASE" ]]; then
-		echo "ERROR: could not extract LUKS passphrase from recipe — post-install patch not applied"
+		fail "could not extract LUKS passphrase from recipe — post-install patch not applied"
 	elif printf '%s' "$PASSPHRASE" | cryptsetup luksOpen --key-file=- --batch-mode "$LUKS_DEV" "$MAPPER" 2>/tmp/cryptsetup-err.log; then
 		if mount "/dev/mapper/$MAPPER" "$MNT"; then
 			MOUNTED=1
 		else
-			echo "ERROR: mount /dev/mapper/$MAPPER failed — post-install patch not applied"
+			fail "mount /dev/mapper/$MAPPER failed — post-install patch not applied"
 			cat /tmp/cryptsetup-err.log 2>/dev/null || true
 			cryptsetup luksClose "$MAPPER" || true
 		fi
 	else
-		echo "ERROR: cryptsetup luksOpen $LUKS_DEV failed — post-install patch not applied"
+		fail "cryptsetup luksOpen $LUKS_DEV failed — post-install patch not applied"
 		cat /tmp/cryptsetup-err.log 2>/dev/null || true
 	fi
 elif [[ -n "$ROOT_DEV" ]]; then
@@ -85,10 +112,10 @@ elif [[ -n "$ROOT_DEV" ]]; then
 	if mount "$ROOT_DEV" "$MNT"; then
 		MOUNTED=1
 	else
-		echo "ERROR: mount $ROOT_DEV failed — post-install patch not applied"
+		fail "mount $ROOT_DEV failed — post-install patch not applied"
 	fi
 else
-	echo "ERROR: no btrfs, xfs, or crypto_LUKS partition found on /dev/vda — post-install patch not applied"
+	fail "no btrfs, xfs, or crypto_LUKS partition found on /dev/vda — post-install patch not applied"
 fi
 
 if [[ $MOUNTED -eq 1 ]]; then
@@ -104,26 +131,19 @@ if [[ $MOUNTED -eq 1 ]]; then
 	fi
 
 	if [[ -n "$DEPLOY_ETC" ]]; then
-		# 1. Patch hostname if needed.
+		# Patch hostname if fisherman failed to write it.
 		if [[ $PATCH_HOSTNAME -eq 1 ]]; then
 			# Extract hostname from the recipe JSON.
 			HOSTNAME=$(grep -o '"hostname"[[:space:]]*:[[:space:]]*"[^"]*"' "$RECIPE" |
 				grep -o '"[^"]*"$' | tr -d '"' || echo "tromso")
-			echo "$HOSTNAME" >"$DEPLOY_ETC/hostname"
-			echo "==> hostname '$HOSTNAME' written to $DEPLOY_ETC/hostname"
+			if echo "$HOSTNAME" >"$DEPLOY_ETC/hostname"; then
+				echo "==> hostname '$HOSTNAME' written to $DEPLOY_ETC/hostname"
+			else
+				fail "writing hostname to $DEPLOY_ETC/hostname failed — fisherman could not write it either, so the install is incomplete"
+			fi
 		fi
-
-		# 2. Write systemd override to break the rechunker ordering cycle deadlock.
-		# This occurs on some Universal Blue base images (LTS/stable).
-		echo "==> Writing systemd override to break rechunker-group-fix.service ordering cycle"
-		mkdir -p "$DEPLOY_ETC/systemd/system/rechunker-group-fix.service.d"
-		cat <<EOF >"$DEPLOY_ETC/systemd/system/rechunker-group-fix.service.d/override.conf"
-[Unit]
-DefaultDependencies=no
-EOF
-		echo "==> systemd override written successfully to $DEPLOY_ETC/systemd/system/rechunker-group-fix.service.d/override.conf"
 	else
-		echo "WARNING: deployment etc/ not found under $MNT/ostree — post-install patches not applied"
+		fail "deployment etc/ not found under $MNT/ostree — post-install patches not applied"
 	fi
 
 	umount -R "$MNT" || true
@@ -133,4 +153,13 @@ EOF
 fi
 
 rmdir "$MNT" || true
+
+if ((${#FAILURES[@]} > 0)); then
+	echo "==> post-install patch FAILED (${#FAILURES[@]} problem(s)):"
+	for reason in "${FAILURES[@]}"; do
+		echo "      - $reason"
+	done
+	exit 1
+fi
+
 echo "==> post-install patch complete"
