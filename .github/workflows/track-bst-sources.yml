@@ -71,6 +71,26 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         uses: extractions/setup-just@v4
 
+      - name: Refresh tags in BST source mirrors
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -eu
+          mirrors_dir="$HOME/.cache/buildstream/sources/git_repo"
+          [ -d "$mirrors_dir" ] || { echo "no mirrors yet, skipping"; exit 0; }
+          for mirror in "$mirrors_dir"/*.git; do
+            [ -d "$mirror" ] || continue
+            echo "refreshing tags in $(basename "$mirror")"
+            git -C "$mirror" fetch --tags --force --prune --prune-tags origin \
+              '+refs/tags/*:refs/tags/*' || true
+          done
+
+      - name: Capture pre-track refs
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          mkdir -p /tmp/track-sources
+          grep -rhE '^\s*ref:' elements/ \
+            > /tmp/track-sources/before.txt || true
+
       - name: Pull BuildStream container image
         if: steps.gate.outputs.run == 'true'
         run: podman pull "$BST2_IMAGE"
@@ -106,6 +126,28 @@ jobs:
           done
           echo "Tracking:$TARGETS"
           BST_FLAGS=--no-interactive just bst source track $TARGETS
+
+      - name: Detect ref regressions
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -eu
+          fail=0
+          while IFS= read -r line; do
+            hash=$(printf '%s' "$line" | sed -nE 's/.*-g([0-9a-f]{40})$/\1/p')
+            new_tag=$(printf '%s' "$line" | sed -nE 's/^\s*ref:\s+(.*)-[0-9]+-g[0-9a-f]{40}$/\1/p')
+            [ -n "$hash" ] && [ -n "$new_tag" ] || continue
+            old_line=$(grep -F "$hash" /tmp/track-sources/before.txt 2>/dev/null | head -1 || true)
+            old_tag=$(printf '%s' "$old_line" | sed -nE 's/^\s*ref:\s+(.*)-[0-9]+-g[0-9a-f]{40}$/\1/p')
+            [ -n "$old_tag" ] || continue
+            if [ "$old_tag" != "$new_tag" ]; then
+              highest=$(printf '%s\n%s\n' "$old_tag" "$new_tag" | sort -V | tail -1)
+              if [ "$highest" != "$new_tag" ]; then
+                echo "::error::Ref regression at commit $hash: $old_tag -> $new_tag (same commit, older tag picked -- hand-edit the ref)"
+                fail=1
+              fi
+            fi
+          done < <(grep -rhE '^\s*ref:' elements/)
+          exit $fail
 
       - name: Check for changes
         if: steps.gate.outputs.run == 'true'
