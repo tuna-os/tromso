@@ -48,8 +48,6 @@ tuna-os/tromso (this repo)
     ├── kde-linux-system/         # KDE Linux system config/initramfs (consolidated in)
     ├── core/                     # Core freedesktop-sdk-facing elements
     ├── core-deps/                # Core dependency elements
-    ├── gnomeos-deps/
-    │   └── bootc.bst             # bootc compiled from source (Rust)
     ├── sdk/                      # SDK-facing elements
     ├── sdk-deps/
     ├── plugins/                  # BuildStream plugins (junctions)
