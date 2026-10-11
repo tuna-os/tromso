@@ -73,11 +73,13 @@ Two rules protect the change:
   banner. A green cache hit does not prove that BuildStream loaded the
   executor. A quiet fall back to local builds looks like a slow success.
 
-Two steps remain. First, get the certificate. Second, move the junction pins.
-Cache keys are a function of the ref, the patch queue, the options and the
-overrides. A shared cache therefore stays cold while this repository sits on
-freedesktop-sdk 25.08.9 and the others sit on 25.08.16. Delete the chunk
-machinery from the caller only after a remote build passes.
+Two steps remain. First, get the certificate. Second, keep the junction pins
+near the pins of the other repositories. Cache keys are a function of the ref,
+the patch queue, the options and the overrides. This repository pins
+freedesktop-sdk 25.08.17, the same ref as razorfin. Dakota and zirconium use
+26.08, so a move to 26.08 is a separate decision.
+
+Delete the chunk machinery from the caller only after a remote build passes.
 
 **Cache-key invalidation warning:** a change to the cache key of every element
 causes a full world rebuild. A change to `name:` in `project.conf` is one example.
