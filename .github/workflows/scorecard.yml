@@ -32,7 +32,7 @@ jobs:
       - name: Run analysis
         # ossf/scorecard-action publishes no floating major tag, so `@v2`
         # never resolved and this job failed in ~3s on every push.
-        uses: ossf/scorecard-action@v2.4.4
+        uses: ossf/scorecard-action@v2.5.0
         with:
           results_file: results.sarif
           results_format: sarif
