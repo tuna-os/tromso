@@ -1,49 +1,284 @@
 name: Test
 
+# The single pull-request gate: lint, unit tests, the BuildStream graph and
+# (pull requests only) the install E2E tests.
+#
+# The `changes` job maps the changed files to the jobs they can affect, and
+# every other job is skipped. A skipped job reports success, so the required
+# checks always report. If `changes` itself fails, every gate runs. A change
+# to this workflow runs everything.
+#
+# Install E2E: plain and LUKS build the same ISO from this tree and differ
+# only in the install path, so a change to shared inputs runs a round-robin
+# slice of them (repo variable E2E_ROUND_ROBIN_SIZE, default 1, picked by
+# run number). A change to a mode's own script or workflow always runs that
+# mode. Both modes run in full on their weekly schedule and on dispatch.
+
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect changed files
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      shell: ${{ steps.classify.outputs.shell }}
+      yaml: ${{ steps.classify.outputs.yaml }}
+      workflows: ${{ steps.classify.outputs.workflows }}
+      renovate: ${{ steps.classify.outputs.renovate }}
+      bst: ${{ steps.classify.outputs.bst }}
+      graph: ${{ steps.classify.outputs.graph }}
+      bats: ${{ steps.classify.outputs.bats }}
+      pytest: ${{ steps.classify.outputs.pytest }}
+      just: ${{ steps.classify.outputs.just }}
+      e2e-plain: ${{ steps.classify.outputs.e2e-plain }}
+      e2e-luks: ${{ steps.classify.outputs.e2e-luks }}
+    steps:
+      - name: List changed files
+        id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          PR_FILES: ${{ github.event.pull_request.changed_files }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+          all=true
+          : > "$RUNNER_TEMP/changed.txt"
+          case "$EVENT" in
+            pull_request)
+              # The files API lists at most 3000 files; above that, test all.
+              if [ "${PR_FILES:-0}" -le 3000 ]; then
+                gh api --paginate "repos/$REPO/pulls/$PR/files?per_page=100" \
+                  --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/changed.txt"
+                all=false
+              fi
+              ;;
+            push)
+              # The compare API lists at most 300 files; a new branch has no base.
+              if [[ ! "$BEFORE" =~ ^0+$ ]]; then
+                gh api "repos/$REPO/compare/$BEFORE...$AFTER" \
+                  --jq '.files[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/changed.txt"
+                [ "$(wc -l < "$RUNNER_TEMP/changed.txt")" -ge 300 ] || all=false
+              fi
+              ;;
+          esac
+          echo "all=$all" >> "$GITHUB_OUTPUT"
+          echo "Changed files (all=$all):"
+          cat "$RUNNER_TEMP/changed.txt"
+
+      - name: Map changed files to jobs
+        id: classify
+        env:
+          ALL: ${{ steps.list.outputs.all }}
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RR_SIZE: ${{ vars.E2E_ROUND_ROBIN_SIZE || '1' }}
+          CHANGED: ${{ runner.temp }}/changed.txt
+        run: |
+          set -euo pipefail
+          all=$ALL
+          shell=false yaml=false workflows=false renovate=false bst=false
+          graph=false bats=false pytest=false just=false
+          e2e_shared=false plain=false luks=false
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            case "$f" in .github/workflows/test.yml) all=true ;; esac
+            case "$f" in *.sh|*.bash) shell=true ;; esac
+            case "$f" in *.yml|*.yaml|.yamllint) yaml=true ;; esac
+            case "$f" in .github/workflows/*|.github/actions/*) workflows=true ;; esac
+            case "$f" in renovate.json|renovate.json5|.renovaterc|.renovaterc.json|.github/renovate.json|.github/renovate.json5) renovate=true ;; esac
+            case "$f" in *.bst) bst=true ;; esac
+            case "$f" in tests/bats/*|tromso/src/*) bats=true ;; esac
+            # pytest also checks repo-wide invariants (tracked file sizes,
+            # workflows, elements), so only prose skips it.
+            case "$f" in *.md|LICENSE*) ;; *) pytest=true ;; esac
+            case "$f" in Justfile|justfile|iso.justfile|*.just|just/*) just=true ;; esac
+            # `bst show` reads the project, elements and local sources; these
+            # paths are never part of the BuildStream graph.
+            case "$f" in
+              *.md|LICENSE*|docs/*|runbooks/*|tests/*|scripts/*|tromso/*|.github/*) ;;
+              Justfile|iso.justfile|just/*|renovate.json|ruff.toml|codecov.yml) ;;
+              .yamllint.yml|.editorconfig|.gitignore|.ste-budget) ;;
+              *) graph=true ;;
+            esac
+            case "$f" in tromso/*|Justfile|iso.justfile|scripts/lib-install-qemu.sh|scripts/fisherman-install.sh) e2e_shared=true ;; esac
+            case "$f" in scripts/plain-install-qemu.sh|.github/workflows/test-plain-install.yml) plain=true ;; esac
+            case "$f" in scripts/luks-install-qemu.sh|.github/workflows/test-luks-install.yml) luks=true ;; esac
+          done < "$CHANGED"
+
+          if [ "$all" = true ]; then
+            shell=true yaml=true workflows=true renovate=true bst=true
+            graph=true bats=true pytest=true just=true
+            plain=true luks=true
+          elif [ "$e2e_shared" = true ]; then
+            cells=(plain luks)
+            n=${#cells[@]}
+            size=$RR_SIZE
+            [[ "$size" =~ ^[0-9]+$ ]] && [ "$size" -ge 1 ] || size=1
+            [ "$size" -le "$n" ] || size=$n
+            for ((i = 0; i < size; i++)); do
+              cell=${cells[$(( (RUN_NUMBER * size + i) % n ))]}
+              printf -v "$cell" true
+            done
+          fi
+          # The E2E tests gate pull requests into main only.
+          if [ "$EVENT" != pull_request ] || [ "$BASE_REF" != main ]; then
+            plain=false luks=false
+          fi
+
+          {
+            echo "shell=$shell"
+            echo "yaml=$yaml"
+            echo "workflows=$workflows"
+            echo "renovate=$renovate"
+            echo "bst=$bst"
+            echo "graph=$graph"
+            echo "bats=$bats"
+            echo "pytest=$pytest"
+            echo "just=$just"
+            echo "e2e-plain=$plain"
+            echo "e2e-luks=$luks"
+          } | tee -a "$GITHUB_OUTPUT" >> "$GITHUB_STEP_SUMMARY"
+
   shellcheck:
-    name: ShellCheck
+    name: shellcheck
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.shell == 'true') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: Run ShellCheck
+
+      - name: Run shellcheck
         uses: ludeeus/action-shellcheck@2.0.0
         with:
-          # Pinned (tromso#185): see lint.yml's shellcheck step for why --
-          # the default version: stable is a moving tag, and a transient
-          # asset-CDN hiccup on it reds CI non-deterministically.
+          # Pinned (tromso#185): the action defaults to version: stable,
+          # which resolves to a moving GitHub release tag. A transient
+          # asset-CDN hiccup on that tag returns an HTML page instead of
+          # the tarball ("tar: This does not look like a tar archive"),
+          # not reproducible on retry -- pinning to a concrete release
+          # makes the download URL deterministic.
           version: v0.11.0
-          scandir: './'
+          scandir: '.'
+          additional_files: >
+            tromso/src/build-iso.sh
+            tromso/src/configure-live.sh
+            tromso/src/install-flatpaks.sh
           severity: error
-          format: tty
           # files/ is kde-build-meta-derived: dracut module fragments and
           # profile.d snippets meant to be sourced, not executed — they
           # intentionally have no shebang (SC2148 doesn't apply to them).
           ignore_paths: files
 
   yamllint:
-    name: YAML Lint
+    name: yamllint
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.yaml == 'true') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: Run yamllint
+
+      - name: Run yamllint (.yamllint.yml)
         uses: ibiqlik/action-yamllint@v3
         with:
           config_file: .yamllint.yml
 
+      - name: Run yamllint (default rules)
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: .
+          config_data: |
+            extends: default
+            rules:
+              line-length: disable
+              document-start: disable
+              truthy: disable
+              comments-indentation: disable
+              braces:
+                level: warning
+                max-spaces-inside: 1
+              brackets:
+                level: warning
+                max-spaces-inside: 1
+
+  actionlint:
+    name: actionlint
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.workflows == 'true') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run actionlint on workflows
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color
+
+  renovate-config:
+    name: Renovate Config Validate
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.renovate == 'true') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate renovate.json
+        run: npx --yes --package renovate -- renovate-config-validator renovate.json
+
+  lint-bst:
+    name: lint .bst files
+    needs: changes
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && (needs.changes.result != 'success' || needs.changes.outputs.bst == 'true') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Checkout bst-ci scripts
+        uses: actions/checkout@v7
+        with:
+          repository: tuna-os/bst-ci
+          ref: main
+          path: .bst-ci
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+
+      - name: Lint changed .bst files
+        run: |
+          pip install pyyaml
+          git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=1
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "origin/${{ github.event.pull_request.base.ref }}"...HEAD -- '*.bst')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No .bst files changed in this PR."
+            exit 0
+          fi
+          echo "Changed .bst files:"
+          printf '  %s\n' "${files[@]}"
+          python3 .bst-ci/scripts/lint_bst.py elements --check-new "${files[@]}"
+
   bst-validate:
     name: BuildStream Validate
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.graph == 'true') }}
     runs-on: ubuntu-24.04
     container:
       image: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
@@ -62,6 +297,8 @@ jobs:
 
   bats-tests:
     name: BATS Unit Tests
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.bats == 'true') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -84,6 +321,8 @@ jobs:
 
   pytest:
     name: Python Tests
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.pytest == 'true') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -108,6 +347,8 @@ jobs:
 
   just-parse:
     name: Just Parse
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.just == 'true') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -116,3 +357,25 @@ jobs:
         run: |
           just --summary > /dev/null
           just --evaluate > /dev/null
+
+  plain-e2e:
+    name: Plain E2E
+    needs: changes
+    if: needs.changes.outputs.e2e-plain == 'true'
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+      actions: read
+    uses: ./.github/workflows/test-plain-install.yml
+
+  luks-e2e:
+    name: LUKS E2E
+    needs: changes
+    if: needs.changes.outputs.e2e-luks == 'true'
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+      actions: read
+    uses: ./.github/workflows/test-luks-install.yml

@@ -101,7 +101,6 @@ def test_high_frequency_workflows_cancel_superseded_runs():
     hours. Newer work on the same ref must replace those obsolete runs."""
     workflows = REPO / ".github" / "workflows"
     names = (
-        "lint.yml",
         "test.yml",
         "build-iso.yml",
         "build-tromso-multirunner.yml",

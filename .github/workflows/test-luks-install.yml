@@ -11,16 +11,9 @@ name: LUKS Install End-to-End Test
 # to the ci-screenshots branch and embedded in the PR comment / job summary.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'tromso/**'
-      - 'Justfile'
-      - 'iso.justfile'
-      - 'scripts/luks-install-qemu.sh'
-      - 'scripts/lib-install-qemu.sh'
-      - 'scripts/fisherman-install.sh'
-      - '.github/workflows/test-luks-install.yml'
+  # Pull requests reach this through test.yml, which runs it only when the
+  # change can affect it (round-robin with the plain test; see test.yml).
+  workflow_call:
   workflow_dispatch:
   schedule:
     # Weekly on Monday 04:00 UTC

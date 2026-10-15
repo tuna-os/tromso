@@ -13,16 +13,9 @@ name: Plain Install End-to-End Test
 #   just plain-test-qemu tromso
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'tromso/**'
-      - 'Justfile'
-      - 'iso.justfile'
-      - 'scripts/plain-install-qemu.sh'
-      - 'scripts/lib-install-qemu.sh'
-      - 'scripts/fisherman-install.sh'
-      - '.github/workflows/test-plain-install.yml'
+  # Pull requests reach this through test.yml, which runs it only when the
+  # change can affect it (round-robin with the LUKS test; see test.yml).
+  workflow_call:
   workflow_dispatch:
   schedule:
     # Weekly on Tuesday 04:00 UTC — staggered from the LUKS e2e (Monday).

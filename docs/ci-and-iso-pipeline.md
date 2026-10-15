@@ -13,7 +13,7 @@ elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/
               Build and Publish Tromsø Live ISO  ──►  R2: tromso/tromso-live-*.iso
                         │
                         ▼ (boot gate: TROMSO_LIVE_READY on serial + screenshot)
-              LUKS Install End-to-End Test (PR / weekly / dispatch)
+              LUKS Install End-to-End Test (PR round-robin / weekly / dispatch)
 ```
 
 ### Multi-runner build (`build-tromso-multirunner.yml`)
@@ -202,6 +202,33 @@ with required checks. If a required check does not report, automerge cannot
 continue. If you rename a required job, update the branch-protection contexts
 in the same PR. Do not wrap a gate in `|| echo`; this error hid failures in
 bst-validate and pytest for months.
+
+### Pull request CI (`test.yml`)
+
+All pre-merge checks are in one workflow, `test.yml`. Its `changes` job lists
+the changed files and starts only the jobs that those files can affect. A
+skipped job reports success, so each required check always reports. If the
+`changes` job fails, all checks run. A change to `test.yml` runs all checks.
+
+| Job | Runs when the change touches |
+|-----|------------------------------|
+| shellcheck | `*.sh`, `*.bash` |
+| yamllint | `*.yml`, `*.yaml` |
+| actionlint | `.github/workflows/`, `.github/actions/` |
+| Renovate Config Validate | `renovate.json` |
+| lint .bst files | `*.bst` |
+| BuildStream Validate | a file outside docs, tests, scripts, `tromso/`, `.github/` and the justfiles |
+| BATS Unit Tests | `tests/bats/`, `tromso/src/` |
+| Python Tests | a file that is not `*.md` or `LICENSE*` |
+| Just Parse | `Justfile`, `iso.justfile`, `just/` |
+
+The plain and LUKS install tests build the same ISO and use different install
+paths. A change to their shared inputs (`tromso/`, the justfiles,
+`scripts/lib-install-qemu.sh`, `scripts/fisherman-install.sh`) runs one of
+the two tests. The run number selects the test. Set the repository variable
+`E2E_ROUND_ROBIN_SIZE` to 2 to run both. A change to the install script or
+workflow of one test always runs that test. The two tests run fully on their
+weekly schedules and on manual dispatch.
 
 ## Rollback
 
