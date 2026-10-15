@@ -11,7 +11,7 @@ sources:
 - kind: git_repo
   url: github:ublue-os/uupd.git
   track: v[0-9]*
-  ref: v1.4.0-0-gb27b96553d89bbf4902503dad5e906710515716f
+  ref: v1.5.0-0-ge5449438a4a50eb4988af88606ba131d78e2db81
 
 variables:
   strip-binaries: ""
