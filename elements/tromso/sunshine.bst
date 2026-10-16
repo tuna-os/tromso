@@ -45,4 +45,4 @@ sources:
 - kind: git_repo
   url: github:LizardByte/Sunshine.git
   track: v[0-9]*
-  ref: v2026.1015.2416-0-g2e4d4f5ac0de2e7d164887c2da583a6c20d507c2
+  ref: v2026.1015.174736-0-g178a0467da1dde750b182be4ae10ff8f8245ad01
