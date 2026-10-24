@@ -130,3 +130,16 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_pytest_feeds_codecov():
+    """The declared coverage targets need a real report from the test job."""
+    workflow = (REPO / ".github/workflows/test.yml").read_text()
+    job = workflow.split("\n  pytest:\n", 1)[1].split("\n  just-parse:", 1)[0]
+    assert "pip install pytest pytest-cov" in job
+    assert "--cov=." in job
+    report = re.search(r"--cov-report=xml:(\S+)", job)
+    assert report, "pytest must produce XML coverage"
+    assert "codecov/codecov-action@" in job
+    assert f"files: {report.group(1)}" in job
+    assert "fail_ci_if_error: true" in job

@@ -331,9 +331,16 @@ jobs:
           python-version: '3.15'
       - name: Install dependencies
         run: |
-          pip install pytest
+          pip install pytest pytest-cov
       - name: Run pytest (tests/pytest)
-        run: pytest tests/pytest/ -v --tb=short
+        run: pytest tests/pytest/ -v --tb=short --cov=. --cov-report=term-missing --cov-report=xml:coverage.xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          disable_search: true
+          fail_ci_if_error: true
 
       - name: Test summary
         if: always()
