@@ -1,0 +1,37 @@
+name: Proto-installer upstream drift
+
+on:
+  schedule:
+    - cron: '30 9 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'files/kde-linux-system/live/proto-installer/**'
+      - 'scripts/check-proto-installer.py'
+      - '.github/workflows/proto-installer-upstream.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned source and upstream tip
+        run: |
+          python3 - <<'PY'
+          import json
+          import subprocess
+          pin = json.load(open('files/kde-linux-system/live/proto-installer/upstream.json'))
+          repo = '/tmp/proto-installer-upstream'
+          subprocess.run(['git', 'init', repo], check=True)
+          subprocess.run(['git', '-C', repo, 'remote', 'add', 'origin', pin['repository']], check=True)
+          subprocess.run(['git', '-C', repo, 'fetch', '--depth=1', 'origin', pin['commit']], check=True)
+          subprocess.run(['git', '-C', repo, 'fetch', '--depth=1', 'origin', pin['branch']], check=True)
+          PY
+      - name: Verify vendored snapshot
+        run: python3 scripts/check-proto-installer.py /tmp/proto-installer-upstream
+      - name: Report upstream updates (scheduled and manual runs)
+        if: github.event_name != 'pull_request'
+        run: python3 scripts/check-proto-installer.py /tmp/proto-installer-upstream --tip FETCH_HEAD
