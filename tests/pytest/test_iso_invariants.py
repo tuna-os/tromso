@@ -130,3 +130,20 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_build_workflows_disable_checkout_credential_persistence():
+    """Issue #382: build workflows must disable checkout credential persistence
+    to prevent GITHUB_TOKEN exposure in .git/config."""
+    for name in ("build-iso.yml", "build-tromso-multirunner.yml"):
+        workflow_path = REPO / ".github" / "workflows" / name
+        lines = workflow_path.read_text().splitlines()
+        found = 0
+        for idx, line in enumerate(lines):
+            if re.search(r"uses:\s+actions/checkout", line):
+                found += 1
+                step_block = "\n".join(lines[idx:idx + 10])
+                assert "persist-credentials: false" in step_block, (
+                    f"actions/checkout step at {name}:{idx + 1} lacks persist-credentials: false"
+                )
+        assert found > 0, f"No actions/checkout steps found in {name}"
