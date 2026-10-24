@@ -151,6 +151,7 @@ prompt, and installed desktop.
 | 2026-07-20 | Multi-runner `build_deps` chunk jobs queued for 20+ min when `tromso` and `xfce-linux` built simultaneously | Simultaneous schedule triggers and push builds across repos reached free-tier org concurrency cap (~20 jobs) | Removed push triggers; staggered daily crons (xfce-linux at 23:30 UTC, tromso at 00:30 UTC) and accepted residual manual-dispatch contention as free-runner trade-off (tromso#93) |
 | 2026-08-12 | Daily `chore(deps): track element sources` PR red on `Build changed elements` (`tromso/glow.bst`: `go: download go1.26.5 … lookup proxy.golang.org … connection refused`) | `glow.bst`/`gum.bst` run `go mod download` in build-commands, but the BuildStream sandbox has no network; they are orphaned (absent from `tromso/deps.bst`), so the world build never built them and only a ref bump touching the file exposes it. glow v3.0.0 additionally wants a Go toolchain newer than freedesktop-sdk 25.08 ships | Both excluded from `track-bst-sources.yml` via `TRACK_EXCLUDE` so a broken element can't block buildable ref bumps. #180 merged red, so glow stays at v3.0.0 on main: reverting the ref would touch the file and trip the same gate. Re-include (and repair the ref) once they vendor modules (`-mod=vendor`, as `uupd.bst` and `kde-linux-deps/toolbox.bst` do) |
 | 2026-07-20 | Runner agent process crashes mid-build (`System.IO.IOException: No space left on device`) on heavy chunks (`util-linux-full`, `cryptsetup`, `pwquality`), bypassing `if: always()` CAS salvage | `ublue-os/remove-unwanted-software@v9` freed insufficient disk space compared to `jlumbroso/free-disk-space` (which removes tool-cache), leaving ~25GB instead of ~45GB free | Upstreamed `jlumbroso/free-disk-space@v5` (`tool-cache: true`) to `build_core` in `tuna-os/bst-ci` (matching `build_deps` and `build_final`), increasing free disk space for heavy dependency closures (tromso#96) |
+| 2026-10-24 | Live ISO published before boot gate; upload failure swallowed; rollback never restored aarch64; promotion failures produced no alert | Boot verification step ran after upload; `continue-on-error: true` swallowed R2 failures; ISO naming used `github.sha` instead of `workflow_run.head_sha`; `rollback-stable.yml` missed aarch64 and cosign verify; `promote-stable.yml` had no failure notification | Reordered boot verification ahead of cosign/upload in `build-iso.yml`; dropped continue-on-error and verified via `curl -fsI`; named ISO from `head_sha` and uploaded checksum; added aarch64 retag + cosign verify in `rollback-stable.yml`; added failure alert in `promote-stable.yml` (tromso#286) |
 
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
@@ -239,10 +240,9 @@ to true. It reverses a promotion. The workflow verifies that the target
 to the same commit, so the branch and tag cannot diverge. It shares the
 concurrency group for promotion and cannot run at the same time.
 
-This workflow does not restore a full release. It restores only the x86_64
-`:stable` tag and the git branch. The `-aarch64` tags and R2 ISO under
-`tromso/stable/` stay on the bad build. The workflow does not use
-`cosign verify` on the target before the new tag. Signatures are available
-because `build-tromso-multirunner.yml` signs each pushed digest. The
+This workflow restores the x86_64 `:stable` tag, the aarch64 `:stable-aarch64`
+tag, and the git branch, with dated rollback tags for both architectures. Before
+moving tags, it verifies signatures on the targets using `cosign verify`. The R2
+ISO objects under `tromso/stable/` are not modified by this workflow. The
 [rollback runbook](../runbooks/rollback-a-bad-stable-release.md) gives the
-manual steps for other artifacts and the final verification.
+manual steps for restoring the ISO surface and the final verification.
