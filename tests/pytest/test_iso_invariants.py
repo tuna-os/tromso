@@ -130,3 +130,9 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_workflows_declare_top_level_permissions():
+    """Job overrides must not leave other jobs with repository defaults (#321)."""
+    for workflow in sorted((REPO / ".github/workflows").glob("*.y*ml")):
+        assert re.search(r"^permissions:", workflow.read_text(), re.MULTILINE), workflow.name
