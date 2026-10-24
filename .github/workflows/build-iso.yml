@@ -26,7 +26,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref_name }}
-  cancel-in-progress: true
+  # Only an explicit manual re-dispatch may replace a running ISO build.
+  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' }}
 
 jobs:
   build-and-publish:
