@@ -10,7 +10,7 @@ patterns originate in projectbluefin/dakota and dakota-iso.)
 elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/tromso:latest
                         │ (workflow_run)
                         ▼
-              Build and Publish Tromsø Live ISO  ──►  R2: tromso/tromso-live-*.iso
+              Build local ISO → sign → UEFI boot gate → R2 dated objects → latest aliases
                         │
                         ▼ (boot gate: TROMSO_LIVE_READY on serial + screenshot)
               LUKS Install End-to-End Test (PR round-robin / weekly / dispatch)
@@ -105,6 +105,14 @@ link at `/usr/local/bin/fisherman` points to fisherman. It uses the shared
 `org.tunaos.Installer.install` polkit action. See INSTALLER-FRONTENDS.md in the
 organization workspace.
 
+Publication fails closed: the local candidate must pass the UEFI ready-token
+assertion before any R2 upload. All four dated objects (ISO, checksum, signature,
+certificate) must upload before latest aliases are updated. Dated names include
+the workflow run ID and attempt, and `rclone --immutable` rejects replacement.
+The latest checksum is published too, with the ISO alias updated last. R2 has
+no transaction across these aliases: a failed promotion can leave mixed sidecars,
+but fails the workflow; dated objects remain the consistent download set.
+
 ### LUKS end-to-end test (`test-luks-install.yml`)
 
 Local equivalent:
@@ -136,6 +144,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-10-24 | Unverified ISO could replace public latest (#334) | Upload preceded boot verification and ignored R2 failures | Boot gate precedes publication; immutable dated set completes before latest aliases; upload failures fail the job |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |
 | 2026-07-19 | `just iso-sd-boot tromso` in build-iso.yml never worked | recipe + `tromso/Containerfile` + dracut module never existed in this repo | ported from xfce-linux/dakota-iso (PR #74) |
 | 2026-07-19 | `tromso/Containerfile` missing from git after commit | `.gitignore` had unanchored `Containerfile` rule | anchored to `/Containerfile` |
