@@ -29,7 +29,8 @@ permissions:
 
 concurrency:
   group: plain-e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve running non-PR checks/builds so their failures remain visible.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   TARGET: tromso
