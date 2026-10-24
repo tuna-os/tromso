@@ -21,6 +21,9 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref_name }}
   cancel-in-progress: true
