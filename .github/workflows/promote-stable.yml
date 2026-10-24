@@ -1,104 +1,140 @@
 name: Promote main to stable
 
-# Release bookmark automation (dakota-style): verifies the newest nightly
-# build, ISO publish, plain-install boot gate and LUKS e2e on main all
-# succeeded, then fast-forwards the `stable` branch to that commit and
-# dispatches the stable build. These four are exactly the criteria tuna-os/
-# tromso#83 names for cutting the first stable release — build+ISO alone
-# proves the image assembles and publishes, not that it boots or that
-# encryption works, which is what the two E2E checks are for.
-#
-# Why the explicit dispatch: pushes made with GITHUB_TOKEN do not trigger
-# event workflows, but workflow_dispatch via the API does — and the ISO
-# build then chains off it via workflow_run.
-
 on:
   workflow_dispatch:
     inputs:
       force:
-        description: 'Promote even if the health checks fail'
+        description: 'Override candidate verification failures (recorded in summary)'
         type: boolean
         default: false
   schedule:
-    # Weekly on Tuesday 09:00 UTC (after Monday's LUKS e2e)
     - cron: '0 9 * * 2'
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
+  actions: read
+  packages: read
 
 concurrency:
   group: promote-stable
   cancel-in-progress: false
 
 jobs:
-  promote:
+  candidate:
     runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ steps.select.outputs.sha }}
+      digest: ${{ steps.select.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select successful main build and its immutable candidate
+        id: select
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          RUN=$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow build-tromso-multirunner.yml --branch main --status success \
+            --limit 1 --json databaseId,headSha --jq '.[0]')
+          RUN_ID=$(jq -er .databaseId <<< "$RUN")
+          BUILD_SHA=$(jq -er .headSha <<< "$RUN")
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name release-candidate --dir candidate
+          SHA=$(jq -er .sha candidate/release-candidate.json)
+          DIGEST=$(jq -er .digest candidate/release-candidate.json)
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ && "$SHA" = "$BUILD_SHA" ]]
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Candidate: $SHA @ $DIGEST; build run $RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+
+  iso:
+    needs: candidate
+    uses: ./.github/workflows/build-iso.yml
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    with:
+      candidate_sha: ${{ needs.candidate.outputs.sha }}
+      candidate_digest: ${{ needs.candidate.outputs.digest }}
+      skip_upload: true
+    secrets: inherit
+
+  plain:
+    needs: candidate
+    uses: ./.github/workflows/test-plain-install.yml
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      actions: read
+    with:
+      candidate_sha: ${{ needs.candidate.outputs.sha }}
+      candidate_digest: ${{ needs.candidate.outputs.digest }}
+    secrets: inherit
+
+  luks:
+    needs: candidate
+    uses: ./.github/workflows/test-luks-install.yml
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      actions: read
+    with:
+      candidate_sha: ${{ needs.candidate.outputs.sha }}
+      candidate_digest: ${{ needs.candidate.outputs.digest }}
+    secrets: inherit
+
+  promote:
+    needs: [candidate, iso, plain, luks]
+    if: >-
+      always() && needs.candidate.result == 'success' &&
+      ((needs.iso.result == 'success' && needs.plain.result == 'success' &&
+      needs.luks.result == 'success') ||
+      (github.event_name == 'workflow_dispatch' && inputs.force))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Health check — build_final + ISO boot gate + LUKS e2e green on main
-        id: health
+      - name: Publish verified digest and advance release bookmark
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ needs.candidate.outputs.sha }}
+          DIGEST: ${{ needs.candidate.outputs.digest }}
+          FORCE: ${{ inputs.force || false }}
+          RESULTS: ${{ toJSON(needs) }}
         run: |
-          # NOTE on scope: each check below looks at the latest *completed*
-          # run of its workflow on main independently — it does not verify
-          # all four ran against the exact same commit (the two original
-          # checks never did either; the plain-install/LUKS E2E workflows
-          # run on their own weekly schedules against whatever `:latest`
-          # happens to be at the time, not per-push). This is a "recent and
-          # green," not a "identical SHA," guarantee. Good enough to catch
-          # the case this issue exists for — a nightly that has never once
-          # produced a bootable, encryptable image — not a substitute for
-          # actually reading the run dates in the summary before promoting.
-          check() {
-            local wf="$1"
-            local run
-            run=$(gh run list --workflow "$wf" --branch main --limit 10 \
-                    --json conclusion,status,headSha \
-                    --jq '[.[] | select(.status == "completed")][0]')
-            [ -n "$run" ] || { echo "no completed runs of $wf"; return 1; }
-            local concl sha
-            concl=$(echo "$run" | jq -r .conclusion)
-            sha=$(echo "$run" | jq -r .headSha)
-            echo "$wf: $concl @ $sha"
-            [ "$concl" = "success" ] || return 1
-            echo "$sha"
-          }
-          set +e
-          BUILD_SHA=$(check "Build Tromso (Multi-Runner)" | tail -1)
-          BUILD_OK=$?
-          ISO_OK=1
-          check "Build and Publish Tromsø Live ISO" >/dev/null && ISO_OK=0
-          PLAIN_OK=1
-          check "Plain Install End-to-End Test" >/dev/null && PLAIN_OK=0
-          LUKS_OK=1
-          check "LUKS Install End-to-End Test" >/dev/null && LUKS_OK=0
-          set -e
-          if [ $BUILD_OK -ne 0 ] || [ $ISO_OK -ne 0 ] || [ $PLAIN_OK -ne 0 ] || [ $LUKS_OK -ne 0 ]; then
-            if [ "${{ inputs.force }}" = "true" ]; then
-              echo "Health checks failed but force=true — promoting HEAD of main."
-              BUILD_SHA=$(git rev-parse origin/main)
-            else
-              echo "::error::Health checks failed (build ok=$BUILD_OK, iso ok=$ISO_OK, plain-install ok=$PLAIN_OK, luks ok=$LUKS_OK); not promoting. Use force=true to override."
-              exit 1
-            fi
-          fi
-          echo "sha=${BUILD_SHA}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          {
+            echo "Promotion by $GITHUB_ACTOR; force=$FORCE"
+            echo "Candidate: $SHA @ $DIGEST"
+            echo "$RESULTS"
+          } >> "$GITHUB_STEP_SUMMARY"
+          git merge-base --is-ancestor "$SHA" origin/main
+          sudo apt-get update -qq
+          sudo apt-get install -y skopeo
+          echo "$GH_TOKEN" | skopeo login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          skopeo copy --preserve-digests \
+            "docker://ghcr.io/tuna-os/tromso@$DIGEST" \
+            docker://ghcr.io/tuna-os/tromso:stable
+          git push origin "${SHA}:refs/heads/stable"
 
-      - name: Fast-forward stable to the verified commit
-        run: |
-          SHA="${{ steps.health.outputs.sha }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          echo "Promoting ${SHA} to stable"
-          git push origin "${SHA}:refs/heads/stable" --force
-          echo "stable → ${SHA}" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Dispatch stable build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run "Build Tromso (Multi-Runner)" --ref stable
+  publish-stable-iso:
+    needs: [candidate, promote]
+    uses: ./.github/workflows/build-iso.yml
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    with:
+      candidate_sha: ${{ needs.candidate.outputs.sha }}
+      candidate_digest: ${{ needs.candidate.outputs.digest }}
+      release_channel: stable
+      skip_upload: false
+    secrets: inherit

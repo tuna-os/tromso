@@ -350,6 +350,24 @@ jobs:
           digest=$(sudo cat "/tmp/digest-${{ github.sha }}")
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
+      - name: Record immutable release candidate
+        if: steps.push.outputs.digest != ''
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          CANDIDATE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          jq -n --arg sha "$CANDIDATE_SHA" --arg digest "$CANDIDATE_DIGEST" \
+            '{sha: $sha, digest: $digest}' > release-candidate.json
+
+      - name: Upload release candidate
+        if: steps.push.outputs.digest != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-candidate
+          path: release-candidate.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Install cosign
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         uses: sigstore/cosign-installer@v4.1.2

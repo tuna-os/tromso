@@ -16,6 +16,13 @@ on:
   # Pull requests reach this through test.yml, which runs it only when the
   # change can affect it (round-robin with the LUKS test; see test.yml).
   workflow_call:
+    inputs:
+      candidate_sha:
+        type: string
+        default: ''
+      candidate_digest:
+        type: string
+        default: ''
   workflow_dispatch:
   schedule:
     # Weekly on Tuesday 04:00 UTC — staggered from the LUKS e2e (Monday).
@@ -47,6 +54,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_sha || github.sha }}
+
+      - name: Pin release candidate payload
+        if: inputs.candidate_digest != ''
+        env:
+          CANDIDATE_DIGEST: ${{ inputs.candidate_digest }}
+        run: echo "ghcr.io/tuna-os/tromso@${CANDIDATE_DIGEST}" > tromso/payload_ref
 
       - name: Ensure screenshots branch exists
         continue-on-error: true
