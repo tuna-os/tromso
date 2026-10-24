@@ -132,7 +132,7 @@ need rotation.
 
 ```bash
 cosign verify ghcr.io/tuna-os/tromso:latest \
-  --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/build-tromso-multirunner\.yml@.*' \
+  --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/(build-tromso-multirunner|build-final)\.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 

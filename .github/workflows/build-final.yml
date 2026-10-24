@@ -1,0 +1,315 @@
+name: Build and Publish Final Image
+
+on:
+  workflow_call:
+    inputs:
+      architecture:
+        description: 'Target architecture (e.g. x86_64, aarch64)'
+        required: true
+        type: string
+      runner:
+        description: 'Runner label (e.g. ubuntu-24.04, ubuntu-24.04-arm)'
+        required: true
+        type: string
+      cache_suffix:
+        description: 'Cache repository suffix (e.g. "" for x86_64, "-aarch64" for aarch64)'
+        required: false
+        default: ''
+        type: string
+      tag_suffix:
+        description: 'Tag suffix for published images (e.g. "" for x86_64, "-aarch64" for aarch64)'
+        required: false
+        default: ''
+        type: string
+      channel_ownership:
+        description: 'Whether this architecture owns unsuffixed channel tags (:latest, :nightly, :stable)'
+        required: false
+        default: false
+        type: boolean
+      final_target:
+        description: 'BST target element output by upstream multirunner planning'
+        required: true
+        type: string
+      matrix_keys:
+        description: 'JSON array of chunk matrix keys from upstream multirunner'
+        required: true
+        type: string
+      cache_keys:
+        description: 'JSON map of chunk cache keys from upstream multirunner'
+        required: true
+        type: string
+      push_image:
+        description: 'Whether to push, sign, and scan the built image'
+        required: false
+        default: true
+        type: boolean
+      enable_remote_execution:
+        description: 'Whether to engage remote execution with BuildStream CASD'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  IMAGE_NAME: tromso
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  BST_TARGET: oci/tromso.bst
+  BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
+
+jobs:
+  build_final:
+    name: Build Final Image (${{ inputs.architecture }})
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # cosign keyless signing (Sigstore/Fulcio OIDC)
+      security-events: write # Trivy SARIF upload
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+
+      - uses: actions/checkout@v7
+
+      - name: Checkout chunkah
+        uses: actions/checkout@v7
+        with:
+          repository: coreos/chunkah
+          path: chunkah
+
+      - run: podman pull "$BST2_IMAGE"
+
+      - name: Setup Just
+        uses: extractions/setup-just@v4
+
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v2
+
+      - name: Login to GHCR
+        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download and Merge CAS Chunks
+        env:
+          MATRIX_KEYS: ${{ inputs.matrix_keys }}
+          CACHE_KEYS: ${{ inputs.cache_keys }}
+          CACHE_SUFFIX: ${{ inputs.cache_suffix }}
+        run: |
+          mkdir -p ~/.cache/buildstream
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          # Streamed, never staged: `oras pull -o .` wrote each tarball to the
+          # runner disk next to the cache it was unpacking into, and build_final
+          # in run 36971374464 died in this step with "No space left on device".
+          # scripts/cas-restore-stream.sh pipes the blob through zstd and tar
+          # (sources/ excluded) and resumes GHCR's mid-stream PROTOCOL_ERROR
+          # cuts. A missing chunk costs rebuild time here, never correctness.
+          BASE="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}${CACHE_SUFFIX}"
+          scripts/cas-restore-stream.sh "${BASE}-core:latest" \
+            || echo "::warning::core CAS unavailable — build_final rebuilds it"
+          df -h /
+
+          echo "$MATRIX_KEYS" | jq -r '.[]' | while read -r chunk; do
+            CACHE_KEY=$(echo "$CACHE_KEYS" | jq -r --arg c "$chunk" '.[$c] // empty')
+            if [ -n "$CACHE_KEY" ] \
+               && scripts/cas-restore-stream.sh "${BASE}-${chunk}:${CACHE_KEY}"; then
+              :
+            elif ! scripts/cas-restore-stream.sh "${BASE}-${chunk}:latest"; then
+              echo "::warning::no CAS for ${chunk} — build_final rebuilds it"
+            fi
+            df -h /
+          done
+          du -sh ~/.cache/buildstream
+
+      # ── Remote execution (tuna-os/tromso#311) ─────────────────────────
+      # Inert until someone adds the CASD credentials: with neither set, the
+      # action regenerates the committed buildstream-ci.conf byte for byte
+      # (tests/pytest/test_bst_ci_config.py asserts that), so this run behaves
+      # exactly as it does today. Once the secrets exist it adds the mTLS
+      # endpoint and the executor, with no further change here.
+      - name: Generate BuildStream CI config
+        env:
+          CASD_CLIENT_CERT: ${{ vars.CASD_CLIENT_CERT }}
+          CASD_CLIENT_KEY: ${{ secrets.CASD_CLIENT_KEY }}
+        uses: ./.github/actions/generate-bst-ci-config
+        with:
+          enable-remote-execution: ${{ inputs.enable_remote_execution && vars.CASD_CLIENT_CERT != '' }}
+          enable-push: 'true'
+
+      # Stamp os-release with this commit's date. Without it the image ships
+      # the committed local default VERSION_ID="l.1" (include/image-version.yml).
+      # The recipe reads only HEAD, so the default depth-1 checkout is enough.
+      - name: Generate image version
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: just generate-image-version "$BRANCH"
+
+      - name: Build Final Target
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+          RE_EXPECTED: ${{ inputs.enable_remote_execution && vars.CASD_CLIENT_CERT != '' }}
+        run: |
+          mkdir -p logs
+          set -o pipefail
+          timeout 300m just bst --log-file /src/logs/build-final.log build ${{ inputs.final_target }} 2>&1 | tee /tmp/bst-console.log
+          # A green build is not proof BuildStream loaded the executor — it
+          # falls back to local building without saying so, which would read
+          # as a slow success. Fail closed on the startup banner instead.
+          if [ "$RE_EXPECTED" = "true" ]; then
+            grep -q "Remote Execution Configuration" /tmp/bst-console.log \
+              || { echo "::error::remote execution requested but not engaged"; exit 1; }
+          fi
+
+      - name: Remove CASD client credentials
+        if: always()
+        run: rm -f client.key client.crt
+
+      - name: Check out the artifact and free the CAS
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+        run: |
+          # The merged CAS and the squashed image do not fit on one runner
+          # together (xfce-linux#159 hit exactly this). Take the artifact out
+          # of the cache, then drop the cache; export works from .build-out.
+          df -h /
+          rm -rf .build-out
+          just bst artifact checkout \
+            "${{ inputs.final_target }}" --directory /src/.build-out
+          du -sh .build-out
+          # Removed inside the bst container: its root owns the cache tree.
+          podman run --rm -v "${HOME}/.cache/buildstream:/cache:rw" "$BST2_IMAGE" \
+            sh -c 'rm -rf /cache/cas /cache/artifacts /cache/sources'
+          df -h /
+
+      - name: Capture build timestamp
+        id: timestamp
+        run: echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Export OCI image
+        id: export
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+          BUILD_IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          OCI_IMAGE_REVISION: ${{ github.sha }}
+          OCI_IMAGE_VERSION: latest${{ inputs.tag_suffix }}
+          OCI_IMAGE_CREATED: ${{ steps.timestamp.outputs.created }}
+          # The CAS is gone by now (previous step); .build-out is the artifact.
+          EXPORT_REUSE_CHECKOUT: '1'
+        run: |
+          just export
+          echo "image_ref=${{ env.IMAGE_NAME }}:latest${{ inputs.tag_suffix }}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify + lint
+        run: |
+          sudo podman images
+          just lint
+          # kwin_wayland's cap_sys_nice is set under fakecap during OCI
+          # assembly (the bst sandbox cannot setcap). Fail if it did not
+          # survive build-oci, the podman import and the export re-tag.
+          ref="localhost/${{ steps.export.outputs.image_ref }}"
+          mnt=$(sudo podman image mount "$ref")
+          caps=$(sudo getcap "$mnt/usr/bin/kwin_wayland" || true)
+          # A whiteout that build-oci emits under a directory a lower layer
+          # already whited out surfaces in the merged tree as a character
+          # device that cannot be stat'ed, and buildah commit (the ISO
+          # pipeline's squash) dies on it. The image ships no device nodes,
+          # so any character device here is one of those.
+          leaked=$(sudo find "$mnt" -xdev -type c 2>/dev/null | sed "s|^$mnt||" || true)
+          sudo podman image umount "$ref" >/dev/null
+          if [ -n "$leaked" ]; then
+            echo "$leaked" | head -50
+            echo "::error::$(echo "$leaked" | wc -l) leaked overlay whiteouts in the exported image"
+            exit 1
+          fi
+          echo "getcap: ${caps:-<none>}"
+          case "$caps" in
+            *cap_sys_nice*) ;;
+            *) echo "::error::/usr/bin/kwin_wayland lacks cap_sys_nice in the exported image"; exit 1 ;;
+          esac
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: final-logs-${{ env.IMAGE_NAME }}${{ inputs.tag_suffix }}
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Login to GHCR (podman)
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        run: |
+          echo "$GITHUB_TOKEN" | \
+            sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to GHCR
+        id: push
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        run: |
+          TAGS=$(scripts/resolve-image-tags.sh \
+            --ref "${{ github.ref }}" \
+            --sha "${{ github.sha }}" \
+            --channel-owner "${{ inputs.channel_ownership }}" \
+            --tag-suffix "${{ inputs.tag_suffix }}")
+          for tag in $TAGS; do
+            sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
+              "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
+            for i in 1 2 3; do
+              sudo podman push --digestfile "/tmp/digest-${tag}" \
+                "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
+              echo "Retry $i..."; sleep 5
+            done
+          done
+          # The digest of the manifest as pushed. `podman inspect .Digest` on
+          # the local image is the digest it was imported with, which push
+          # changes by recompressing the layers; cosign then 404s on it (run
+          # 37128881064).
+          digest=$(sudo cat "/tmp/digest-${{ github.sha }}${{ inputs.tag_suffix }}")
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign image (cosign keyless)
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        run: |
+          cosign sign --yes \
+            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
+
+      - name: Trivy image scan
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy scan results
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Build summary
+        if: always()
+        run: |
+          LABEL="${{ inputs.architecture }}"
+          if [ -n "$LABEL" ] && [ "$LABEL" != "x86_64" ]; then
+            HEADER="## Build Summary (${LABEL})"
+          else
+            HEADER="## Build Summary"
+          fi
+          {
+            echo "$HEADER"
+            echo "- **Target**: \`${BST_TARGET}\`"
+            echo "- **Image**: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:latest${{ inputs.tag_suffix }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
