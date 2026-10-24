@@ -21,10 +21,14 @@ on:
     # Weekly on Tuesday 04:00 UTC — staggered from the LUKS e2e (Monday).
     - cron: '0 4 * * 2'
 
+# Least privilege for the job that builds and executes this tree's recipes as
+# root (tromso#270): read-only. A pull request from a branch in this repo
+# controls Justfile/iso.justfile/tromso/** and therefore everything that job
+# runs, so it must never hold a write-scoped GITHUB_TOKEN. The write-scoped
+# reporting (screenshot commit + PR comment) lives in the separate `report`
+# job below, which checks out and runs no repository code.
 permissions:
-  issues: write
-  pull-requests: write
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -48,23 +52,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Ensure screenshots branch exists
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          if gh api "/repos/${REPO}/git/refs/heads/ci-screenshots" &>/dev/null; then
-            echo "ci-screenshots branch already exists"
-          else
-            echo "Creating ci-screenshots branch..."
-            DEFAULT=$(gh api "/repos/${REPO}" --jq '.default_branch')
-            SHA=$(gh api "/repos/${REPO}/git/refs/heads/${DEFAULT}" --jq '.object.sha')
-            gh api --method POST "/repos/${REPO}/git/refs" \
-              -f "ref=refs/heads/ci-screenshots" \
-              -f "sha=${SHA}"
-          fi
-
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
         # cache, which deletes the just binary setup-just just installed.
@@ -86,13 +73,6 @@ jobs:
           sudo apt-get install -y \
             podman buildah skopeo mtools xorriso squashfs-tools \
             qemu-system-x86 qemu-utils ovmf socat sshpass imagemagick -qq
-
-      - name: Log in to GHCR
-        run: |
-          echo "$GITHUB_TOKEN" | \
-            sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build debug ISO
         id: build
@@ -122,26 +102,140 @@ jobs:
           echo "duration=$(( $(date +%s) - START ))" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
-      - name: Convert and publish screenshot
+      - name: Prepare report data
+        # Conversion and bookkeeping only. This job holds a read-only token, so
+        # the `report` job (the only one with write scopes) publishes the
+        # screenshot and PR comment from the artifact uploaded below (tromso#270).
         if: always()
+        continue-on-error: true
+        env:
+          BUILD_S: ${{ steps.build.outputs.duration }}
+          ISO_BYTES: ${{ steps.build.outputs.iso_size }}
+          TEST_S: ${{ steps.plain_test.outputs.duration }}
+          TEST_RESULT: ${{ steps.plain_test.outcome }}
+        run: |
+          mkdir -p report
+          sudo chmod a+r /tmp/plain-screenshot-final.ppm 2>/dev/null || true
+          convert /tmp/plain-screenshot-final.ppm report/final-boot.png 2>/dev/null || rm -f report/final-boot.png
+          {
+            echo "build_s=${BUILD_S}"
+            echo "iso_bytes=${ISO_BYTES}"
+            echo "test_s=${TEST_S}"
+            echo "test_result=${TEST_RESULT}"
+          } > report/result.env
+
+      - name: Write job summary
+        if: always()
+        run: |
+          RESULT="${{ steps.plain_test.outcome }}"
+          ICON=$( [ "$RESULT" = "success" ] && echo "✅" || echo "❌" )
+          {
+            echo "## ${ICON} Plain Install End-to-End Test (${{ matrix.installer_channel }}) — ${RESULT}"
+            echo ""
+            echo "| Step | Value |"
+            echo "|------|-------|"
+            echo "| ISO size | $(numfmt --to=iec ${{ steps.build.outputs.iso_size }} 2>/dev/null || echo N/A) |"
+            echo "| Build time | ${{ steps.build.outputs.duration }}s |"
+            echo "| Plain test time | ${{ steps.plain_test.outputs.duration }}s |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect serial logs
+        if: always()
+        run: sudo chmod a+r /tmp/${{ env.TARGET }}-qemu-plain-*.log 2>/dev/null || true
+
+      - name: Upload serial logs artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: plain-e2e-serial-logs-${{ matrix.installer_channel }}
+          path: |
+            /tmp/tromso-qemu-plain-live-serial.log
+            /tmp/tromso-qemu-plain-installed-serial.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload report data artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: plain-e2e-report-${{ matrix.installer_channel }}
+          path: report/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Fail if plain test failed
+        if: steps.plain_test.outcome == 'failure'
+        run: |
+          echo "::error::Plain install end-to-end test failed — see serial logs and screenshot above"
+          exit 1
+
+  # Publishes the screenshot and the PR comment. This is the only job with
+  # write scopes, and it runs no repository code: no checkout, no `just`, no
+  # sudo -- it only handles the e2e job's output as untrusted data (tromso#270).
+  report:
+    name: Report ${{ matrix.installer_channel }}
+    needs: plain-e2e
+    # GitHub downgrades GITHUB_TOKEN to read-only for pull_request-triggered
+    # runs whose head is a fork, regardless of any `permissions:` block
+    # (tromso#202), so every write below would 403. Skip the job for fork PRs;
+    # the e2e job's "Write job summary" step reports the same result.
+    if: >-
+      !cancelled() &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        installer_channel: [stable]
+
+    steps:
+      - name: Download report data
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: plain-e2e-report-${{ matrix.installer_channel }}
+          path: report
+
+      - name: Publish screenshot
         continue-on-error: true
         id: screenshots
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
+          CHANNEL: ${{ matrix.installer_channel }}
         run: |
-          sudo chmod a+r /tmp/plain-screenshot-final.ppm 2>/dev/null || true
+          set -euo pipefail
+          if gh api "/repos/${REPO}/git/refs/heads/ci-screenshots" &>/dev/null; then
+            echo "ci-screenshots branch already exists"
+          else
+            echo "Creating ci-screenshots branch..."
+            DEFAULT=$(gh api "/repos/${REPO}" --jq '.default_branch')
+            SHA=$(gh api "/repos/${REPO}/git/refs/heads/${DEFAULT}" --jq '.object.sha')
+            gh api --method POST "/repos/${REPO}/git/refs" \
+              -f "ref=refs/heads/ci-screenshots" \
+              -f "sha=${SHA}"
+          fi
 
-          convert /tmp/plain-screenshot-final.ppm /tmp/plain-final-boot.png 2>/dev/null || true
-          [[ -f /tmp/plain-final-boot.png ]] || exit 0
+          png=report/final-boot.png
+          [[ -f "$png" && ! -L "$png" ]] || exit 0
+          # Untrusted input: it must be a real PNG of sane size.
+          [[ "$(stat -c%s "$png")" -le 10485760 ]] || exit 0
+          [[ "$(head -c 8 "$png" | od -An -tx1 | tr -d ' \n')" == "89504e470d0a1a0a" ]] || exit 0
 
-          PATH_IN_REPO="plain-e2e/${RUN_ID}/${{ matrix.installer_channel }}/final-boot.png"
+          PATH_IN_REPO="plain-e2e/${RUN_ID}/${CHANNEL}/final-boot.png"
           EXISTING_SHA=$(gh api "/repos/${REPO}/contents/${PATH_IN_REPO}?ref=ci-screenshots" \
             --jq '.sha' 2>/dev/null || echo "")
 
           B64_FILE=$(mktemp)
-          base64 -w0 /tmp/plain-final-boot.png > "$B64_FILE"
+          base64 -w0 "$png" > "$B64_FILE"
 
           jq -n \
             --arg msg "Plain E2E screenshot: final-boot (run ${RUN_ID})" \
@@ -158,28 +252,35 @@ jobs:
           rm -f "$B64_FILE"
           echo "final_url=https://raw.githubusercontent.com/${REPO}/ci-screenshots/${PATH_IN_REPO}" >> "$GITHUB_OUTPUT"
 
+      - name: Read report data
+        id: data
+        if: always()
+        run: |
+          # The artifact was produced by a job that ran this PR's code, so treat
+          # it as untrusted data: never source or execute it, only extract
+          # values that match a strict allow-list pattern.
+          field() { sed -n "s/^$1=//p" report/result.env 2>/dev/null | head -n1; }
+          num() { local v; v=$(field "$1"); [[ "$v" =~ ^[0-9]{1,12}$ ]] && echo "$v" || echo ""; }
+          result=$(field test_result)
+          case "$result" in success|failure|cancelled|skipped) ;; *) result=unknown ;; esac
+          {
+            echo "build_s=$(num build_s)"
+            echo "iso_bytes=$(num iso_bytes)"
+            echo "test_s=$(num test_s)"
+            echo "test_result=${result}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Post PR comment
-        # GitHub downgrades GITHUB_TOKEN to read-only for pull_request-triggered
-        # runs whose head is a fork, regardless of this workflow's own
-        # `permissions:` block (tromso#202) -- createComment always 403s there
-        # ("Resource not accessible by integration"). continue-on-error already
-        # keeps that from failing the job, but every hive contributor PR is a
-        # fork PR, so it was throwing an unhandled-error stack trace on every
-        # run for no result. Skip the call entirely for fork PRs instead of
-        # attempting a write that's structurally impossible for this trigger;
-        # the "Write job summary" step below reports the same result and works
-        # unconditionally (job summaries only need read access).
-        if: >-
-          always() && github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository
+        # See the job-level `if:` above for why fork PRs never reach this step.
+        if: always() && github.event_name == 'pull_request'
         continue-on-error: true
         uses: actions/github-script@v9
         env:
           FINAL_URL: ${{ steps.screenshots.outputs.final_url }}
-          BUILD_S: ${{ steps.build.outputs.duration }}
-          PLAIN_S: ${{ steps.plain_test.outputs.duration }}
-          ISO_BYTES: ${{ steps.build.outputs.iso_size }}
-          TEST_RESULT: ${{ steps.plain_test.outcome }}
+          BUILD_S: ${{ steps.data.outputs.build_s }}
+          PLAIN_S: ${{ steps.data.outputs.test_s }}
+          ISO_BYTES: ${{ steps.data.outputs.iso_bytes }}
+          TEST_RESULT: ${{ steps.data.outputs.test_result }}
           INSTALLER_CHANNEL: ${{ matrix.installer_channel }}
         with:
           script: |
@@ -212,39 +313,3 @@ jobs:
               issue_number: context.payload.pull_request.number,
               body,
             });
-
-      - name: Write job summary
-        if: always()
-        run: |
-          RESULT="${{ steps.plain_test.outcome }}"
-          ICON=$( [ "$RESULT" = "success" ] && echo "✅" || echo "❌" )
-          {
-            echo "## ${ICON} Plain Install End-to-End Test (${{ matrix.installer_channel }}) — ${RESULT}"
-            echo ""
-            echo "| Step | Value |"
-            echo "|------|-------|"
-            echo "| ISO size | $(numfmt --to=iec ${{ steps.build.outputs.iso_size }} 2>/dev/null || echo N/A) |"
-            echo "| Build time | ${{ steps.build.outputs.duration }}s |"
-            echo "| Plain test time | ${{ steps.plain_test.outputs.duration }}s |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Collect serial logs
-        if: always()
-        run: sudo chmod a+r /tmp/${{ env.TARGET }}-qemu-plain-*.log 2>/dev/null || true
-
-      - name: Upload serial logs artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: plain-e2e-serial-logs-${{ matrix.installer_channel }}
-          path: |
-            /tmp/tromso-qemu-plain-live-serial.log
-            /tmp/tromso-qemu-plain-installed-serial.log
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Fail if plain test failed
-        if: steps.plain_test.outcome == 'failure'
-        run: |
-          echo "::error::Plain install end-to-end test failed — see serial logs and screenshot above"
-          exit 1
