@@ -130,3 +130,21 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_security_reviewed_ci_dependencies_are_immutable():
+    """Issue #378: moving action tags must not change reviewed CI code."""
+    actions = (
+        "actions/checkout", "actions/github-script", "actions/upload-artifact",
+        "aquasecurity/trivy-action", "extractions/setup-just",
+        "github/codeql-action/init", "github/codeql-action/analyze",
+        "github/codeql-action/upload-sarif",
+    )
+    for workflow in (REPO / ".github/workflows").glob("*.yml"):
+        for dependency in re.findall(r"uses:\s+(\S+)", workflow.read_text()):
+            name, _, ref = dependency.partition("@")
+            if name in actions:
+                assert re.fullmatch(r"[0-9a-f]{40}", ref), (workflow, dependency)
+            if dependency.startswith("docker://rhysd/actionlint"):
+                assert name == "docker://rhysd/actionlint"
+                assert re.fullmatch(r"sha256:[0-9a-f]{64}", ref), (workflow, dependency)

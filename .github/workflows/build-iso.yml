@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
@@ -67,7 +67,7 @@ jobs:
           tool-cache: true
 
       - name: Setup Just
-        uses: extractions/setup-just@v4
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
 
       - name: Expose just to sudo/root
         # Recipes call `just` recursively and run under sudo; root's
@@ -193,7 +193,7 @@ jobs:
             { echo "ERROR: Live environment did not reach ready state"; sudo tail -50 /tmp/serial.log; exit 1; }
 
       - name: Upload ISO as artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ steps.iso.outputs.dated }}
           path: ${{ steps.iso.outputs.path }}
@@ -201,7 +201,7 @@ jobs:
           retention-days: 7
 
       - name: Upload checksum as artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: checksum-${{ steps.iso.outputs.dated }}
           path: ${{ steps.checksum.outputs.path }}
@@ -209,7 +209,7 @@ jobs:
           retention-days: 7
 
       - name: Upload boot screenshot as artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: boot-screenshot-tromso
