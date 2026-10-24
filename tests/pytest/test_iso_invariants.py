@@ -158,3 +158,53 @@ def test_webkit_framework_condition_handles_unset_link_target():
         "+        if ((NOT _linked_into) OR (framework STREQUAL _linked_into) "
         "OR (NOT _linked_into IN_LIST ${_target}_FRAMEWORKS))"
     ) in correction
+def test_iso_publication_requires_verified_candidate():
+    """Neither failed boots nor partial dated uploads may promote latest."""
+    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
+    steps = re.split(r"^      - name: ", workflow, flags=re.MULTILINE)
+    boot = next(i for i, step in enumerate(steps) if step.startswith("Boot verification"))
+    dated = next(i for i, step in enumerate(steps) if step.startswith("Publish dated ISO objects"))
+    latest = next(i for i, step in enumerate(steps) if step.startswith("Promote latest ISO aliases"))
+    assert boot < dated < latest
+    assert "id: boot_verify" in steps[boot]
+    assert "continue-on-error:" not in workflow
+    publishers = [step for step in steps if "rclone copyto" in step]
+    assert publishers == [steps[dated], steps[latest]]
+    for step in publishers:
+        assert "success() && steps.boot_verify.outcome == 'success'" in step
+        assert "inputs.skip_upload != true" in step
+        assert "github.event_name != 'pull_request'" in step
+        assert step.count("rclone copyto") == 4
+    assert "steps.publish_dated.outcome == 'success'" in steps[latest]
+    assert "tromso-live-latest" not in steps[dated]
+    assert steps[dated].count("--immutable") == 4
+    for suffix in ('iso"', 'iso-CHECKSUM"', 'iso.sig"', 'iso.cert"'):
+        assert f'tromso-live-latest.{suffix}' in steps[latest]
+
+
+def test_iso_upload_failures_stop_publication(tmp_path):
+    """Exercise the actual upload commands with every R2 request failing in turn."""
+    import subprocess
+
+    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
+    steps = re.split(r"^      - name: ", workflow, flags=re.MULTILINE)
+    scripts = [step.split("        run: |\n", 1)[1] for step in steps if "rclone copyto" in step]
+    script = re.sub(r"\$\{\{.*?\}\}", "candidate", "\n".join(scripts))
+    log = tmp_path / "uploads"
+    mock = '''
+    rclone() {
+        count=$((count + 1))
+        echo "$*" >> "$UPLOAD_LOG"
+        [ "$count" -ne "$FAIL_AT" ]
+    }
+    count=0
+    '''
+    for fail_at in range(1, 10):
+        log.write_text("")
+        result = subprocess.run(
+            ["bash", "-e", "-c", mock + script],
+            env={**os.environ, "UPLOAD_LOG": str(log), "FAIL_AT": str(fail_at), "R2_BUCKET": "test"},
+            capture_output=True, text=True,
+        )
+        assert (result.returncode == 0) == (fail_at == 9), result.stderr
+        assert len(log.read_text().splitlines()) == min(fail_at, 8)
