@@ -48,6 +48,9 @@ tuna-os/tromso
 └── Justfile
 ```
 
+For detailed technical documentation on the BuildStream build graph, sandboxing policies,
+and OCI image composition, see [Tromso Architecture](docs/ARCHITECTURE.md).
+
 ## Quick Start
 
 ### Prerequisites
@@ -157,6 +160,11 @@ The [KDE community co-marketing partnership kit](docs/outreach/kde-community-par
 contains reviewable outreach proposals, co-marketing article drafts, Akademy and
 FOSDEM conference abstracts, and a KDE VDG collaboration framework. External
 outreach and partnership execution are tracked in [#372](https://github.com/tuna-os/tromso/issues/372).
+
+The [BuildStream reference case study kit](docs/outreach/buildstream-community-reference.md)
+contains technical case study drafts, architecture documentation, freedesktop-sdk
+alignment notes, and upstream coordination checklists. Upstream visibility and
+coordination are tracked in [#374](https://github.com/tuna-os/tromso/issues/374).
 
 ## References
 
