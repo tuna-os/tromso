@@ -136,6 +136,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-10-25 | Stale publication alert could coexist with a green staleness workflow | Alert creation succeeded even without a fresh build | Fail the check after maintaining the alert; an open stale-build alert excludes Beta eligibility (#278) |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |
 | 2026-07-19 | `just iso-sd-boot tromso` in build-iso.yml never worked | recipe + `tromso/Containerfile` + dracut module never existed in this repo | ported from xfce-linux/dakota-iso (PR #74) |
 | 2026-07-19 | `tromso/Containerfile` missing from git after commit | `.gitignore` had unanchored `Containerfile` rule | anchored to `/Containerfile` |

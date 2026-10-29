@@ -1,6 +1,6 @@
 # Tromsø Roadmap
 
-**Last updated**: 2026-09-02 | **Status**: Alpha
+**Last updated**: 2026-10-25 | **Status**: Alpha
 
 Part of the [TunaOS](https://tunaos.org) ecosystem. BuildStream-based KDE Linux distribution.
 
@@ -11,9 +11,9 @@ Part of the [TunaOS](https://tunaos.org) ecosystem. BuildStream-based KDE Linux 
 - Live ISO assembly and publishing maintained directly in this repository
 - Nightly and stable channels, including promotion and rollback workflows
 
-The workflows above are implemented. None of them has yet completed
-successfully on `main` — see [Release readiness](#release-readiness) for the
-run-level evidence and the single blocker behind it.
+The workflows above are implemented. The scheduled image build has now
+succeeded on `main`; the release ladder remains incomplete. See
+[Release readiness](#release-readiness) for dated evidence.
 
 ## Alpha → Beta
 
@@ -22,7 +22,9 @@ the decision after every required gate below is demonstrated on one promotion
 candidate. Until then, Tromsø remains Alpha even when individual workflows or
 nightly images are available.
 
-**Gates currently satisfied: 0 of 5.**
+**Gates demonstrated for one promotion candidate: 0 of 5.**
+
+The table preserves the 2026-09-02 baseline; newer evidence follows below.
 
 Each gate records whether its evidence has been produced, not whether the
 machinery that would produce it exists. A row is only green when a run,
@@ -38,15 +40,28 @@ identified by URL, has passed.
 
 ### Release readiness
 
-Four of the five gates are blocked on one root cause, not four independent
-problems. A chunk failure in `Build Tromso (Multi-Runner)` skips `build_final`,
-so no OCI image is pushed; the ISO workflow chains off that build and skips; the
-two end-to-end install tests pull the image that was never pushed and fail; and
-`promote-stable.yml` correctly refuses to promote against those results.
+The zero-green finding in [#278](https://github.com/tuna-os/tromso/issues/278)
+is no longer current. The scheduled [2026-10-15 main build](https://github.com/tuna-os/tromso/actions/runs/38684318450)
+succeeded, including `build_final`, at commit
+`bf255ceca900117d733f7691f6f8b15c25cd0bbd`. The
+[2026-10-19 LUKS run](https://github.com/tuna-os/tromso/actions/runs/39230716090)
+also succeeded independently. As of 2026-10-25, queries for successful `main`
+ISO and plain-install runs still return no results. These independent runs
+do not satisfy all five gates for one promotion candidate.
 
-[#278](https://github.com/tuna-os/tromso/issues/278) is the canonical tracker
-for that blocker. Until one image is published, no other gate can be measured,
-and no roadmap row below `Build reliability` can move.
+**Release-blocking priority:** restore a fresh successful `build_final` on
+`main`, then collect the remaining evidence for that candidate. The
+[2026-10-24 build](https://github.com/tuna-os/tromso/actions/runs/40064106136)
+failed in `build_core`. Inspect current logs before applying the September
+runner-reclaim diagnosis or changing `chunk6-cryptsetup-base`. Other roadmap
+work remains secondary until publication is healthy.
+
+The daily `Build Staleness Check` fails when no successful `main` build is
+available within 48 hours and maintains an alert issue. While that alert is
+open, Tromsø is **not Beta-eligible**. Closure of the historical
+[#211](https://github.com/tuna-os/tromso/issues/211) does not permanently clear
+freshness: consult the current alert and run evidence. Freshness is a
+prerequisite, not a substitute for the five gates or approval to promote.
 
 ### First Beta decision record
 
