@@ -147,6 +147,13 @@ cosign verify-blob tromso-live-<date>-<sha>.iso \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
+## Community outreach
+
+The [KDE community co-marketing partnership kit](docs/outreach/kde-community-partnership.md)
+contains reviewable outreach proposals, co-marketing article drafts, Akademy and
+FOSDEM conference abstracts, and a KDE VDG collaboration framework. External
+outreach and partnership execution are tracked in [#372](https://github.com/tuna-os/tromso/issues/372).
+
 ## References
 
 - **[KDE Linux](https://invent.kde.org/kde-linux/kde-linux)** — the official project for KDE Linux uses mkosi and Arch, not BuildStream. Tromso uses its package selection as a reference, but does not use its build tools.
