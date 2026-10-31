@@ -130,3 +130,42 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_e2e_install_workflows_do_not_run_pr_code_with_write_token():
+    """tromso#270: the PR-triggered install e2e workflows built and ran the
+    PR's own Justfile/iso.justfile/tromso recipes as root while holding
+    `contents: write` (and with the GITHUB_TOKEN in root's podman auth store).
+    The job that runs that code must be read-only; write scopes belong to a
+    separate `report` job that runs no repository code."""
+    workflows = REPO / ".github" / "workflows"
+    for name, job in (
+        ("test-plain-install.yml", "plain-e2e"),
+        ("test-luks-install.yml", "luks-e2e"),
+    ):
+        text = "".join(
+            line
+            for line in (workflows / name).read_text().splitlines(keepends=True)
+            if not line.lstrip().startswith("#")
+        )
+        top, jobs = text.split("\njobs:\n", 1)
+        jobs = "\n" + jobs
+        perms = re.search(r"^permissions:\n((?:  .*\n)+)", top, re.M)
+        assert perms, f"{name} lacks a workflow-level permissions block"
+        assert "write" not in perms.group(1), (
+            f"{name} grants a write scope at workflow level; it executes PR code as root"
+        )
+        assert f"\n  {job}:\n" in jobs and "\n  report:\n" in jobs, name
+
+        run_job, report_job = jobs.split("\n  report:\n", 1)
+        assert "write" not in run_job, f"{name}: {job} job must stay read-only"
+        assert "ghcr.io" not in run_job and "podman login" not in run_job, (
+            f"{name}: the token must not be written to root's registry auth store"
+        )
+        assert "contents: write" in report_job, name
+        assert "actions/checkout" not in report_job, (
+            f"{name}: the write-scoped report job must not check out PR code"
+        )
+        assert "just " not in report_job and "sudo" not in report_job, (
+            f"{name}: the write-scoped report job must not run repository recipes"
+        )

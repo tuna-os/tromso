@@ -362,6 +362,9 @@ jobs:
     name: Plain E2E
     needs: changes
     if: needs.changes.outputs.e2e-plain == 'true'
+    # A caller's permissions cap the called workflow's. Only its `report` job
+    # (which runs no repository code) uses the write scopes; the job that
+    # builds and runs this PR's recipes as root is read-only (tromso#270).
     permissions:
       issues: write
       pull-requests: write
@@ -373,6 +376,9 @@ jobs:
     name: LUKS E2E
     needs: changes
     if: needs.changes.outputs.e2e-luks == 'true'
+    # A caller's permissions cap the called workflow's. Only its `report` job
+    # (which runs no repository code) uses the write scopes; the job that
+    # builds and runs this PR's recipes as root is read-only (tromso#270).
     permissions:
       issues: write
       pull-requests: write

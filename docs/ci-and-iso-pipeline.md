@@ -230,6 +230,16 @@ the two tests. The run number selects the test. Set the repository variable
 workflow of one test always runs that test. The two tests run fully on their
 weekly schedules and on manual dispatch.
 
+Both install tests are split into two jobs so that PR-supplied recipes never
+run beside a write-scoped token (tromso#270). The e2e job builds the ISO and
+runs the install as root with a read-only `GITHUB_TOKEN` (`contents: read`),
+does not log in to GHCR (the payload image is public) and uploads the
+screenshots and result values as an artifact. The separate `report` job holds
+`contents: write`, `issues: write` and `pull-requests: write`, runs no
+repository code, treats the artifact as untrusted data, commits the
+screenshots to `ci-screenshots` and posts the PR comment. It is skipped for
+fork PRs, whose token GitHub downgrades to read-only.
+
 ## Rollback
 
 `rollback-stable.yml` runs only after a manual dispatch, and `dry_run` defaults
