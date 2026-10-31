@@ -130,3 +130,35 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_stable_promotion_uses_one_candidate():
+    """Release evidence must belong to the tested immutable image, not latest runs."""
+    import yaml
+
+    workflows = REPO / '.github/workflows'
+    promotion = yaml.safe_load((workflows / 'promote-stable.yml').read_text())
+    jobs = promotion['jobs']
+    for job, workflow in [('iso', 'build-iso'), ('plain', 'test-plain-install'),
+                          ('luks', 'test-luks-install')]:
+        assert jobs[job]['needs'] == 'candidate'
+        assert jobs[job]['uses'].endswith(f'/{workflow}.yml')
+        assert jobs[job]['with']['candidate_sha'] == '${{ needs.candidate.outputs.sha }}'
+        assert jobs[job]['with']['candidate_digest'] == '${{ needs.candidate.outputs.digest }}'
+        source = (workflows / f'{workflow}.yml').read_text()
+        assert 'inputs.candidate_sha' in source
+        assert 'ghcr.io/tuna-os/tromso@${CANDIDATE_DIGEST}' in source
+    gate = jobs['promote']
+    assert set(gate['needs']) == {'candidate', 'iso', 'plain', 'luks'}
+    for job in ['candidate', 'iso', 'plain', 'luks']:
+        assert f"needs.{job}.result == 'success'" in gate['if']
+    assert "github.event_name == 'workflow_dispatch' && inputs.force" in gate['if']
+    publish = gate['steps'][-1]['run']
+    assert 'skopeo copy --preserve-digests' in publish
+    assert 'tromso@$DIGEST' in publish
+    assert 'workflow run' not in publish  # rebuilding would replace verified bytes
+    select = jobs['candidate']['steps'][-1]['run']
+    assert 'release-candidate' in select
+    assert '"$SHA" = "$BUILD_SHA"' in select
+    assert jobs['iso']['with']['skip_upload'] is True
+    assert jobs['publish-stable-iso']['needs'] == ['candidate', 'promote']

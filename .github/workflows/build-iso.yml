@@ -1,6 +1,20 @@
 name: Build and Publish Tromsø Live ISO
 
 on:
+  workflow_call:
+    inputs:
+      candidate_sha:
+        type: string
+        default: ''
+      candidate_digest:
+        type: string
+        default: ''
+      release_channel:
+        type: string
+        default: ''
+      skip_upload:
+        type: boolean
+        default: true
   push:
     branches: [main]
     paths:
@@ -40,12 +54,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ inputs.candidate_sha || github.event.workflow_run.head_sha || github.sha }}
 
       - name: Determine channel
         id: channel
         run: |
-          BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
+          BRANCH="${{ inputs.release_channel || github.event.workflow_run.head_branch || github.ref_name }}"
           if [ "$BRANCH" = "stable" ]; then
             echo "name=stable" >> "$GITHUB_OUTPUT"
             echo "payload_tag=stable" >> "$GITHUB_OUTPUT"
@@ -57,7 +71,15 @@ jobs:
           fi
 
       - name: Point ISO payload at channel image
-        run: echo "ghcr.io/tuna-os/tromso:${{ steps.channel.outputs.payload_tag }}" > tromso/payload_ref
+        env:
+          CANDIDATE_DIGEST: ${{ inputs.candidate_digest }}
+          PAYLOAD_TAG: ${{ steps.channel.outputs.payload_tag }}
+        run: |
+          if [ -n "$CANDIDATE_DIGEST" ]; then
+            echo "ghcr.io/tuna-os/tromso@${CANDIDATE_DIGEST}" > tromso/payload_ref
+          else
+            echo "ghcr.io/tuna-os/tromso:${PAYLOAD_TAG}" > tromso/payload_ref
+          fi
 
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
@@ -95,7 +117,7 @@ jobs:
         id: iso
         run: |
           DATE=$(date -u +%Y%m%d)
-          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          SHA=$(git rev-parse --short=7 HEAD)
           echo "dated=tromso-live-${DATE}-${SHA}.iso" >> "$GITHUB_OUTPUT"
           echo "path=output/tromso-live.iso" >> "$GITHUB_OUTPUT"
 
@@ -155,7 +177,7 @@ jobs:
           rclone copyto --log-level INFO --s3-no-check-bucket \
             "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.cert"
           echo "https://download.tunaos.org/tromso/tromso-live-latest.iso"
-        continue-on-error: true
+        continue-on-error: ${{ inputs.release_channel != 'stable' }}
 
       - name: Boot verification (UEFI + serial)
         timeout-minutes: 10
@@ -181,7 +203,7 @@ jobs:
           for i in $(seq 1 30); do [ -S /tmp/qemu-monitor.sock ] && break; sleep 2; done
           for i in $(seq 1 60); do
             sudo grep -q "TROMSO_LIVE_READY" /tmp/serial.log 2>/dev/null && { echo "==> Ready after $((i*5))s"; break; }
-            [ "$i" -eq 60 ] && echo "WARNING: ready token not seen after 5m" || true
+            if [ "$i" -eq 60 ]; then echo "WARNING: ready token not seen after 5m"; fi
             sleep 5
           done
           echo "screendump /tmp/screenshot.ppm" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
@@ -195,7 +217,7 @@ jobs:
       - name: Upload ISO as artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.iso.outputs.dated }}
+          name: ${{ steps.iso.outputs.dated }}-${{ steps.channel.outputs.name }}
           path: ${{ steps.iso.outputs.path }}
           if-no-files-found: error
           retention-days: 7
@@ -203,7 +225,7 @@ jobs:
       - name: Upload checksum as artifact
         uses: actions/upload-artifact@v7
         with:
-          name: checksum-${{ steps.iso.outputs.dated }}
+          name: checksum-${{ steps.iso.outputs.dated }}-${{ steps.channel.outputs.name }}
           path: ${{ steps.checksum.outputs.path }}
           if-no-files-found: warn
           retention-days: 7
@@ -212,7 +234,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: boot-screenshot-tromso
+          name: boot-screenshot-tromso-${{ steps.channel.outputs.name }}
           path: screenshot.png
           if-no-files-found: warn
           retention-days: 7

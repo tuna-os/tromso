@@ -246,3 +246,36 @@ This workflow does not restore a full release. It restores only the x86_64
 because `build-tromso-multirunner.yml` signs each pushed digest. The
 [rollback runbook](../runbooks/rollback-a-bad-stable-release.md) gives the
 manual steps for other artifacts and the final verification.
+
+## Stable candidate verification (#309)
+
+Each published x86_64 build records its commit SHA and pushed OCI digest in
+its `release-candidate` Actions artifact (30-day retention). Promotion selects
+the newest successful main build and requires that artifact to match its run
+SHA. Missing, expired, or malformed evidence fails closed; run a fresh build
+rather than falling back to a mutable tag.
+
+Promotion invokes the ISO boot gate, plain install, and LUKS install workflows
+with that exact SHA and digest. All check out the candidate source and write
+`ghcr.io/tuna-os/tromso@sha256:…` to `tromso/payload_ref` before building. The
+terminal job requires all three reusable workflow results to succeed in the
+same promotion run. Run dependencies and summaries record the candidate and
+results; unrelated scheduled E2E runs are no longer release evidence.
+
+Following Dakota's published-digest release pattern, promotion copies the
+verified digest to `:stable` with `skopeo --preserve-digests` and advances the
+stable bookmark without rebuilding the OCI image. It then publishes the
+stable ISO using the same candidate inputs. This covers x86_64; the existing
+independent aarch64 pipeline is not part of this gate. Registry publication
+and the git update are sequential, not transactional; a failed push needs
+operator reconciliation. Stable branch updates remain fast-forward only.
+
+A manual `force=true` may override failed verification, but cannot override
+missing candidate identity. The run summary records the actor, override flag,
+SHA, digest, and every required result. Normal scheduled promotion cannot
+use this override. Existing weekly/PR installation tests retain their current
+payload defaults outside the promotion call.
+
+| Bug class | Guard |
+| --- | --- |
+| Unrelated green runs composed into stable (#309) | Candidate-bound reusable jobs and terminal dependency gate; `test_stable_promotion_uses_one_candidate` |
