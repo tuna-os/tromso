@@ -27,6 +27,8 @@ def test_no_hardcoded_recovery_key_in_tracked_files():
         text=True,
     ).stdout
     tracked = [p for p in out.split("\0") if p]
+    # Split the literal so this test file does not match its own needle.
+    placeholder = "ihavenot" + "setarecoverykey"
 
     for rel in tracked:
         path = REPO / rel
@@ -37,7 +39,7 @@ def test_no_hardcoded_recovery_key_in_tracked_files():
             content = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        assert "ihavenotsetarecoverykey" not in content, (
+        assert placeholder not in content, (
             f"Hardcoded recovery passphrase found in {rel}"
         )
 
