@@ -21,14 +21,14 @@ This document audits the current observability facilities, establishes privacy a
 - **Data Flow Policy**: Strict compliance with the TunaOS zero off-box data export policy. No telemetry exporter, OTLP endpoint, external daemon, or network beacon is shipped in the OS image or active in CI runner jobs without explicit operator configuration.
 
 ### 2.2 Local Logging & Interactive Dashboards
-- **BuildStream Log Stream**: Detailed element builds write to `/var/tmp/tromso-build.log` (monitored in real time via `just log`). Element-specific build logs are archived under `~/.cache/buildstream/logs/<project>/<element-name>/<key>.log`.
-- **Local Web Dashboard**: `just dashboard` launches an interactive local web UI (`http://localhost:8765`) using `bst-dashboard.py` (cached at `~/.cache/bst-dashboard/`). It reads `/var/tmp/tromso-build.log` and the local project graph without exposing external endpoints.
+- **BuildStream Log Stream**: Detailed element builds write to `/tmp/tromso-build.log` (monitored in real time via `just log`). Element-specific build logs are archived under `~/.cache/buildstream/logs/<project>/<element-name>/<key>.log`.
+- **Local Web Dashboard**: `just dashboard` launches an interactive local web UI (`http://localhost:8765`) using `bst-dashboard.py` (cached at `~/.cache/bst-dashboard/`). It reads `/tmp/tromso-build.log` and the local project graph without exposing external endpoints.
 - **Systemd User Service**: `just dashboard-service` provisions a persistent systemd user unit (`~/.config/systemd/user/bst-dashboard.service`) with user lingering (`loginctl enable-linger $USER`) for background monitoring on dedicated build workstations.
 - **E2E Serial & QEMU Diagnostics**: The plain and LUKS install gates (`test-plain-install.yml`, `test-luks-install.yml`) stream serial console output to `/tmp/tromso-qemu-live-serial.log` and `/tmp/tromso-qemu-installed-serial.log`, archived as CI job artifacts.
 
 ### 2.3 CI Timing & Code Coverage Infrastructure
 - **Matrix Timing Analysis**: `scripts/autotune-chunk-grouping.py` (invoked via `just autotune-chunks limit=N`) queries the GitHub Actions API via `gh api` to inspect recent runs of `build-tromso-multirunner.yml`. It calculates chunk wall-clock durations (min, max, average) and the duration imbalance ratio (`Max / Min`) to identify stragglers.
-- **Code Coverage**: `codecov.yml` defines repository test coverage thresholds (project target: 45%, patch target: 70% informational). Coverage is submitted strictly via standard CI actions without persistent host daemons.
+- **Code Coverage**: `codecov.yml` defines repository test coverage thresholds (project target: 45%, patch target: 70% informational). No CI workflow uploads coverage reports to Codecov yet, so these targets receive no data; this gap is tracked in [#303](https://github.com/tuna-os/tromso/issues/303).
 
 ---
 
