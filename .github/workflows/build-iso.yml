@@ -96,7 +96,7 @@ jobs:
         run: |
           DATE=$(date -u +%Y%m%d)
           SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "dated=tromso-live-${DATE}-${SHA}.iso" >> "$GITHUB_OUTPUT"
+          echo "dated=tromso-live-${DATE}-${SHA}-${{ github.run_id }}-${{ github.run_attempt }}.iso" >> "$GITHUB_OUTPUT"
           echo "path=output/tromso-live.iso" >> "$GITHUB_OUTPUT"
 
       - name: Generate SHA256 checksum
@@ -125,39 +125,8 @@ jobs:
           echo "sig_path=${ISO}.sig" >> "$GITHUB_OUTPUT"
           echo "cert_path=${ISO}.cert" >> "$GITHUB_OUTPUT"
 
-      - name: Upload ISO to Cloudflare R2
-        if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
-        env:
-          RCLONE_CONFIG_R2_TYPE: s3
-          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
-          RCLONE_CONFIG_R2_REGION: auto
-          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        run: |
-          ISO="${{ steps.iso.outputs.path }}"
-          DATED="${{ steps.iso.outputs.dated }}"
-          rclone copyto --log-level INFO --checksum --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}"
-          rclone copyto --log-level INFO --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.sig"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.cert"
-          # Same bytes as the dated ISO, so the same signature verifies it —
-          # publish under the "latest" name too so consumers of the stable
-          # download URL (validate-iso-kanpur.yml included) have something
-          # to verify against without needing to know today's dated filename.
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.sig"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.cert"
-          echo "https://download.tunaos.org/tromso/tromso-live-latest.iso"
-        continue-on-error: true
-
       - name: Boot verification (UEFI + serial)
+        id: boot_verify
         timeout-minutes: 10
         run: |
           ISO="${{ steps.iso.outputs.path }}"
@@ -181,7 +150,7 @@ jobs:
           for i in $(seq 1 30); do [ -S /tmp/qemu-monitor.sock ] && break; sleep 2; done
           for i in $(seq 1 60); do
             sudo grep -q "TROMSO_LIVE_READY" /tmp/serial.log 2>/dev/null && { echo "==> Ready after $((i*5))s"; break; }
-            [ "$i" -eq 60 ] && echo "WARNING: ready token not seen after 5m" || true
+            if [ "$i" -eq 60 ]; then echo "WARNING: ready token not seen after 5m"; fi
             sleep 5
           done
           echo "screendump /tmp/screenshot.ppm" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
@@ -191,6 +160,51 @@ jobs:
           echo "quit" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
           sudo grep -qE "TROMSO_LIVE_READY|Finished live-ready\.service" /tmp/serial.log || \
             { echo "ERROR: Live environment did not reach ready state"; sudo tail -50 /tmp/serial.log; exit 1; }
+
+      # Publication is authorized only by a successful local candidate boot.
+      - name: Publish dated ISO objects
+        id: publish_dated
+        if: ${{ success() && steps.boot_verify.outcome == 'success' && inputs.skip_upload != true && github.event_name != 'pull_request' }}
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_REGION: auto
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
+            "${{ steps.iso.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.iso.outputs.dated }}"
+          rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
+            "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
+          rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.iso.outputs.dated }}.sig"
+          rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.iso.outputs.dated }}.cert"
+
+      - name: Promote latest ISO aliases
+        if: >-
+          ${{ steps.publish_dated.outcome == 'success' &&
+              success() && steps.boot_verify.outcome == 'success' &&
+              inputs.skip_upload != true && github.event_name != 'pull_request' }}
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_REGION: auto
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.sig"
+          rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.cert"
+          rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
+            "output/tromso-live-latest.iso-CHECKSUM" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso-CHECKSUM"
+          rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
+            "${{ steps.iso.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso"
 
       - name: Upload ISO as artifact
         uses: actions/upload-artifact@v7
