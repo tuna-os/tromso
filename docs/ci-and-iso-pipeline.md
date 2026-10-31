@@ -136,6 +136,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-10-24 | Main publish stops in WebKitGTK CMake configuration (run 40064106136, #392) | WebKit 2.53.1 expands unset `_linked_into` into missing `if()` arguments in `_WEBKIT_TARGET_LINK_FRAMEWORK` | Backport the exact condition from WebKitGTK 2.54.1 used by gnome-build-meta; keep variable names unexpanded so CMake handles the unset value |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |
 | 2026-07-19 | `just iso-sd-boot tromso` in build-iso.yml never worked | recipe + `tromso/Containerfile` + dracut module never existed in this repo | ported from xfce-linux/dakota-iso (PR #74) |
 | 2026-07-19 | `tromso/Containerfile` missing from git after commit | `.gitignore` had unanchored `Containerfile` rule | anchored to `/Containerfile` |

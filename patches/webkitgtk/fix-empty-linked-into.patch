@@ -1,0 +1,17 @@
+Backport the framework-link condition from WebKitGTK 2.54.1, as pinned by
+GNOME/gnome-build-meta 9658ca91d39ee7d3f68c5a3c71403c52757238ff.
+Avoid expanding an unset _linked_into into missing CMake if() arguments.
+Source: https://webkitgtk.org/releases/webkitgtk-2.54.1.tar.xz
+SHA256: ea0bbb02dbdbc596874a4e7ad35b66645b3e0a232bd0e4081de5ed92eb0a397d
+
+--- a/Source/cmake/WebKitMacros.cmake
++++ b/Source/cmake/WebKitMacros.cmake
+@@ -313,7 +313,7 @@
+         get_property(_linked_into GLOBAL PROPERTY ${framework}_LINKED_INTO)
+ 
+         # See if the target is linking a framework that the specified framework is already linked into
+-        if ((NOT _linked_into) OR (${framework} STREQUAL ${_linked_into}) OR (NOT ${_linked_into} IN_LIST ${_target}_FRAMEWORKS))
++        if ((NOT _linked_into) OR (framework STREQUAL _linked_into) OR (NOT _linked_into IN_LIST ${_target}_FRAMEWORKS))
+             list(APPEND ${_target}_PRIVATE_LIBRARIES WebKit::${framework})
+ 
+             # The WebKit:: alias targets do not propagate OBJECT libraries so the
