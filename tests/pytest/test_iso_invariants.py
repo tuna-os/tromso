@@ -130,3 +130,13 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_workflows_declare_default_token_permissions():
+    """Every workflow must set token permissions instead of inheriting repo defaults."""
+    import yaml
+
+    for path in sorted((REPO / ".github/workflows").glob("*.y*ml")):
+        workflow = yaml.safe_load(path.read_text())
+        permissions = workflow.get("permissions")
+        assert isinstance(permissions, dict) or permissions == "read-all", path.name
