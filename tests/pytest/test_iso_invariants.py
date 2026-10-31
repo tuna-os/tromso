@@ -130,3 +130,71 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_boot_verification_precedes_iso_publish():
+    """An ISO must boot before it is signed or published to R2.
+
+    Previously (tuna-os/tromso#286), upload happened before boot verification
+    and had continue-on-error: true, allowing unbootable ISOs to be published
+    to the mutable latest URL.
+    """
+    iso_workflow = (REPO / ".github" / "workflows" / "build-iso.yml").read_text()
+    boot_idx = iso_workflow.index("name: Boot verification (UEFI + serial)")
+    cosign_idx = iso_workflow.index("name: Install cosign")
+    upload_idx = iso_workflow.index("name: Upload ISO to Cloudflare R2")
+
+    assert boot_idx < cosign_idx, "Boot verification must occur before Install cosign"
+    assert boot_idx < upload_idx, "Boot verification must occur before Upload ISO to Cloudflare R2"
+
+    upload_block = iso_workflow[upload_idx:]
+    next_step_idx = upload_block.find("- name:", 7)
+    if next_step_idx != -1:
+        upload_block = upload_block[:next_step_idx]
+
+    assert "continue-on-error: true" not in upload_block, (
+        "Upload ISO to Cloudflare R2 must not swallow errors with continue-on-error"
+    )
+    assert "tromso-live-latest.iso-CHECKSUM" in upload_block, (
+        "Upload step must upload latest checksum to R2"
+    )
+    assert "curl" in upload_block and "-fsI" in upload_block, (
+        "Upload step must verify download URL with curl -fsI"
+    )
+
+
+def test_iso_naming_uses_workflow_run_head_sha():
+    """ISO naming must use workflow_run head SHA if available.
+
+    On workflow_run triggers, github.sha is the default branch HEAD, not the
+    commit that triggered the run (tuna-os/tromso#286).
+    """
+    iso_workflow = (REPO / ".github" / "workflows" / "build-iso.yml").read_text()
+    compute_idx = iso_workflow.index("name: Compute ISO name")
+    compute_block = iso_workflow[compute_idx:]
+    next_step_idx = compute_block.find("- name:", 7)
+    if next_step_idx != -1:
+        compute_block = compute_block[:next_step_idx]
+
+    assert "github.event.workflow_run.head_sha || github.sha" in compute_block, (
+        "Compute ISO name must resolve commit SHA from workflow_run.head_sha"
+    )
+
+
+def test_rollback_restores_aarch64_and_verifies_cosign():
+    """rollback-stable.yml must cosign-verify and retag both x86_64 and aarch64."""
+    rollback = (REPO / ".github" / "workflows" / "rollback-stable.yml").read_text()
+    assert "cosign verify" in rollback, "rollback workflow must verify target signature"
+    assert "stable-aarch64" in rollback, "rollback workflow must retag stable-aarch64"
+    assert "runbooks/rollback-a-bad-stable-release.md" in rollback, (
+        "rollback workflow must reference runbook for R2 manual restore"
+    )
+
+
+def test_promote_stable_alerts_on_failure():
+    """promote-stable.yml must alert if weekly promotion fails."""
+    promote = (REPO / ".github" / "workflows" / "promote-stable.yml").read_text()
+    assert "issues: write" in promote, "promote workflow requires issues: write to report failure"
+    assert "Alert on failed promotion" in promote, "promote workflow must include failure alert step"
+    assert "if: failure()" in promote, "alert step must run on failure()"
+

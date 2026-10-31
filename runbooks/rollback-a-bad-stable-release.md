@@ -21,9 +21,9 @@ One promotion (`promote-stable.yml` → `build-tromso-multirunner.yml` on the
 | Live ISO | R2 `tromso/stable/tromso-live-latest.iso` + `tromso-live-<date>-<sha7>.iso` (+ `-CHECKSUM`, `.sig`, `.cert`) | `build-iso.yml` |
 | Git bookmark | branch `stable` | `promote-stable.yml` |
 
-`rollback-stable.yml` restores **only the x86_64 `:stable` tag and the git
-branch**. The aarch64 tags and the whole ISO surface must be restored by
-hand — sections 4 and 5.
+`rollback-stable.yml` restores **the x86_64 `:stable` tag, the aarch64
+`:stable-aarch64` tag, and the git branch** (with `cosign verify` verification).
+The whole ISO surface must be restored by hand — section 5.
 
 ## 2. Decide what is actually broken
 
@@ -68,25 +68,26 @@ gh workflow run "Rollback :stable" --repo tuna-os/tromso \
   -f target_sha=<full-sha> -f reason="<incident link>" -f dry_run=true
 ```
 
-Then re-run with `dry_run=false`. It `skopeo copy --preserve-digests` the
-target onto `:stable` plus a dated `stable-rollback-*` tag, and force-pushes
-`stable` to the same commit.
+Then re-run with `dry_run=false`. The workflow verifies signatures using
+`cosign verify` on both target images, `skopeo copy --preserve-digests` the
+targets onto `:stable` and `:stable-aarch64` plus dated `stable-rollback-*`
+tags, and force-pushes `stable` to the same commit.
 
-**Verify the signature before you trust the rolled-back image** — the
-workflow does not (its header comment saying "no cosign yet" is stale;
-`build-tromso-multirunner.yml` has signed every pushed digest since the
-cosign step landed):
+You can also independently verify the signatures:
 
 ```
 cosign verify ghcr.io/tuna-os/tromso:stable \
   --certificate-identity-regexp '^https://github.com/tuna-os/tromso/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
+cosign verify ghcr.io/tuna-os/tromso:stable-aarch64 \
+  --certificate-identity-regexp '^https://github.com/tuna-os/tromso/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-### aarch64 is not covered
+### aarch64 tag restoration
 
-`rollback-stable.yml` never touches the `-aarch64` tags, so `:stable-aarch64`
-still points at the bad build after it runs. Restore it manually:
+`rollback-stable.yml` automatically retags `:stable-aarch64` alongside
+`:stable`. If you ever need to restore it manually:
 
 ```
 skopeo copy --preserve-digests \
@@ -121,16 +122,12 @@ rclone copyto "R2:${R2_BUCKET}/tromso/stable/${GOOD}.cert" \
 Do not delete the bad dated ISO: keep it for the postmortem, and its dated
 name is not what anyone downloads.
 
-**Caveat on identifying the good ISO by name.** The dated filename is built
-from `github.sha` (`build-iso.yml`, "Compute ISO name"), but the ISO build's
-usual trigger is `workflow_run`, where `GITHUB_SHA` is documented as the last
-commit on the *default* branch — not the commit that was built. (The checkout
-step in the same workflow compensates with
-`github.event.workflow_run.head_sha || github.sha`; the naming step does
-not.) So for stable ISOs the `<sha7>` in the filename generally names a
-`main` commit, not the stable commit inside the image. Confirm the candidate
-by run timestamp and by the `Build and Publish Tromsø Live ISO` run's
-artifacts, not by the SHA in the name.
+**Note on identifying dated ISOs.** `build-iso.yml` names dated ISOs using
+`github.event.workflow_run.head_sha || github.sha` (tuna-os/tromso#286). For
+historical builds created prior to this fix, the dated filename was built from
+unqualified `github.sha`, which for `workflow_run` named the `main` commit
+instead of the stable commit. For those legacy runs, confirm candidate ISOs by
+run timestamp and artifacts rather than the filename SHA.
 
 ## 6. Verify the rollback
 

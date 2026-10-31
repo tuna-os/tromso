@@ -26,6 +26,7 @@ on:
 permissions:
   contents: write
   actions: write
+  issues: write
 
 concurrency:
   group: promote-stable
@@ -102,3 +103,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run "Build Tromso (Multi-Runner)" --ref stable
+
+      - name: Alert on failed promotion
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="[operations] Release channel stuck: Promote main to stable failed"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="The weekly promotion workflow [Promote main to stable](${RUN_URL}) failed.
+
+          Health checks were not satisfied or the promotion run encountered an error.
+          - Run: ${RUN_URL}
+          - Ref: ${{ github.ref_name }}
+          - Trigger: ${{ github.event_name }}
+          - Date: $(date -u -Iseconds)"
+
+          EXISTING=$(gh issue list --repo "${{ github.repository }}" --search "${TITLE} in:title state:open" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            echo "Bumping existing tracking issue #${EXISTING}"
+            gh issue comment "$EXISTING" --repo "${{ github.repository }}" --body "Promotion failed again in run: ${RUN_URL}"
+          else
+            echo "Opening new tracking issue"
+            gh issue create --repo "${{ github.repository }}" \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "agent/operations,ci"
+          fi

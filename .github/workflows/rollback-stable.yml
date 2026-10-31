@@ -1,13 +1,16 @@
 name: Rollback :stable
 
-# One-button rollback when a promoted stable is bad (dakota pattern,
-# simplified — no cosign yet, see the signing issue). Dispatch-only and
-# dry_run by default: humans opt in to moving tags.
+# One-button rollback when a promoted stable is bad (dakota pattern).
+# Dispatch-only and dry_run by default: humans opt in to moving tags.
 #
-#   1. Verify ghcr.io/tuna-os/tromso:<target_sha> exists.
-#   2. skopeo copy --preserve-digests it onto :stable (+ dated rollback tag).
-#   3. Force-push the stable branch to the target commit so the branch and
-#      the tag never diverge.
+#   1. Verify ghcr.io/tuna-os/tromso:<target_sha> and <target_sha>-aarch64 exist.
+#   2. Verify keyless signatures (cosign) on target images.
+#   3. skopeo copy --preserve-digests onto :stable, :stable-aarch64, and dated rollback tags.
+#   4. Force-push the stable branch to the target commit so the branch and
+#      the tags never diverge.
+#
+# Note: Cloudflare R2 ISO objects are not restored by this workflow;
+# see runbooks/rollback-a-bad-stable-release.md section 5 for manual ISO restore.
 #
 # Shares the promote-stable concurrency group so it cannot race a promotion.
 
@@ -43,14 +46,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify target image exists
+      - name: Verify target images exist
         run: |
           echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
-          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" --format 'target digest: {{.Digest}}'
+          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" --format 'target x86_64 digest: {{.Digest}}'
+          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}-aarch64" --format 'target aarch64 digest: {{.Digest}}'
           sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:stable" --format 'current stable digest: {{.Digest}}' || echo "no :stable yet"
+          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:stable-aarch64" --format 'current stable-aarch64 digest: {{.Digest}}' || echo "no :stable-aarch64 yet"
           git cat-file -e "${{ inputs.target_sha }}^{commit}" || { echo "::error::SHA not a commit in this repo"; exit 1; }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Verify target image signatures (cosign)
+        run: |
+          cosign verify "ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" \
+            --certificate-identity-regexp '^https://github.com/tuna-os/tromso/' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          cosign verify "ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}-aarch64" \
+            --certificate-identity-regexp '^https://github.com/tuna-os/tromso/' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
       - name: Roll back image tags
         if: ${{ !inputs.dry_run }}
@@ -62,6 +79,12 @@ jobs:
           sudo skopeo copy --preserve-digests \
             "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" \
             "docker://ghcr.io/tuna-os/tromso:stable-rollback-${DATE_TAG}"
+          sudo skopeo copy --preserve-digests \
+            "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}-aarch64" \
+            "docker://ghcr.io/tuna-os/tromso:stable-aarch64"
+          sudo skopeo copy --preserve-digests \
+            "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}-aarch64" \
+            "docker://ghcr.io/tuna-os/tromso:stable-rollback-${DATE_TAG}-aarch64"
 
       - name: Move stable branch
         if: ${{ !inputs.dry_run }}
@@ -76,6 +99,10 @@ jobs:
           {
             echo "## Rollback ${{ inputs.dry_run && '(DRY RUN)' || '' }}"
             echo "- target: \`${{ inputs.target_sha }}\`"
+            echo "- target aarch64: \`${{ inputs.target_sha }}-aarch64\`"
             echo "- reason: ${{ inputs.reason }}"
             echo "- actor: ${{ github.actor }}"
+            echo ""
+            echo "Note: ISO objects in Cloudflare R2 are not restored by this workflow;"
+            echo "see [runbooks/rollback-a-bad-stable-release.md](runbooks/rollback-a-bad-stable-release.md) section 5 for manual ISO restore."
           } >> "$GITHUB_STEP_SUMMARY"
