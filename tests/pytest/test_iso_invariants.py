@@ -130,3 +130,11 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_workflows_declare_bounded_token_permissions():
+    """No workflow may inherit repository token defaults or request all scopes."""
+    for path in sorted((REPO / ".github/workflows").glob("*.yml")):
+        text = path.read_text()
+        assert re.search(r"^permissions:\s*\n(?:  [\w-]+: (?:read|write|none)\n)+", text, re.M), path.name
+        assert not re.search(r"^\s*permissions: (?:read-all|write-all)", text, re.M), path.name

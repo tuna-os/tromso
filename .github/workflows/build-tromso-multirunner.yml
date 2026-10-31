@@ -38,6 +38,9 @@ env:
   BST_TARGET: oci/tromso.bst
   BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   # This build regularly takes multiple hours; main gets pushed to several
