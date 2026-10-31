@@ -47,6 +47,10 @@ concurrency:
   # comes, rather than restarting from scratch on every intervening push.
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   # ── Phase 1-3: Plan, core, parallel dependency chunks ────────────────
   multirunner:
