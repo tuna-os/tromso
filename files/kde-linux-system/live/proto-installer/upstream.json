@@ -1,0 +1,6 @@
+{
+  "repository": "https://gitlab.gnome.org/GNOME/gnome-build-meta.git",
+  "commit": "f26d7fc2e0dfed32e5f7329cb2052d766f08b719",
+  "path": "files/gnomeos/live/proto-installer",
+  "branch": "master"
+}
