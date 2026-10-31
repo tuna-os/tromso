@@ -66,7 +66,7 @@ jobs:
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
         # cache, which deletes the just binary setup-just just installed.
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@3f13feab2962a87273d379ebc36ea159527e6cc9 # v1.3.2
         with:
           tool-cache: true
 
