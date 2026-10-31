@@ -157,7 +157,7 @@ def qemu_send_passphrase(sock: str, passphrase: str):
 
 
 def qemu_check_serial(serial_log: str) -> str:
-    """Return 'plymouth', 'gdm', 'emergency', or '' if no marker yet.
+    """Return 'plymouth', 'gdm', 'sddm', 'emergency', or '' if no marker yet.
 
     Checks for systemd unit messages that appear on the serial console when the
     installed system has console=ttyS0 in its kernel cmdline.
@@ -181,6 +181,10 @@ def qemu_check_serial(serial_log: str) -> str:
         return "gnome-initial-setup"
     if "Started gdm.service" in content_flat or "Started GNOME Display Manager" in content_flat:
         return "gdm"
+    # Tromso is a KDE image: its display manager is SDDM, not GDM.
+    #   "OK ] Started sddm.service - Simple Desktop Display Manager."
+    if "Started sddm.service" in content_flat or "Started Simple Desktop Display Manager" in content_flat:
+        return "sddm"
     # Plymouth passphrase prompt — no ANSI codes, plain text on serial.
     if "Please enter passphrase for disk" in raw:
         return "plymouth"
@@ -371,7 +375,16 @@ def run_qemu(monitor_sock: str, passphrase: str, serial_log: str):
                 f" (GDM confirmed via serial, brightness={brightness:.2f})",
                 flush=True,
             )
-        if result in ("gnome-initial-setup", "gdm"):
+        elif result == "sddm":
+            print("[luks-unlock] SDDM started — waiting 30s for the greeter to render...", flush=True)
+            time.sleep(30)
+            brightness, md5 = qemu_screendump(monitor_sock, snap)
+            print(
+                f"[luks-unlock] RESULT: boot succeeded"
+                f" (SDDM confirmed via serial, brightness={brightness:.2f})",
+                flush=True,
+            )
+        if result in ("gnome-initial-setup", "gdm", "sddm"):
             try:
                 import shutil
                 shutil.copy2(snap, "/tmp/luks-screenshot-final.ppm")
