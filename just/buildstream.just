@@ -154,6 +154,11 @@ dashboard-update: (_bst-dashboard-fetch "force")
 autotune-chunks limit='5':
     python3 scripts/autotune-chunk-grouping.py --limit {{limit}}
 
+# Export CI multi-runner build metrics (Prometheus or OTel format)
+[group('build')]
+export-ci-metrics output='ci-metrics.prom' format='prometheus' limit='5':
+    python3 scripts/autotune-chunk-grouping.py --limit {{limit}} --output-metrics {{output}} --metrics-format {{format}}
+
 # Install bst-dashboard as a systemd user service
 [group('build')]
 dashboard-service: _bst-dashboard-fetch
