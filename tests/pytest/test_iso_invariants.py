@@ -130,3 +130,10 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_build_test_analysis_workflows_have_read_only_defaults():
+    """Workflow defaults must not inherit repository-wide token privileges."""
+    for name in ("build-iso", "build-tromso-multirunner", "codeql", "ste", "test"):
+        workflow = (REPO / ".github/workflows" / f"{name}.yml").read_text()
+        assert re.search(r"^permissions:\n  contents: read\n(?:\n|[^ ])", workflow, re.M), name
