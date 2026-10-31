@@ -130,3 +130,15 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "multirunner:" in multi
     assert "build_final:" in multi
     assert "just export" in multi
+
+
+def test_github_actions_use_immutable_references():
+    """Remote actions and reusable workflows must not execute mutable tags."""
+    for path in (REPO / ".github").rglob("*.y*ml"):
+        for ref in re.findall(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", path.read_text(), re.M):
+            if ref.startswith("./"):
+                continue
+            if ref.startswith("docker://"):
+                assert re.fullmatch(r"docker://[^@]+@sha256:[0-9a-f]{64}", ref), (path, ref)
+            else:
+                assert re.fullmatch(r"[^@]+@[0-9a-f]{40}", ref), (path, ref)
