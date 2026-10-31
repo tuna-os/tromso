@@ -21,9 +21,10 @@ elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/
 The plan, core, and parallel dependency chunks (steps 1-3) use the shared
 [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci) reusable workflow. Each
 BuildStream desktop repository uses this workflow, with different image names,
-targets, and chunk counts. The local `build_final` job (step 4) uses cosign
-without a key. This process puts the identity of this workflow in the Fulcio
-certificate. The verification instructions in README.md use that identity.
+targets, and chunk counts. The local `build_final` job (step 4, delegating to
+the repository-owned `.github/workflows/build-final.yml` reusable workflow) uses
+cosign without a key. This process puts the repository workflow identity in the
+Fulcio certificate. The verification instructions in README.md use that identity.
 
 Free GitHub runners can't hold the whole KDE build, so it's split:
 
@@ -151,6 +152,7 @@ prompt, and installed desktop.
 | 2026-07-20 | Multi-runner `build_deps` chunk jobs queued for 20+ min when `tromso` and `xfce-linux` built simultaneously | Simultaneous schedule triggers and push builds across repos reached free-tier org concurrency cap (~20 jobs) | Removed push triggers; staggered daily crons (xfce-linux at 23:30 UTC, tromso at 00:30 UTC) and accepted residual manual-dispatch contention as free-runner trade-off (tromso#93) |
 | 2026-08-12 | Daily `chore(deps): track element sources` PR red on `Build changed elements` (`tromso/glow.bst`: `go: download go1.26.5 … lookup proxy.golang.org … connection refused`) | `glow.bst`/`gum.bst` run `go mod download` in build-commands, but the BuildStream sandbox has no network; they are orphaned (absent from `tromso/deps.bst`), so the world build never built them and only a ref bump touching the file exposes it. glow v3.0.0 additionally wants a Go toolchain newer than freedesktop-sdk 25.08 ships | Both excluded from `track-bst-sources.yml` via `TRACK_EXCLUDE` so a broken element can't block buildable ref bumps. #180 merged red, so glow stays at v3.0.0 on main: reverting the ref would touch the file and trip the same gate. Re-include (and repair the ref) once they vendor modules (`-mod=vendor`, as `uupd.bst` and `kde-linux-deps/toolbox.bst` do) |
 | 2026-07-20 | Runner agent process crashes mid-build (`System.IO.IOException: No space left on device`) on heavy chunks (`util-linux-full`, `cryptsetup`, `pwquality`), bypassing `if: always()` CAS salvage | `ublue-os/remove-unwanted-software@v9` freed insufficient disk space compared to `jlumbroso/free-disk-space` (which removes tool-cache), leaving ~25GB instead of ~45GB free | Upstreamed `jlumbroso/free-disk-space@v5` (`tool-cache: true`) to `build_core` in `tuna-os/bst-ci` (matching `build_deps` and `build_final`), increasing free disk space for heavy dependency closures (tromso#96) |
+| 2026-10-24 | Duplicated final image publication between `build_final` and `build_final_aarch64` drifted on CAS cleanup, kwin capability checks, and overlay whiteout assertions (#314) | Publication sequence was duplicated inline across 17 steps in `build-tromso-multirunner.yml` with manual synchronization comments, risking insecure publication or channel tag collision | Extracted final assembly and publication into repository-owned reusable workflow (`build-final.yml`) with typed inputs; encapsulated channel ownership and tag generation in `scripts/resolve-image-tags.sh` with contract tests |
 
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
@@ -243,6 +245,7 @@ This workflow does not restore a full release. It restores only the x86_64
 `:stable` tag and the git branch. The `-aarch64` tags and R2 ISO under
 `tromso/stable/` stay on the bad build. The workflow does not use
 `cosign verify` on the target before the new tag. Signatures are available
-because `build-tromso-multirunner.yml` signs each pushed digest. The
+because `build-tromso-multirunner.yml` (via `build-final.yml`) signs each
+pushed digest. The
 [rollback runbook](../runbooks/rollback-a-bad-stable-release.md) gives the
 manual steps for other artifacts and the final verification.

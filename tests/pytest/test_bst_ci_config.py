@@ -141,19 +141,24 @@ def test_push_can_be_disabled_without_losing_reads():
 
 def test_workflow_wires_the_action_and_removes_the_key():
     """A leftover client.key on a runner is a credential leak; the cleanup
-    step has to be unconditional."""
+    step has to be unconditional in the reusable final build workflow."""
     workflow = (
+        REPO / ".github" / "workflows" / "build-final.yml"
+    ).read_text()
+    assert workflow.count("uses: ./.github/actions/generate-bst-ci-config") == 1
+    assert workflow.count("rm -f client.key client.crt") == 1
+    assert workflow.count("if: always()") >= 1
+
+    caller = (
         REPO / ".github" / "workflows" / "build-tromso-multirunner.yml"
     ).read_text()
-    assert workflow.count("uses: ./.github/actions/generate-bst-ci-config") == 2
-    assert workflow.count("rm -f client.key client.crt") == 2
-    assert workflow.count("if: always()") >= 2
+    assert caller.count("uses: ./.github/workflows/build-final.yml") == 2
 
 
 def test_workflow_fails_closed_on_a_silent_local_fallback():
     """#311: a green cache hit is not proof the executor loaded."""
     workflow = (
-        REPO / ".github" / "workflows" / "build-tromso-multirunner.yml"
+        REPO / ".github" / "workflows" / "build-final.yml"
     ).read_text()
     assert 'grep -q "Remote Execution Configuration"' in workflow
     assert "remote execution requested but not engaged" in workflow
