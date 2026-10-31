@@ -87,23 +87,51 @@ bst-build *ARGS:
 log:
     tail -f /tmp/tromso-build.log
 
+# Fetch bst-dashboard at the commit pinned in the Justfile and verify its
+# SHA-256 before it is installed in the cache. Files that already verify are
+# left alone; a cache from an older (unpinned) download fails the check and is
+# replaced. Nothing unverified is ever moved into place or executed.
+[private]
+_bst-dashboard-fetch force='':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    DIR="${HOME}/.cache/bst-dashboard"
+    BASE="https://raw.githubusercontent.com/${bst_dashboard_repo}/${bst_dashboard_rev}/tools"
+    mkdir -p "$DIR"
+    cache_ok() {
+        [ -f "$DIR/bst-dashboard.py" ] && [ -f "$DIR/bst-dashboard.html" ] || return 1
+        printf '%s  %s\n' \
+            "${bst_dashboard_py_sha256}" "$DIR/bst-dashboard.py" \
+            "${bst_dashboard_html_sha256}" "$DIR/bst-dashboard.html" \
+            | sha256sum -c --strict --quiet - >/dev/null 2>&1
+    }
+    if [ -z "{{force}}" ] && cache_ok; then
+        exit 0
+    fi
+    echo "Downloading bst-dashboard @ ${bst_dashboard_rev:0:12}…"
+    TMP="$(mktemp -d)"
+    trap 'rm -rf "$TMP"' EXIT
+    curl -fsSL "$BASE/bst-dashboard.py" -o "$TMP/bst-dashboard.py"
+    curl -fsSL "$BASE/bst-dashboard.html" -o "$TMP/bst-dashboard.html"
+    printf '%s  %s\n' \
+        "${bst_dashboard_py_sha256}" "$TMP/bst-dashboard.py" \
+        "${bst_dashboard_html_sha256}" "$TMP/bst-dashboard.html" \
+        | sha256sum -c --strict - >&2 \
+        || { echo "bst-dashboard checksum mismatch; refusing to install it." >&2; exit 1; }
+    mv -f "$TMP/bst-dashboard.py" "$TMP/bst-dashboard.html" "$DIR/"
+
 # Launch live HTML build dashboard at http://localhost:8765
-# Downloads bst-dashboard.py from GitHub on first run; cached at ~/.cache/bst-dashboard/
+# Downloads the pinned, checksum-verified bst-dashboard.py (see the Justfile)
+# on first run; cached at ~/.cache/bst-dashboard/
 [group('build')]
-dashboard:
+dashboard: _bst-dashboard-fetch
     #!/usr/bin/env bash
     set -euo pipefail
     SCRIPT="${HOME}/.cache/bst-dashboard/bst-dashboard.py"
-    if [ ! -f "$SCRIPT" ]; then
-        echo "Downloading bst-dashboard (run 'just dashboard-update' to upgrade)…"
-        mkdir -p "$(dirname "$SCRIPT")"
-        curl -fsSL https://raw.githubusercontent.com/tuna-os/buildstream-dashboard/main/bst-dashboard.py \
-            -o "$SCRIPT"
-    fi
     python3 "$SCRIPT" \
         --log /tmp/tromso-build.log \
         --target oci/tromso.bst \
-        --project "{{justfile_directory()}}" &>/tmp/bst-dashboard.log &
+        --project "{{justfile_directory()}}" &> /tmp/bst-dashboard.log &
     disown
     echo "Dashboard starting (log: /tmp/bst-dashboard.log)"
     for i in $(seq 1 20); do
@@ -115,16 +143,11 @@ dashboard:
         fi
     done
 
-# Pull the latest bst-dashboard from GitHub
+# Re-fetch bst-dashboard at the pinned commit and re-verify it. This does NOT
+# track a branch: upgrading means bumping the pin in the Justfile in a PR.
 [group('build')]
-dashboard-update:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    mkdir -p "${HOME}/.cache/bst-dashboard"
-    echo "Updating bst-dashboard…"
-    curl -fsSL https://raw.githubusercontent.com/tuna-os/buildstream-dashboard/main/bst-dashboard.py \
-        -o "${HOME}/.cache/bst-dashboard/bst-dashboard.py"
-    echo "Done."
+dashboard-update: (_bst-dashboard-fetch "force")
+    @echo "Done."
 
 # Analyze multi-runner chunk build durations and auto-tune chunk grouping
 [group('build')]
@@ -133,7 +156,7 @@ autotune-chunks limit='5':
 
 # Install bst-dashboard as a systemd user service
 [group('build')]
-dashboard-service:
+dashboard-service: _bst-dashboard-fetch
     #!/usr/bin/env bash
     set -euo pipefail
     JUSTDIR="{{justfile_directory()}}"
@@ -148,7 +171,7 @@ dashboard-service:
       '[Service]' \
       'Type=simple' \
       'Environment=PYTHONUNBUFFERED=1' \
-      "ExecStart=/usr/bin/python3 ${JUSTDIR}/bst-dashboard.py --log /tmp/${IMAGE_NAME}-build.log --target oci/${IMAGE_NAME}.bst --project ${JUSTDIR}" \
+      "ExecStart=/usr/bin/python3 ${HOME}/.cache/bst-dashboard/bst-dashboard.py --log /tmp/${IMAGE_NAME}-build.log --target oci/${IMAGE_NAME}.bst --project ${JUSTDIR}" \
       'Restart=always' \
       'RestartSec=5' \
       '' \
