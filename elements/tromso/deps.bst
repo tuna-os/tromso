@@ -36,6 +36,7 @@ depends:
   - tromso/tailscale.bst
   - tromso/image-overlay.bst
   - tromso/multimedia-overrides.bst
+  - tromso/branding.bst
   - tromso/fcitx5-cluster.bst
 
   # Fonts for SDDM and desktop text rendering. These were previously added in
