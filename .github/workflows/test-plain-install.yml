@@ -98,6 +98,14 @@ jobs:
           just output_dir=output plain-test-qemu "$TARGET" ${{ matrix.installer_channel }}
           echo "duration=$(( $(date +%s) - START ))" >> "$GITHUB_OUTPUT"
         continue-on-error: true
+      - name: Make screenshot readable for artifact upload
+        if: always()
+        run: |
+          screenshot=/tmp/plain-screenshot-final.ppm
+          if [ -f "$screenshot" ]; then
+            sudo chown "$USER:$(id -gn)" "$screenshot"
+          fi
+
 
       - name: Upload screenshot
         if: always()
