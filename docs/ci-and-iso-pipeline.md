@@ -25,6 +25,13 @@ targets, and chunk counts. The local `build_final` job (step 4) uses cosign
 without a key. This process puts the identity of this workflow in the Fulcio
 certificate. The verification instructions in README.md use that identity.
 
+Image publication uses the digest from `podman push --digestfile`.
+Local image digests can differ after compression during the push.
+Candidate and channel publications both run Trivy on the pushed digest.
+If the scan or SARIF upload fails, the job fails.
+The scan reports vulnerabilities but does not need a clean report to pass.
+A successful build alone does not prove a clean security report.
+
 Free GitHub runners can't hold the whole KDE build, so it's split:
 
 1. **plan** — The `scripts/ci-build-matrix.py` script from bst-ci runs
@@ -234,6 +241,12 @@ Permanent tests use `skopeo` with a valid OCI fixture. They verify the gzip
 layer and all digests, and reject an absent source. These checks do not prove a
 Tromsø boot or installed desktop. They do not verify signatures from GitHub OIDC.
 The candidate workflows must supply the full build and KVM install evidence.
+
+Trivy 0.70.0 scanned the older published payload at digest `2b89f634`.
+It fetched the current database and completed in 160 seconds.
+The SARIF report has 437 findings across 78 unique IDs and 17 locations.
+We have not assessed whether each report applies.
+This is not a clean security result or a scan of the current candidate.
 
 We exercised the read-only self-bind in a private mount namespace.
 Reads succeeded and writes failed with EROFS. `systemd-analyze verify` accepted
