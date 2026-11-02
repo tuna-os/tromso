@@ -2,11 +2,9 @@ name: Build Tromso (Multi-Runner)
 
 # Planning + core + parallel dependency chunks are a shared reusable
 # workflow (tuna-os/bst-ci) — identical across every BuildStream desktop
-# repo except image name/target/chunk count. Final image assembly, CAS
-# restoration, export, signing, scanning, and publication are encapsulated
-# in the repository-owned reusable workflow (.github/workflows/build-final.yml)
-# to keep the repository signing identity in the Fulcio certificate while
-# eliminating duplicated publication logic across architecture jobs.
+# repo except image name/target/chunk count. Final assembly and scanning use
+# the repository-owned build-final.yml workflow. Signing stays in this
+# identity-bearing workflow, after assembly returns the pushed digest.
 
 on:
   # No push trigger: this build takes hours and we don't need a fresh run
@@ -33,6 +31,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 env:
   IMAGE_NAME: tromso
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
@@ -51,7 +52,7 @@ concurrency:
 jobs:
   # ── Phase 1-3: Plan, core, parallel dependency chunks ────────────────
   multirunner:
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@main
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@3fdfd925dd5b60c0734c56541d5d5181457c11aa # main
     permissions:
       contents: read
       packages: write
@@ -133,7 +134,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write # cosign keyless signing (Sigstore/Fulcio OIDC)
       security-events: write # Trivy SARIF upload
     uses: ./.github/workflows/build-final.yml
     secrets: inherit
@@ -161,7 +161,7 @@ jobs:
   # regress the x86_64 image consumers actually run.
   multirunner_aarch64:
     if: github.event_name == 'workflow_dispatch' && inputs.build_aarch64 == true
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@main
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@3fdfd925dd5b60c0734c56541d5d5181457c11aa # main
     permissions:
       contents: read
       packages: write
@@ -208,7 +208,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write # cosign keyless signing (Sigstore/Fulcio OIDC)
       security-events: write # Trivy SARIF upload
     uses: ./.github/workflows/build-final.yml
     secrets: inherit
@@ -223,3 +222,45 @@ jobs:
       cache_keys: ${{ needs.multirunner_aarch64.outputs.cache_keys }}
       push_image: ${{ github.event_name == 'schedule' || inputs.push_image != false }}
       enable_remote_execution: false
+
+  sign_final:
+    needs: build_final
+    if: needs.build_final.outputs.digest != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: oras-project/setup-oras@5e2f2482b30b0cb3e14e67f89a80c88c659a7c63 # v2
+      - name: Login to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign pushed digest
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/tromso
+          DIGEST: ${{ needs.build_final.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+  sign_final_aarch64:
+    needs: build_final_aarch64
+    if: needs.build_final_aarch64.outputs.digest != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: oras-project/setup-oras@5e2f2482b30b0cb3e14e67f89a80c88c659a7c63 # v2
+      - name: Login to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign pushed digest
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/tromso
+          DIGEST: ${{ needs.build_final_aarch64.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"

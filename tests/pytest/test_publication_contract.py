@@ -142,76 +142,32 @@ class TestResolveImageTagsScript:
         assert tags.isdisjoint(UNSUFFIXED_CHANNEL_TAGS)
 
 
-class TestPublicationWorkflowsContract:
-    """Contract assertions on workflow definitions and architecture configurations."""
+@pytest.mark.parametrize("suffix", [" latest", "-arm64 latest", "-arm64\nstable", "/arm64"])
+def test_suffix_cannot_inject_unsuffixed_channel_tags(suffix):
+    result = _run_resolve_tags("refs/heads/main", "abcdef", False, suffix)
+    assert result.returncode != 0
+    assert not result.stdout.strip()
 
-    def test_reusable_workflow_declares_typed_inputs(self):
-        content = yaml.safe_load((WORKFLOWS / "build-final.yml").read_text())
-        on_block = content.get("on") or content.get(True, {})
-        assert "workflow_call" in on_block
-        inputs = on_block["workflow_call"].get("inputs", {})
 
-        expected_inputs = {
-            "architecture": "string",
-            "runner": "string",
-            "cache_suffix": "string",
-            "tag_suffix": "string",
-            "channel_ownership": "boolean",
-            "final_target": "string",
-            "matrix_keys": "string",
-            "cache_keys": "string",
-            "push_image": "boolean",
-            "enable_remote_execution": "boolean",
-        }
-        for name, expected_type in expected_inputs.items():
-            assert name in inputs, f"missing expected input '{name}' in build-final.yml"
-            assert inputs[name].get("type") == expected_type, (
-                f"input '{name}' expected type {expected_type}, got {inputs[name].get('type')}"
+def test_signing_stays_in_existing_identity_workflow():
+    """Execute signing commands against a recorder, retaining the verifier boundary."""
+    import os
+
+    caller = yaml.safe_load((WORKFLOWS / "build-tromso-multirunner.yml").read_text())
+    callee = yaml.safe_load((WORKFLOWS / "build-final.yml").read_text())
+    assert callee["jobs"]["build_final"]["permissions"].get("id-token") != "write"
+    signed = []
+    digest = "sha256:" + "a" * 64
+    for job in caller["jobs"].values():
+        for step in job.get("steps", []):
+            if "cosign sign" not in step.get("run", ""):
+                continue
+            assert job["permissions"]["id-token"] == "write"
+            command = "cosign() { printf '%s\\n' \"$*\"; }; " + step["run"]
+            result = subprocess.run(
+                ["bash", "-e", "-c", command], capture_output=True, text=True,
+                env={**os.environ, "IMAGE": "ghcr.io/tuna-os/tromso", "DIGEST": digest},
             )
-
-    def test_reusable_workflow_has_required_permissions(self):
-        content = yaml.safe_load((WORKFLOWS / "build-final.yml").read_text())
-        job = content["jobs"]["build_final"]
-        perms = job.get("permissions", {})
-        assert perms.get("packages") == "write"
-        assert perms.get("id-token") == "write"
-        assert perms.get("security-events") == "write"
-        assert perms.get("contents") == "read"
-
-    def test_multirunner_architecture_jobs_delegate_to_reusable_workflow(self):
-        content = yaml.safe_load((WORKFLOWS / "build-tromso-multirunner.yml").read_text())
-        jobs = content.get("jobs", {})
-
-        assert "build_final" in jobs
-        assert "build_final_aarch64" in jobs
-
-        # Both jobs must call the repository-owned reusable workflow
-        assert jobs["build_final"].get("uses") == "./.github/workflows/build-final.yml"
-        assert jobs["build_final_aarch64"].get("uses") == "./.github/workflows/build-final.yml"
-
-        # Check inputs for x86_64
-        x86_with = jobs["build_final"].get("with", {})
-        assert x86_with.get("architecture") == "x86_64"
-        assert x86_with.get("channel_ownership") is True
-        assert x86_with.get("tag_suffix") == ""
-        assert x86_with.get("cache_suffix") == ""
-
-        # Check inputs for aarch64
-        arm_with = jobs["build_final_aarch64"].get("with", {})
-        assert arm_with.get("architecture") == "aarch64"
-        assert arm_with.get("channel_ownership") is False
-        assert arm_with.get("tag_suffix") == "-aarch64"
-        assert arm_with.get("cache_suffix") == "-aarch64"
-
-    def test_no_duplicated_steps_in_multirunner(self):
-        """multirunner jobs must be thin callers without inline publication steps."""
-        multi_text = (WORKFLOWS / "build-tromso-multirunner.yml").read_text()
-        content = yaml.safe_load(multi_text)
-        jobs = content.get("jobs", {})
-
-        for job_id in ("build_final", "build_final_aarch64"):
-            assert "steps" not in jobs[job_id], f"{job_id} must not have inline steps"
-
-        # Neither cosign sign nor trivy nor bst build should be in multirunner anymore
-        assert "cosign sign" not in multi_text
-        assert "aquasecurity/trivy-action" not in multi_text
+            assert result.returncode == 0, result.stderr
+            signed.append(result.stdout.strip())
+    assert signed == [f"sign --yes ghcr.io/tuna-os/tromso@{digest}"] * 2

@@ -68,6 +68,10 @@ elif [[ "$CHANNEL_OWNER" == "false" ]]; then
     echo "Error: non-channel-owner must specify non-empty tag suffix (unsuffixed channel tags are exclusive to x86_64)" >&2
     exit 1
   fi
+  if [[ ! "$TAG_SUFFIX" =~ ^-[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]; then
+    echo "Error: tag suffix must be one hyphen-prefixed OCI tag component" >&2
+    exit 1
+  fi
   if [[ "$REF" == "refs/heads/stable" ]]; then
     echo "stable${TAG_SUFFIX} stable-${DATE_TAG}${TAG_SUFFIX} ${SHA}${TAG_SUFFIX}"
   else

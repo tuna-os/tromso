@@ -21,10 +21,12 @@ elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/
 The plan, core, and parallel dependency chunks (steps 1-3) use the shared
 [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci) reusable workflow. Each
 BuildStream desktop repository uses this workflow, with different image names,
-targets, and chunk counts. The local `build_final` job (step 4, delegating to
-the repository-owned `.github/workflows/build-final.yml` reusable workflow) uses
-cosign without a key. This process puts the repository workflow identity in the
-Fulcio certificate. The verification instructions in README.md use that identity.
+targets, and chunk counts. Final assembly delegates to the repository-owned
+`build-final.yml` workflow. Signing remains in separate jobs in
+`build-tromso-multirunner.yml`, which keeps the existing Fulcio identity.
+README verifiers therefore need no new trusted workflow or wider regex.
+The experimental aarch64 path stays manual-only, with remote execution off.
+Only x86_64 receives the existing capability and whiteout gates.
 
 Free GitHub runners can't hold the whole KDE build, so it's split:
 
@@ -137,6 +139,8 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
+| 2026-10-24 | Four workflows inherited repository token defaults (#321) | Job-level permissions did not constrain other jobs | Add top-level `contents: read`; retain job overrides and require explicit workflow permissions in the invariant tests |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |
 | 2026-07-19 | `just iso-sd-boot tromso` in build-iso.yml never worked | recipe + `tromso/Containerfile` + dracut module never existed in this repo | ported from xfce-linux/dakota-iso (PR #74) |
 | 2026-07-19 | `tromso/Containerfile` missing from git after commit | `.gitignore` had unanchored `Containerfile` rule | anchored to `/Containerfile` |
@@ -245,7 +249,6 @@ This workflow does not restore a full release. It restores only the x86_64
 `:stable` tag and the git branch. The `-aarch64` tags and R2 ISO under
 `tromso/stable/` stay on the bad build. The workflow does not use
 `cosign verify` on the target before the new tag. Signatures are available
-because `build-tromso-multirunner.yml` (via `build-final.yml`) signs each
-pushed digest. The
+because `build-tromso-multirunner.yml` signs each pushed digest. The
 [rollback runbook](../runbooks/rollback-a-bad-stable-release.md) gives the
 manual steps for other artifacts and the final verification.

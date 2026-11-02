@@ -6,7 +6,10 @@
 [`projectbluefin/dakota`](https://github.com/projectbluefin/dakota). It builds KDE Plasma 6 on top
 of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso`.
 
-**Status: Builds successfully and boots to a functional KDE Plasma 6 Wayland desktop.**
+**Status: Alpha — release readiness has not yet been verified.** See the
+[roadmap release gates](ROADMAP.md#alpha--beta) and
+[Release readiness](ROADMAP.md#release-readiness) for dated CI evidence and
+remaining blockers.
 
 > **Attribution.** Tromso reuses configuration and helper scripts derived from
 > [`ublue-os/aurora`](https://github.com/ublue-os/aurora) and the former
@@ -47,6 +50,9 @@ tuna-os/tromso
 │   └── oci/tromso.bst        top-level build target → ghcr.io/tuna-os/tromso
 └── Justfile
 ```
+
+For detailed technical documentation on the BuildStream build graph, sandboxing policies,
+and OCI image composition, see [Tromso Architecture](docs/ARCHITECTURE.md).
 
 ## Quick Start
 
@@ -132,7 +138,7 @@ need rotation.
 
 ```bash
 cosign verify ghcr.io/tuna-os/tromso:latest \
-  --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/(build-tromso-multirunner|build-final)\.yml@.*' \
+  --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/build-tromso-multirunner\.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -152,6 +158,16 @@ cosign verify-blob tromso-live-<date>-<sha>.iso \
 The [KDE community announcement kit](docs/outreach/kde-community-announcement.md)
 contains reviewable announcement drafts, source evidence, and the publication
 checklist. External publication is tracked in [#365](https://github.com/tuna-os/tromso/issues/365).
+
+The [KDE community co-marketing partnership kit](docs/outreach/kde-community-partnership.md)
+contains reviewable outreach proposals, co-marketing article drafts, Akademy and
+FOSDEM conference abstracts, and a KDE VDG collaboration framework. External
+outreach and partnership execution are tracked in [#372](https://github.com/tuna-os/tromso/issues/372).
+
+The [BuildStream reference case study kit](docs/outreach/buildstream-community-reference.md)
+contains technical case study drafts, architecture documentation, freedesktop-sdk
+alignment notes, and upstream coordination checklists. Upstream visibility and
+coordination are tracked in [#374](https://github.com/tuna-os/tromso/issues/374).
 
 ## References
 

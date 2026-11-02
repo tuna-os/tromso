@@ -246,5 +246,173 @@ class TestAnalyzeRuns(unittest.TestCase):
         self.assertEqual([r["run_id"] for r in results], [1, 2])
 
 
+# ── format_prometheus_metrics ────────────────────────────────────────────────
+
+class TestFormatPrometheusMetrics(unittest.TestCase):
+    def test_empty_runs_produces_headers_only(self):
+        prom = autotune.format_prometheus_metrics([], repo="tuna-os/tromso", workflow="build.yml")
+        self.assertIn("# HELP tromso_ci_chunk_duration_seconds", prom)
+        self.assertIn("# TYPE tromso_ci_chunk_duration_seconds gauge", prom)
+        self.assertIn("# HELP tromso_ci_build_status", prom)
+        self.assertIn("# TYPE tromso_ci_build_status gauge", prom)
+        self.assertIn("# HELP tromso_ci_chunk_imbalance_ratio", prom)
+        self.assertIn("# TYPE tromso_ci_chunk_imbalance_ratio gauge", prom)
+        self.assertNotIn("tromso_ci_chunk_duration_seconds{", prom)
+        self.assertNotIn("tromso_ci_build_status{", prom)
+        self.assertNotIn("tromso_ci_chunk_imbalance_ratio{", prom)
+
+    def test_single_run_metrics_output(self):
+        runs = [
+            {
+                "run_id": 101,
+                "created_at": "2026-06-01T00:00:00Z",
+                "conclusion": "success",
+                "imbalance_ratio": 1.45,
+                "chunk_jobs": [
+                    {
+                        "name": "multirunner / Build chunk0-libaio",
+                        "conclusion": "success",
+                        "duration_sec": 1800.0,
+                        "duration_min": 30.0,
+                    }
+                ],
+            }
+        ]
+        prom = autotune.format_prometheus_metrics(runs, repo="tuna-os/tromso", workflow="build.yml")
+        self.assertIn(
+            'tromso_ci_chunk_duration_seconds{repo="tuna-os/tromso",workflow="build.yml",run_id="101",job="multirunner / Build chunk0-libaio",conclusion="success"} 1800.0',
+            prom,
+        )
+        self.assertIn(
+            'tromso_ci_build_status{repo="tuna-os/tromso",workflow="build.yml",run_id="101",conclusion="success"} 1',
+            prom,
+        )
+        self.assertIn(
+            'tromso_ci_chunk_imbalance_ratio{repo="tuna-os/tromso",workflow="build.yml",run_id="101"} 1.45',
+            prom,
+        )
+
+    def test_status_mapping_for_failed_run(self):
+        runs = [
+            {
+                "run_id": 102,
+                "conclusion": "failure",
+                "imbalance_ratio": 2.0,
+                "chunk_jobs": [],
+            }
+        ]
+        prom = autotune.format_prometheus_metrics(runs, repo="tuna-os/tromso", workflow="build.yml")
+        self.assertIn(
+            'tromso_ci_build_status{repo="tuna-os/tromso",workflow="build.yml",run_id="102",conclusion="failure"} 0',
+            prom,
+        )
+
+    def test_prom_label_escaping(self):
+        self.assertEqual(autotune._escape_prom_label('foo"bar\\baz\nqux'), 'foo\\"bar\\\\baz\\nqux')
+
+
+# ── format_otel_metrics ──────────────────────────────────────────────────────
+
+class TestFormatOtelMetrics(unittest.TestCase):
+    def test_otel_schema_structure(self):
+        runs = [
+            {
+                "run_id": 201,
+                "conclusion": "success",
+                "imbalance_ratio": 1.25,
+                "chunk_jobs": [
+                    {
+                        "name": "Build chunk0",
+                        "conclusion": "success",
+                        "duration_sec": 900.0,
+                        "duration_min": 15.0,
+                    }
+                ],
+            }
+        ]
+        otel = autotune.format_otel_metrics(runs, repo="tuna-os/tromso", workflow="build.yml")
+        self.assertIn("resourceMetrics", otel)
+        rm = otel["resourceMetrics"][0]
+        attrs = {a["key"]: a["value"]["stringValue"] for a in rm["resource"]["attributes"]}
+        self.assertEqual(attrs["service.name"], "tromso-ci")
+        self.assertEqual(attrs["vcs.repository.name"], "tuna-os/tromso")
+        self.assertEqual(attrs["ci.workflow.name"], "build.yml")
+
+        metrics = rm["scopeMetrics"][0]["metrics"]
+        metric_names = [m["name"] for m in metrics]
+        self.assertIn("tromso_ci_chunk_duration_seconds", metric_names)
+        self.assertIn("tromso_ci_build_status", metric_names)
+        self.assertIn("tromso_ci_chunk_imbalance_ratio", metric_names)
+
+        duration_m = next(m for m in metrics if m["name"] == "tromso_ci_chunk_duration_seconds")
+        dp = duration_m["gauge"]["dataPoints"][0]
+        self.assertEqual(dp["asDouble"], 900.0)
+
+        status_m = next(m for m in metrics if m["name"] == "tromso_ci_build_status")
+        self.assertEqual(status_m["gauge"]["dataPoints"][0]["asInt"], 1)
+
+    def test_empty_runs_produces_empty_datapoints(self):
+        otel = autotune.format_otel_metrics([], repo="tuna-os/tromso", workflow="build.yml")
+        metrics = otel["resourceMetrics"][0]["scopeMetrics"][0]["metrics"]
+        for m in metrics:
+            self.assertEqual(m["gauge"]["dataPoints"], [])
+
+
+# ── CLI & Output Flags ───────────────────────────────────────────────────────
+
+class TestMainMetricsCLI(unittest.TestCase):
+    def test_cli_output_metrics_prometheus(self):
+        fake_runs = [
+            {
+                "run_id": 501,
+                "created_at": "2026-06-01T00:00:00Z",
+                "conclusion": "success",
+                "imbalance_ratio": 1.1,
+                "chunk_jobs": [
+                    {
+                        "name": "Build chunk0-a",
+                        "conclusion": "success",
+                        "duration_sec": 600.0,
+                        "duration_min": 10.0,
+                    }
+                ],
+            }
+        ]
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_file = os.path.join(tmpdir, "metrics.prom")
+            with patch.object(autotune, "analyze_runs", return_value=fake_runs), \
+                    patch("sys.argv", ["autotune-chunk-grouping.py", "--output-metrics", out_file]):
+                autotune.main()
+
+            self.assertTrue(os.path.exists(out_file))
+            with open(out_file) as f:
+                content = f.read()
+            self.assertIn("tromso_ci_chunk_duration_seconds", content)
+            self.assertIn("600.0", content)
+
+    def test_cli_output_metrics_otel(self):
+        fake_runs = [
+            {
+                "run_id": 502,
+                "created_at": "2026-06-01T00:00:00Z",
+                "conclusion": "success",
+                "imbalance_ratio": 1.0,
+                "chunk_jobs": [],
+            }
+        ]
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_file = os.path.join(tmpdir, "metrics.json")
+            with patch.object(autotune, "analyze_runs", return_value=fake_runs), \
+                    patch("sys.argv", ["autotune-chunk-grouping.py", "--output-metrics", out_file, "--metrics-format", "otel"]):
+                autotune.main()
+
+            self.assertTrue(os.path.exists(out_file))
+            with open(out_file) as f:
+                data = json.load(f)
+            self.assertIn("resourceMetrics", data)
+
+
 if __name__ == "__main__":
     unittest.main()
