@@ -9,7 +9,7 @@ LAYOUT_PATH=/usr/lib/tunaos/payload
 LAYOUT="${ROOT}${LAYOUT_PATH}"
 
 mkdir -p "$LAYOUT" "${ROOT}/etc/bootc-installer" "${ROOT}/etc/tuna-installer"
-skopeo copy --dest-compress-format gzip --dest-force-compress-format \
+skopeo copy --dest-compress-format gzip \
     "$SOURCE" "oci:${LAYOUT}:payload"
 MANIFEST=$(jq -er '.manifests | select(length == 1) | .[0].digest' "${LAYOUT}/index.json")
 [[ "$MANIFEST" =~ ^sha256:[0-9a-f]{64}$ ]]

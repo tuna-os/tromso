@@ -170,6 +170,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-02 | Python producer test and both debug ISO jobs fail in 41392502489 | Ubuntu 24.04 supplies skopeo 1.13.3, without `--dest-force-compress-format`; initial host smoke used a newer binary | Use OCI destination `--dest-compress-format gzip` only; all 269 tests pass with Ubuntu's binary, final 15 ISO tests pass, and actual Fedora copy verifies gzip bytes and all descriptors without warnings |
 | 2026-11-02 | ISO 41390885095 fails payload preflight | Digest pin retained the tag (`:latest@sha256:…`), which skopeo rejects | Construct the canonical ref from inspect `.Name + "@" + .Digest`; real GHCR tag and digest inspection both succeed with identical digest |
 | 2026-11-02 | Main build 41281483906 fails in WebKit CMake | Unset link target expands into malformed condition | Integrate existing #427 backport rather than bypass WebKit |
 | 2026-11-02 | ISO 41244306172 fails signing before boot check | cosign requires a bundle; detached signature/certificate flags no longer provide the output contract | Publish and document `.bundle`; retain the existing #411 boot-before-publication gate |

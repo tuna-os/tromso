@@ -234,7 +234,7 @@ When `composeFsBackend: true` on current live media:
 The tromso OCI image must have gzip-compressed layers for composefs to work:
 - Set `gzip: gzip` in `elements/oci/tromso.bst` (NOT `gzip: disabled`)
 - `gzip: disabled` produces uncompressed layers that cause bootc's composefs splitstream to deadlock
-- For ISO output, force gzip re-compression: `skopeo copy --dest-compress-format gzip --dest-force-compress-format`
+- For ISO output, request gzip compression: `skopeo copy --dest-compress-format gzip`
 
 ### Immutable OCI media in Squashfs
 
