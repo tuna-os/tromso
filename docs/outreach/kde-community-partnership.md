@@ -1,31 +1,32 @@
 # KDE Community Co-Marketing Partnership & Plasma 6 Visibility Kit
 
-Tracking: [#372](https://github.com/tuna-os/tromso/issues/372).  
+Issue: [#372](https://github.com/tuna-os/tromso/issues/372).
+
 Status: Drafts for maintainer review; external outreach, submissions, and community coordination remain outstanding.
 
 ---
 
 ## Overview & Context
 
-This kit establishes a comprehensive framework for co-marketing, community outreach, and technical collaboration between **Tromso** and the upstream **KDE Community** (including the Plasma development team, the KDE Promo / Communications team, and the Visual Design Group).
+This kit proposes publicity, community outreach, and technical collaboration between **Tromso** and the **KDE Community**. Participants could include Plasma developers, KDE Promo, and the Visual Design Group.
 
 ### Strategic Value
 Tromso occupies a unique technical position in the desktop Linux ecosystem:
 - It is a source-composed KDE Plasma 6 desktop built directly on top of `freedesktop-sdk` using **BuildStream 2**.
-- It delivers the desktop operating system as an immutable, bootable OCI container image managed with **bootc**.
-- For the KDE community, Tromso serves as a production-grade reference architecture proving that KDE Plasma 6 excels in modern container-native, image-based, and transactional deployment environments.
+- It delivers an immutable, bootable OCI image for **bootc**.
+- It provides a reference architecture for Plasma 6 on systems with containers, atomic updates, and deployments through images.
 
 ### Project Maturity & Alpha Grounding
-In accordance with [ROADMAP.md](../../ROADMAP.md), Tromso is currently in **Alpha** (0 of 5 release gates satisfied). While issue [#372](https://github.com/tuna-os/tromso/issues/372) outlines an ambitious vision of production readiness:
-- All outreach copy and partner proposals in this kit truthfully present Tromso as an active, source-reproducible **Alpha reference implementation** and collaborative technical showcase.
-- We deliberately avoid premature claims of general-availability enterprise stability until the formal release gates in `ROADMAP.md` (Build reliability, Install validation, Release operations, User readiness, and Desktop experience) are satisfied with recorded run evidence.
-- Claims focus strictly on verified architecture: our 200+ element BuildStream dependency graph, single-repo element hierarchy, containerized CI chunking, and bootc composefs image composition.
+The [roadmap](../../ROADMAP.md) identifies Tromso as **Alpha** (0 of 5 release gates complete at draft time). Issue [#372](https://github.com/tuna-os/tromso/issues/372) proposes a path toward production readiness:
+- These drafts present an active **Alpha reference** and technical collaboration opportunity.
+- We make no claims of enterprise stability before the gates in `ROADMAP.md` pass with recorded run evidence. The gates cover build reliability, installation validation, release operations, user readiness, and desktop experience.
+- Claims focus on the architecture: over 200 BuildStream elements, one repository, CI chunks, and OCI composition with bootc and composefs.
 
 ### Trademark & Independent Community Positioning
 Tromso is an independent community project within the [TunaOS](https://tunaos.org) ecosystem.
 - **Independence**: Tromso is not an official KDE project and makes no claim of exclusive endorsement.
-- **Distinction from KDE Linux**: The official KDE Linux project ([`invent.kde.org/kde-linux/kde-linux`](https://invent.kde.org/kde-linux/kde-linux)) uses `mkosi` and Arch Linux packages. Tromso uses BuildStream and freedesktop-sdk. Tromso references KDE Linux package selections but maintains its own independent build tooling and delivery architecture.
-- **KDE e.V. Trademark Compliance**: All co-marketing drafts, badging guidelines, and public communications strictly follow the [KDE e.V. Trademark Policy](https://www.kde.org/community/whatiskde/trademarks.php). KDE® and the K Desktop Environment® logo are registered trademarks of KDE e.V.
+- **KDE Linux**: The official project for [KDE Linux](https://invent.kde.org/kde-linux/kde-linux) uses `mkosi` and Arch Linux packages. Tromso uses BuildStream and freedesktop-sdk. Tromso follows its package selections but maintains independent build tools and delivery.
+- **Trademarks**: Public drafts and badge guidelines must follow the [KDE e.V. Trademark Policy](https://www.kde.org/community/whatiskde/trademarks.php). KDE e.V. owns the registered KDE® and K Desktop Environment® logo trademarks.
 
 ---
 
@@ -42,22 +43,22 @@ Tromso is an independent community project within the [TunaOS](https://tunaos.or
 
 Hello KDE Promo and Plasma teams,
 
-We would like to introduce [Tromso](https://github.com/tuna-os/tromso), an open community project building a full KDE Plasma 6 desktop operating system using BuildStream 2 and freedesktop-sdk, delivered as bootable OCI container images managed with `bootc`.
+We introduce [Tromso](https://github.com/tuna-os/tromso), an open community project that builds KDE Plasma 6 with BuildStream 2 and freedesktop-sdk. It delivers OCI images for `bootc`.
 
-As container-native and immutable desktops gain momentum across Linux distributions (such as Fedora Kinoite and SteamOS), we believe Tromso provides a compelling technical demonstration of KDE Plasma 6 running in a pure source-composed, transactional container environment.
+Immutable desktops, such as Fedora Kinoite and SteamOS, show interest in deployments through images. Tromso explores this approach with KDE Plasma 6 and builds from source.
 
 #### Why This Partnership Matters for KDE
-1. **Container-Native Reference Architecture**: Tromso demonstrates how KDE Plasma 6, Qt 6, and KDE Frameworks can be built directly from upstream source tarballs in hermetic sandboxes and packaged cleanly into bootable OCI images with zero host package-manager contamination.
-2. **Expanding Desktop Immutability**: Proves that Plasma 6 is a first-class choice for image-based systems, offering atomic updates, instant rollbacks, and composefs-backed storage.
-3. **Mutual Visibility**: Showcases KDE Plasma's versatility to developers adopting containerized workflows, while giving KDE a concrete reference implementation for modern image composition.
+1. **Source Builds**: Tromso builds Plasma 6, Qt 6, and KDE Frameworks from upstream tarballs in isolated sandboxes. It packages the result as bootable OCI images without packages from the host.
+2. **Immutable Desktops**: Plasma 6 can support atomic updates, rollback, and composefs-backed storage.
+3. **Visibility**: Tromso gives developers a reference for KDE Plasma in workflows with containers and image composition.
 
 #### Proposed Collaborative Next Steps
-- **Co-Marketing**: A technical guest post on the KDE blog / Planet KDE highlighting how Plasma 6 runs on bootc and BuildStream.
-- **Documentation Cross-Linking**: Mutual documentation references between Tromso deployment guides and KDE's official Plasma 6 resources.
-- **Brand & Visual Review**: Engaging the KDE Visual Design Group (VDG) for feedback on Tromso's desktop layout, default theming, and Breeze compliance.
-- **Akademy & FOSDEM 2027**: Exploring joint presentations on immutable desktop packaging and containerized Plasma deployments.
+- **Joint Publicity**: A guest post for the KDE blog or Planet KDE about Plasma 6 with bootc and BuildStream.
+- **Documentation Links**: Cross-references between Tromso deployment guides and official resources for Plasma 6.
+- **Visual Review**: Feedback from KDE's Visual Design Group (VDG) on layout, default themes, and Breeze consistency.
+- **Akademy & FOSDEM 2027**: Joint presentations about immutable desktops and Plasma deployments with containers.
 
-We emphasize that Tromso is an independent community project currently in Alpha under active development. We would value your feedback and the opportunity to coordinate on upcoming Plasma releases.
+Tromso is an independent Alpha project under active development. We welcome feedback and coordination on upcoming Plasma releases.
 
 - **Repository**: https://github.com/tuna-os/tromso
 - **Roadmap & Release Gates**: https://github.com/tuna-os/tromso/blob/main/ROADMAP.md
@@ -69,41 +70,42 @@ We emphasize that Tromso is an independent community project currently in Alpha 
 ## 2. Co-Marketing Content: Blog Post & Editorial Draft
 
 **Target Publication**: KDE Promo Blog / Planet KDE / `tunaos.org`  
-**Title**: Deploying KDE Plasma on Immutable Linux with Tromso  
-**Subtitle**: Composing Plasma 6 from Source with BuildStream and Delivering via bootc
+**Title**: KDE Plasma on Immutable Linux with Tromso
+
+**Subtitle**: Plasma 6 from Source with BuildStream and bootc
 
 ### Article Draft
 
-In recent years, the Linux landscape has experienced a profound shift toward image-based, immutable operating systems. Developers and system administrators increasingly demand atomic upgrades, predictable deployments, and guaranteed rollbacks. While immutable systems have often relied on server-oriented container builds or traditional distro package trees layered inside containers, desktop operating systems present distinct architectural challenges.
+Linux developers increasingly use immutable operating systems with atomic upgrades and rollback. Desktop systems have distinct challenges compared with server containers or distributions that assemble packages into images.
 
-**Tromso** is an open-source project exploring a clean, source-driven approach: assembling a complete, modern **KDE Plasma 6** desktop operating system from upstream source repositories using **BuildStream 2**, built atop **freedesktop-sdk**, and packaged directly as a bootable OCI container image managed with **bootc**.
+**Tromso** builds **KDE Plasma 6** from upstream sources with **BuildStream 2** and **freedesktop-sdk**. It packages the result as a bootable OCI image for **bootc**.
 
 #### 1. Why KDE Plasma 6 on bootc?
-KDE Plasma 6 offers a responsive, Wayland-native desktop environment with exceptional modularity. When paired with `bootc` (a project bringing standard OCI container semantics to bootable operating system roots), the benefits become immediately tangible:
-- **Transactional System Updates**: Operating system upgrades occur via standard OCI image pulls (`bootc upgrade`). If an update fails to boot, systemd-boot and ostree provide immediate rollback to the previous boot deployment.
-- **Source Reproducibility**: Unlike Containerfiles that run imperative `dnf` or `apt` commands during image builds, Tromso composes its entire filesystem using BuildStream's content-addressed dependency graph. Every tarball is mirror-backed, sandboxed, and checksummed.
-- **Separation of System and Apps**: The core OS provides a rock-solid, immutable base featuring Plasma 6, SDDM, NetworkManager, and PipeWire, while desktop applications are cleanly isolated via Flatpak and Flathub.
+KDE Plasma 6 offers a modular desktop with Wayland support. The `bootc` project applies OCI semantics to bootable systems. Together, they offer:
+- **Atomic Updates**: Use `bootc upgrade` to pull OCI images for OS upgrades. If an update fails to boot, systemd-boot and ostree provide rollback to the previous deployment.
+- **Reproducibility**: Tromso composes the filesystem through a content-addressed BuildStream graph. It does not run `dnf` or `apt` during image builds. Sources have mirrors and checksums; builds use isolated sandboxes.
+- **System and Apps**: The immutable base contains Plasma 6, SDDM, NetworkManager, and PipeWire. Flatpak and Flathub provide separate desktop applications.
 
 #### 2. Architecture: From Upstream Tarballs to Bootable Containers
-Tromso's build pipeline integrates over 200 BuildStream elements organized in a single repository:
-- **Foundational SDK**: Built upon `freedesktop-sdk.bst` as an external junction, providing the glibc base, systemd, and fundamental graphics runtimes.
-- **KDE Stack**: Qt 6 libraries (~30 elements), KDE Frameworks 6 (~70 elements), and KDE Plasma 6 (~41 elements) are compiled hermetically with CMake and Extra CMake Modules (`ECM`).
-- **OCI Assembly**: The final BuildStream stage runs `build-oci`, exporting the merged tree as an OCI layout with `containers.bootc: '1'` image annotations and composefs enabled.
-- **Multi-Runner CI**: To build this extensive dependency graph without dedicated server clusters, Tromso partitions the BuildStream DAG across ephemeral GitHub Actions runners, sharing CAS (Content-Addressable Storage) archives through GitHub Container Registry.
+The pipeline has over 200 BuildStream elements in one repository:
+- **SDK**: The external junction `freedesktop-sdk.bst` provides glibc, systemd, and graphics runtimes.
+- **KDE**: Isolated builds use CMake and Extra CMake Modules (`ECM`). They cover Qt 6 (about 30 elements), KDE Frameworks 6 (about 70), and Plasma 6 (about 41).
+- **OCI Assembly**: The final stage runs `build-oci`. It exports an OCI layout with `containers.bootc: '1'` annotations and composefs support.
+- **Distributed CI**: Tromso divides the graph across GitHub Actions runners. They share archives of content-addressable storage (CAS) through GitHub Container Registry.
 
 #### 3. Solving Desktop Integration Quirks in Container Environments
-Running a rich desktop environment in a container-composed root requires addressing subtle integration challenges:
-- **Display Manager & GPU Bring-up**: In virtualized QEMU environments, SDDM initialization requires careful driver and backend configuration; Tromso provides software rasterizer fallbacks (`Environment=QT_QUICK_BACKEND=software`) when hardware acceleration is unavailable.
-- **Dynamic Linker Caching (`ldconfig`)**: Because bootc layers combine freedesktop-sdk system libraries with KDE Plasma desktop libraries, an explicit chroot `ldconfig` execution during image composition ensures SDDM and Plasma binaries resolve shared libraries immediately at boot.
-- **File Capabilities**: Security-critical binaries such as `kwin_wayland` (`cap_sys_nice`) require POSIX capabilities that cannot normally be set in unprivileged rootless build sandboxes. Tromso integrates `fakecap` during build time to preserve these attributes into the final container layers.
+A desktop inside a root composed from containers has integration challenges:
+- **Display Manager & GPU**: SDDM needs correct drivers and backend configuration in QEMU. Tromso provides a software rasterizer fallback (`Environment=QT_QUICK_BACKEND=software`) when hardware acceleration is unavailable.
+- **Linker Cache (`ldconfig`)**: The image combines libraries from the SDK and KDE. An explicit chroot call to `ldconfig` creates the cache so SDDM and Plasma can resolve libraries at boot.
+- **File Capabilities**: The `kwin_wayland` binary needs `cap_sys_nice`. Unprivileged sandboxes cannot set these POSIX attributes. Tromso uses `fakecap` to preserve them in the final layers.
 
 #### 4. Collaboration with the KDE Community
-Tromso is currently in Alpha, actively working toward its first verified Beta candidate under an evidence-based roadmap. We invite KDE contributors, packagers, and immutable desktop enthusiasts to:
+Tromso is Alpha. Its roadmap calls for evidence before the first verified Beta candidate. We invite KDE contributors, packagers, and desktop enthusiasts to:
 - Test Tromso in QEMU or via live ISO media.
-- Share packaging patterns and CMake integration improvements.
-- Help us refine desktop defaults and ensure full compliance with KDE's Human Interface Guidelines.
+- Share package patterns and CMake integration improvements.
+- Help refine the desktop defaults and follow KDE's interface guidelines.
 
-Tromso demonstrates that KDE Plasma 6 is not only the premier desktop for traditional distributions, but also a first-class citizen in the container-native future of Linux.
+Tromso explores Plasma 6 on source-built systems with OCI delivery.
 
 - **Check out the project**: https://github.com/tuna-os/tromso
 - **Build instructions & Justfile**: https://github.com/tuna-os/tromso#readme
@@ -112,31 +114,32 @@ Tromso demonstrates that KDE Plasma 6 is not only the premier desktop for tradit
 
 ## 3. Badging, Shared Graphics & Trademark Policy
 
-To ensure high-visibility co-branding while strictly adhering to KDE's intellectual property and trademark standards:
+Use these badge guidelines and follow the KDE trademark policy:
 
 ### Badge Guidelines
 - **Badge Copy**: `"Built with KDE Plasma 6"` or `"Powered by KDE Plasma"`.
-- **Allowed Contexts**: Tromso project README, landing page (`tunaos.org/tromso`), and documentation.
-- **Asset Usage**: Use official KDE Promo community badges. Do not modify the KDE logo's aspect ratio, proportions, or colors.
-- **Mandatory Trademark Disclaimer**: Any page displaying the KDE mark or badge must include the standard trademark attribution:
-  > *KDE®, K Desktop Environment®, and the KDE Plasma logo are registered trademarks of KDE e.V.*
-- **Independence Statement**: The badge must be accompanied by explicit text clarifying that Tromso is an independent community project and not an official product of KDE e.V.
+- **Contexts**: The Tromso README, website (`tunaos.org/tromso`), and documentation.
+- **Assets**: Use official community badges from KDE Promo. Do not change logo proportions, aspect ratio, or colors.
+- **Attribution**: Pages with the KDE mark or badge must include this trademark attribution:
+
+  > *KDE®, K Desktop Environment®, and the logo for KDE Plasma are trademarks registered by KDE e.V.*
+- **Independence**: Add this text beside the badge: Tromso is independent. It is not an official KDE e.V. product.
 
 ---
 
 ## 4. Documentation Cross-Linking & User Guides
 
 ### Tromso Documentation Changes
-1. **Upstream User Guides**: Link to official KDE documentation within Tromso guides:
+1. **User Guides**: Link to official KDE documentation from Tromso guides:
    - [KDE UserBase](https://userbase.kde.org/)
    - [Plasma 6 User Guide](https://docs.kde.org/stable6/en/plasma-desktop/plasma-desktop/)
-   - [KDE Human Interface Guidelines (HIG)](https://develop.kde.org/hig/)
+   - [KDE interface guidelines (HIG)](https://develop.kde.org/hig/)
 2. **Support Boundary Clarification**:
-   - Instruct users to report Tromso image build, bootc update, and packaging defects to `tuna-os/tromso/issues`.
-   - Direct upstream Plasma desktop bugs and feature requests to `bugs.kde.org`.
+   - Direct Tromso build, bootc update, and package defects to `tuna-os/tromso/issues`.
+   - Direct bugs in upstream Plasma and feature requests to `bugs.kde.org`.
 
 ### Proposed Cross-Link for KDE Community Resources
-Submit a documentation entry to the KDE Wiki / Community Deployment resources under "Distributions & Projects Shipping Plasma 6":
+Propose an entry for KDE Wiki or community deployment resources under the category for distributions and projects with Plasma 6:
 ```markdown
 - **[Tromso](https://github.com/tuna-os/tromso)**: An independent community project composing KDE Plasma 6 from source using BuildStream 2 and freedesktop-sdk, delivered as bootable OCI container images managed with bootc.
 ```
@@ -147,65 +150,73 @@ Submit a documentation entry to the KDE Wiki / Community Deployment resources un
 
 ### Akademy 2027 Proposal
 
-**Event**: Akademy 2027  
-**Session Format**: 30-minute Presentation + 10-minute Q&A  
-**Track**: System Integration / Distributions / Packaging  
-**Submission Title**: *Plasma on bootc: Composing Immutable KDE Desktops from Source*  
-**Co-Presenters**: Tromso Maintainer & Upstream KDE Packaging Collaborator (invited)
+**Event**: Akademy 2027.
+
+**Session Format**: 30-minute presentation + 10-minute Q&A.
+
+**Track**: System Integration / Distributions / Packages.
+
+**Submission Title**: *Plasma on bootc: Immutable KDE Desktops from Source*.
+
+**Co-Presenters**: A Tromso maintainer and an upstream KDE collaborator (proposed invitation)
 
 #### Abstract
-Container-native operating systems managed with `bootc` offer atomic upgrades, declarative system states, and instant rollbacks. However, most bootc container images are assembled by running traditional package managers inside standard Containerfiles, which obscures dependency provenance and loses fine-grained build caching.
+Systems that use `bootc` offer atomic upgrades, declarative states, and rollback. Builds with traditional package managers inside Containerfiles can obscure dependency provenance and lose detailed caches of artifacts.
 
-This presentation details **Tromso**, a community operating system project that builds a complete KDE Plasma 6 desktop directly from upstream source code using **BuildStream 2** and **freedesktop-sdk**, packaging the result into bootable OCI container images.
+This talk presents **Tromso**, a community project that builds KDE Plasma 6 from source with **BuildStream 2** and **freedesktop-sdk**. It packages the result as bootable OCI images.
 
 #### Presentation Outline
-1. **The Immutable Desktop Landscape**: Why transactional container-native systems matter to KDE desktop users and enterprises.
-2. **Composing Plasma from Source**: Managing a 200+ element BuildStream dependency DAG spanning Qt 6, KDE Frameworks 6, and Plasma 6 without nested junction complexity.
-3. **Bootc Integration**: Converting BuildStream filesystem trees into OCI bootc images (`containers.bootc: '1'`) with composefs enablement.
-4. **Desktop Integration Challenges**: Managing POSIX capabilities (`fakecap`), SDDM software fallbacks, dynamic linker caching, and systemd target dependencies in container roots.
-5. **CI at Scale**: Partitioning large desktop builds across ephemeral multi-runner workers using CAS chunking and keyless Cosign image signing.
-6. **Future Directions & Collaboration**: How the KDE packaging ecosystem can leverage reproducible source pipelines.
+1. **Immutable Desktops**: Why atomic updates matter to KDE users and enterprises.
+2. **Plasma from Source**: A graph with over 200 BuildStream elements for Qt 6, KDE Frameworks, and Plasma 6. This graph has no nested junctions.
+3. **Bootc Integration**: Conversion of BuildStream trees into OCI images (`containers.bootc: '1'`) with composefs support.
+4. **Desktop Integration**: POSIX capabilities (`fakecap`), SDDM software fallbacks, linker caches, and dependencies between systemd targets.
+5. **CI at Scale**: Builds across multiple runners with shared CAS archives and keyless Cosign signatures.
+6. **Collaboration**: How KDE package maintainers can use reproducible builds from source.
 
 ---
 
 ### FOSDEM 2027 Joint Proposal
 
-**Event**: FOSDEM 2027  
-**Devroom**: Immutable and Image-Based Linux Desktops / Desktops Devroom  
-**Session Format**: 20-minute Presentation + 5-minute Q&A  
-**Title**: *Building and Deploying KDE Plasma 6 with BuildStream and bootc*  
+**Event**: FOSDEM 2027.
+
+**Devroom**: Immutable and Image-Based Linux Desktops / Desktops Devroom.
+
+**Session Format**: 20-minute presentation + 5-minute Q&A.
+
+**Title**: *Build and Deploy KDE Plasma 6 with BuildStream and bootc*.
+
 **Abstract**:  
-Learn how Tromso bridges the gap between source-based reproducible build systems (BuildStream 2) and modern container-native OS updates (`bootc`). We explore how KDE Plasma 6 can be compiled hermetically against `freedesktop-sdk` and deployed as bootable OCI containers and live installation media, delivering an atomic, rollback-capable Plasma experience.
+Learn how Tromso connects source-based builds with BuildStream 2 to OS updates through `bootc`. We describe isolated builds of KDE Plasma 6 against `freedesktop-sdk`. The output includes bootable OCI containers and live media, with atomic updates and rollback.
 
 ---
 
 ## 6. Technical Collaboration Framework
 
 ### KDE Visual Design Group (VDG) Collaboration
-Following the audit of legacy branding assets ([#373](https://github.com/tuna-os/tromso/issues/373)) and the removal of third-party artwork ([#301](https://github.com/tuna-os/tromso/pull/301)), Tromso defaults to stock **Breeze Dark**.
+Tromso defaults to stock **Breeze Dark** after the [legacy artwork audit](https://github.com/tuna-os/tromso/issues/373) and [third-party artwork removal](https://github.com/tuna-os/tromso/pull/301).
 
 **Action Items with VDG**:
-1. **Design Review Request**: Open a topic on KDE Discuss (Visual Design category) or the VDG Matrix room (`#kde-vdg:kde.org`) requesting an audit of Tromso's desktop configuration:
-   - Verifying Breeze Dark consistency across SDDM, lock screen, and panel defaults.
-   - Auditing Fastfetch and system branding display for proper KDE logo usage.
-   - Reviewing Plymouth boot splash integration.
-2. **Community Identity Collaboration**: Invite VDG community designers to collaborate on upstream-compliant, original Tromso branding assets and wallpapers that respect KDE HIG.
+1. **Design Review**: Ask for an audit on KDE Discuss (Visual Design) or the VDG Matrix room (`#kde-vdg:kde.org`). Cover:
+   - Breeze Dark consistency across SDDM, the lock screen, and panels.
+   - Correct KDE logo use in Fastfetch and system identity displays.
+   - Plymouth splash integration at boot.
+2. **Community Identity**: Invite VDG designers to create original Tromso assets and wallpapers that respect KDE HIG and upstream guidelines.
 
 ### Plasma 6.x Feature & Release Tracking
-- **Release Tracking Workflow**: Use automated source tracking (`bst source track`) to monitor upstream KDE Plasma release tags (Plasma 6.2, 6.3, etc.).
-- **Sandbox Feedback**: Feed back build fixes, CMake configuration nuances, and missing dependency declarations discovered in BuildStream's strict sandboxes directly to upstream KDE bug trackers.
+- **Release Updates**: Use automated `bst source track` runs to monitor upstream tags for Plasma releases (6.2, 6.3, etc.).
+- **Sandbox Feedback**: Report build fixes, CMake issues, and missing dependencies to upstream bug trackers for KDE.
 
 ### Technical Synchronization on bootc Challenges
-Establish regular communication with KDE Linux developers (`kde-linux` / mkosi team) and the `kde-buildstream` packaging initiative ([ADR 0003](../adr/0003-kde-buildstream-upstream-watch.md)) to share findings regarding:
-- Wayland compositor session startup under systemd user instances.
-- Desktop portal (`xdg-desktop-portal-kde`) sandboxing and Flatpak interaction in bootc roots.
+Coordinate with KDE Linux developers (`kde-linux` / mkosi) and the `kde-buildstream` effort ([ADR 0003](../adr/0003-kde-buildstream-upstream-watch.md)). Share findings about:
+- Startup of Wayland compositor sessions under systemd user instances.
+- Desktop portal (`xdg-desktop-portal-kde`) isolation and Flatpak interaction in bootc roots.
 - Storage efficiency and deduplication with composefs.
 
 ---
 
 ## 7. Success Metrics & Milestone Tracker
 
-The partnership progress will be evaluated against the five key metrics defined in issue [#372](https://github.com/tuna-os/tromso/issues/372):
+Issue [#372](https://github.com/tuna-os/tromso/issues/372) defines five metrics for partnership progress:
 
 | Metric | Target | Current Status | Verification Source |
 |---|---|---|---|
@@ -215,26 +226,26 @@ The partnership progress will be evaluated against the five key metrics defined 
 | Developer Testing & Feedback | 10+ KDE developers testing Tromso | Pending Beta image availability | Discussion threads and GitHub issues |
 | Upstream Reference Listing | Inclusion in BuildStream/KDE docs | Proposals drafted | BuildStream / KDE wiki reference link |
 
-*Note*: Active testing metrics depend directly on progressing Tromso through the Alpha-to-Beta release gates defined in [ROADMAP.md](../../ROADMAP.md).
+*Note*: Tests by developers depend on the Alpha-to-Beta release gates in [ROADMAP.md](../../ROADMAP.md).
 
 ---
 
 ## 8. Maintainer Publication & Action Checklist
 
-Before initiating external outreach, a maintainer must review and perform the following actions:
+Before external outreach, a maintainer must review and execute these actions:
 
-- [ ] **Verify Against Roadmap**: Confirm that the technical descriptions match current CI and build capabilities without exaggerating maturity beyond Alpha.
-- [ ] **Designate Community Liaison**: Assign a Tromso maintainer as the public point of contact for KDE communications.
+- [ ] **Roadmap**: Check technical claims against current CI and build capabilities. Do not exaggerate maturity beyond Alpha.
+- [ ] **Contact**: Choose a Tromso maintainer as the public contact for KDE communications.
 - [ ] **Initial Outreach**:
   - Send the partnership pitch (Section 1) to `kde-promo@kde.org` or post on KDE Discuss under Community.
   - Introduce Tromso in Matrix `#kde-promo:kde.org` and `#kde-devel:kde.org`.
-- [ ] **Submit VDG Review Request**:
-  - Post desktop screenshots and configuration details on KDE Discuss / VDG channel for feedback on Breeze theming consistency.
+- [ ] **Request VDG Review**:
+  - Post screenshots and configuration details on KDE Discuss or the VDG channel. Ask for feedback on Breeze consistency.
 - [ ] **Conference Submissions**:
   - Submit the Akademy 2027 presentation proposal during the Akademy CFP window.
   - Submit the FOSDEM 2027 presentation proposal to the Desktops or Immutable Distributions devroom.
-- [ ] **Co-Marketing Publication**:
-  - Coordinate with KDE Promo on scheduling the technical blog post (Section 2).
-  - Add the "Built with KDE Plasma 6" badge to the Tromso landing page in compliance with Section 3.
-- [ ] **Issue Tracking**:
-  - Update issue [#372](https://github.com/tuna-os/tromso/issues/372) with submission links, feedback threads, and partnership milestones. Keep #372 open until the ongoing collaboration is established.
+- [ ] **Joint Publication**:
+  - Coordinate a publication date with KDE Promo for the technical blog post (Section 2).
+  - Add the "Built with KDE Plasma 6" badge to the Tromso website under the guidelines in Section 3.
+- [ ] **Issue Updates**:
+  - Update [#372](https://github.com/tuna-os/tromso/issues/372) with submission links, feedback threads, and partnership milestones. Keep it open until the projects establish collaboration.
