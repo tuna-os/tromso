@@ -323,6 +323,7 @@ the two tests. The run number selects the test. Set the repository variable
 `E2E_ROUND_ROBIN_SIZE` to 2 to run both. A change to the install script or
 workflow of one test always runs that test. The two tests run fully on their
 weekly schedules and on manual dispatch.
+
 The tests execute the installer from the ISO. They do not replace that binary
 or repair the hostname or LUKS arguments after installation. Only console
 arguments change so the test can observe the installed boot on serial.
