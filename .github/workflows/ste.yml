@@ -34,10 +34,13 @@ on:
       - .github/workflows/ste.yml
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ste:
-    uses: tuna-os/.github/.github/workflows/ste-lint.yml@main
+    uses: tuna-os/.github/.github/workflows/ste-lint.yml@7c0708158bc2dae611750fceed2c98d2ca7f52f4 # main

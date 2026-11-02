@@ -7,8 +7,8 @@ name: LUKS Install End-to-End Test
 #   just debug=1 iso-sd-boot tromso
 #   just luks-test-qemu tromso
 #
-# Screenshots (live desktop, Plymouth prompt, installed desktop) are published
-# to the ci-screenshots branch and embedded in the PR comment / job summary.
+# Screenshots and serial logs stay in Actions artifacts. Install execution
+# must never hold repository write authority or registry credentials.
 
 on:
   # Pull requests reach this through test.yml, which runs it only when the
@@ -19,12 +19,6 @@ on:
     # Weekly on Monday 04:00 UTC
     - cron: '0 4 * * 1'
 
-# Least privilege for the job that builds and executes this tree's recipes as
-# root (tromso#270): read-only. A pull request from a branch in this repo
-# controls Justfile/iso.justfile/tromso/** and therefore everything that job
-# runs, so it must never hold a write-scoped GITHUB_TOKEN. The write-scoped
-# reporting (screenshot commit + PR comment) lives in the separate `report`
-# job below, which checks out and runs no repository code.
 permissions:
   contents: read
   actions: read
@@ -48,17 +42,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
         # cache, which deletes the just binary setup-just just installed.
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        uses: jlumbroso/free-disk-space@3f13feab2962a87273d379ebc36ea159527e6cc9 # v1.3.2
         with:
           tool-cache: true
 
       - name: Setup Just
-        uses: extractions/setup-just@v4
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
 
       - name: Expose just to sudo/root
         # Recipes call `just` recursively and run under sudo; root's
@@ -100,31 +96,14 @@ jobs:
           echo "duration=$(( $(date +%s) - START ))" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
-      - name: Prepare report data
-        # Conversion and bookkeeping only. This job holds a read-only token, so
-        # the `report` job (the only one with write scopes) publishes the
-        # screenshots and PR comment from the artifact uploaded below (tromso#270).
+      - name: Upload screenshots
         if: always()
-        continue-on-error: true
-        env:
-          BUILD_S: ${{ steps.build.outputs.duration }}
-          ISO_BYTES: ${{ steps.build.outputs.iso_size }}
-          TEST_S: ${{ steps.luks_test.outputs.duration }}
-          TEST_RESULT: ${{ steps.luks_test.outcome }}
-        run: |
-          mkdir -p report
-          sudo chmod a+r /tmp/luks-screenshot-*.ppm /tmp/luks-unlock-snap.ppm 2>/dev/null || true
-          for pair in live:live-boot plymouth:plymouth final:final-boot; do
-            src="/tmp/luks-screenshot-${pair%%:*}.ppm"
-            png="report/${pair##*:}.png"
-            convert "$src" "$png" 2>/dev/null || rm -f "$png"
-          done
-          {
-            echo "build_s=${BUILD_S}"
-            echo "iso_bytes=${ISO_BYTES}"
-            echo "test_s=${TEST_S}"
-            echo "test_result=${TEST_RESULT}"
-          } > report/result.env
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: luks-e2e-screenshots-${{ matrix.installer_channel }}
+          path: /tmp/luks-screenshot-*.ppm
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Write job summary
         if: always()
@@ -147,7 +126,7 @@ jobs:
 
       - name: Upload serial logs artifact
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: luks-e2e-serial-logs-${{ matrix.installer_channel }}
           path: |
@@ -156,177 +135,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Upload report data artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: luks-e2e-report-${{ matrix.installer_channel }}
-          path: report/
-          if-no-files-found: warn
-          retention-days: 7
-
       - name: Fail if LUKS test failed
         if: steps.luks_test.outcome == 'failure'
         run: |
           echo "::error::LUKS end-to-end test failed — see serial logs and screenshots above"
           exit 1
-
-  # Publishes the screenshots and the PR comment. This is the only job with
-  # write scopes, and it runs no repository code: no checkout, no `just`, no
-  # sudo -- it only handles the e2e job's output as untrusted data (tromso#270).
-  report:
-    name: Report ${{ matrix.installer_channel }}
-    needs: luks-e2e
-    # GitHub downgrades GITHUB_TOKEN to read-only for pull_request-triggered
-    # runs whose head is a fork, regardless of any `permissions:` block
-    # (tromso#202), so every write below would 403. Skip the job for fork PRs;
-    # the e2e job's "Write job summary" step reports the same result.
-    if: >-
-      !cancelled() &&
-      (github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        installer_channel: [stable]
-
-    steps:
-      - name: Download report data
-        continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          name: luks-e2e-report-${{ matrix.installer_channel }}
-          path: report
-
-      - name: Publish screenshots
-        continue-on-error: true
-        id: screenshots
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          CHANNEL: ${{ matrix.installer_channel }}
-        run: |
-          set -euo pipefail
-          if gh api "/repos/${REPO}/git/refs/heads/ci-screenshots" &>/dev/null; then
-            echo "ci-screenshots branch already exists"
-          else
-            echo "Creating ci-screenshots branch..."
-            DEFAULT=$(gh api "/repos/${REPO}" --jq '.default_branch')
-            SHA=$(gh api "/repos/${REPO}/git/refs/heads/${DEFAULT}" --jq '.object.sha')
-            gh api --method POST "/repos/${REPO}/git/refs" \
-              -f "ref=refs/heads/ci-screenshots" \
-              -f "sha=${SHA}"
-          fi
-
-          publish_png() {
-            local label="$1" out_var="$2"
-            local png="report/${label}.png"
-            [[ -f "$png" && ! -L "$png" ]] || return 0
-            # Untrusted input: it must be a real PNG of sane size.
-            [[ "$(stat -c%s "$png")" -le 10485760 ]] || return 0
-            [[ "$(head -c 8 "$png" | od -An -tx1 | tr -d ' \n')" == "89504e470d0a1a0a" ]] || return 0
-
-            local path_in_repo="luks-e2e/${RUN_ID}/${CHANNEL}/${label}.png"
-            local existing_sha
-            existing_sha=$(gh api "/repos/${REPO}/contents/${path_in_repo}?ref=ci-screenshots" \
-              --jq '.sha' 2>/dev/null || echo "")
-
-            local b64_file
-            b64_file=$(mktemp)
-            base64 -w0 "$png" > "$b64_file"
-
-            jq -n \
-              --arg msg "LUKS E2E screenshot: ${label} (run ${RUN_ID})" \
-              --rawfile content "$b64_file" \
-              --arg branch "ci-screenshots" \
-              --arg sha "$existing_sha" \
-              'if $sha != "" then
-                {message: $msg, content: ($content | rtrimstr("\n")), branch: $branch, sha: $sha}
-              else
-                {message: $msg, content: ($content | rtrimstr("\n")), branch: $branch}
-              end' | \
-              gh api --method PUT "/repos/${REPO}/contents/${path_in_repo}" --input - > /dev/null
-
-            rm -f "$b64_file"
-            local url="https://raw.githubusercontent.com/${REPO}/ci-screenshots/${path_in_repo}"
-            echo "${out_var}=${url}" >> "$GITHUB_OUTPUT"
-            echo "Published ${label} → ${url}"
-          }
-
-          publish_png live-boot  live_url
-          publish_png plymouth   plymouth_url
-          publish_png final-boot final_url
-
-      - name: Read report data
-        id: data
-        if: always()
-        run: |
-          # The artifact was produced by a job that ran this PR's code, so treat
-          # it as untrusted data: never source or execute it, only extract
-          # values that match a strict allow-list pattern.
-          field() { sed -n "s/^$1=//p" report/result.env 2>/dev/null | head -n1; }
-          num() { local v; v=$(field "$1"); [[ "$v" =~ ^[0-9]{1,12}$ ]] && echo "$v" || echo ""; }
-          result=$(field test_result)
-          case "$result" in success|failure|cancelled|skipped) ;; *) result=unknown ;; esac
-          {
-            echo "build_s=$(num build_s)"
-            echo "iso_bytes=$(num iso_bytes)"
-            echo "test_s=$(num test_s)"
-            echo "test_result=${result}"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Post PR comment
-        # See the job-level `if:` above for why fork PRs never reach this step.
-        if: always() && github.event_name == 'pull_request'
-        continue-on-error: true
-        uses: actions/github-script@v9
-        env:
-          LIVE_URL: ${{ steps.screenshots.outputs.live_url }}
-          PLYMOUTH_URL: ${{ steps.screenshots.outputs.plymouth_url }}
-          FINAL_URL: ${{ steps.screenshots.outputs.final_url }}
-          BUILD_S: ${{ steps.data.outputs.build_s }}
-          LUKS_S: ${{ steps.data.outputs.test_s }}
-          ISO_BYTES: ${{ steps.data.outputs.iso_bytes }}
-          TEST_RESULT: ${{ steps.data.outputs.test_result }}
-          INSTALLER_CHANNEL: ${{ matrix.installer_channel }}
-        with:
-          script: |
-            const result  = process.env.TEST_RESULT || 'unknown';
-            const channel = process.env.INSTALLER_CHANNEL || 'unknown';
-            const pass    = result === 'success';
-            const icon    = pass ? '✅' : '❌';
-            const runUrl  = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-
-            const fmtDur = s => s ? `${Math.floor(s/60)}m ${s%60}s` : 'N/A';
-            const fmtMiB = b => b ? `${(b/1024/1024).toFixed(0)} MiB` : 'N/A';
-            const img = (url, alt) => url ? `**${alt}**\n![${alt}](${url})\n` : '';
-
-            const body = [
-              `## ${icon} LUKS End-to-End Test (${channel}) — ${pass ? 'PASSED' : 'FAILED'}`,
-              '',
-              '| Step | Details |',
-              '|------|---------|',
-              `| ISO build | ${fmtMiB(process.env.ISO_BYTES)} · ${fmtDur(process.env.BUILD_S)} |`,
-              `| LUKS E2E  | ${fmtDur(process.env.LUKS_S)} |`,
-              `| Result    | ${icon} ${result} |`,
-              '',
-              img(process.env.LIVE_URL,     'Live boot'),
-              img(process.env.PLYMOUTH_URL, 'Plymouth passphrase prompt'),
-              img(process.env.FINAL_URL,    'Installed system (post-LUKS unlock)'),
-              `<sub>[Workflow run](${runUrl})</sub>`,
-            ].join('\n');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body,
-            });

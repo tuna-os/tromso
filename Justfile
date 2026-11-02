@@ -15,6 +15,17 @@ export filesystem := env("BUILD_FILESYSTEM", "ext4")
 # Same bst2 container image CI uses -- pinned by SHA for reproducibility
 export bst2_image := env("BST2_IMAGE", "registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d")
 
+# bst-dashboard (developer tooling for `just dashboard`). Fetched from an
+# immutable commit and checked against SHA-256 before it is ever executed, so
+# a change to the source repo's branch tip cannot run on a maintainer's
+# machine. `tuna-os/buildstream-dashboard` no longer resolves; the script is
+# maintained in tuna-os/xfce-linux (tools/). To bump: pick a reviewed commit,
+# update the rev and both digests together (sha256sum tools/bst-dashboard.*).
+export bst_dashboard_repo := "tuna-os/xfce-linux"
+export bst_dashboard_rev := "dc3fbec57d7306ea86cd100ab08b15bd8bb3873e"
+export bst_dashboard_py_sha256 := "0a391323cc99a5ad24bfb2fbb40691bdd1f552bbaa6d31502e51cece018137bb"
+export bst_dashboard_html_sha256 := "c726069acfa25c80df6a14b336d04f67ab496faf4c76852f7d2a32a902fa84e8"
+
 # VM settings
 export vm_ram := env("VM_RAM", "8192")
 export vm_cpus := env("VM_CPUS", "4")
