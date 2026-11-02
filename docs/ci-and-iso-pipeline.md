@@ -164,7 +164,7 @@ skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
   publishes `:latest`, `:nightly`, `:nightly-YYYYMMDD`, `:<sha>`; the ISO
   lands at R2 `tromso/`.
 - **stable** is a release bookmark branch. A weekly schedule or manual dispatch
-  starts `promote-stable.yml`. One immutable main candidate must pass the ISO,
+  starts `promote-stable.yml`. One immutable candidate from main must pass the ISO,
   plain install, and LUKS gates. Only then can promotion copy its digest to
   `:stable` and fast-forward the bookmark. There is no force override.
   The stable ISO embeds that same digest and lands under R2 `tromso/stable/`.
@@ -250,52 +250,58 @@ manual steps for other artifacts and the final verification.
 
 ## Stable candidate verification (#309)
 
-Each published x86_64 build records its commit SHA and pushed OCI digest in
+Each published x86_64 build records its commit SHA and OCI digest in
 its `release-candidate` Actions artifact (30-day retention). Promotion selects
-the newest successful main build and requires that artifact to match its run
-SHA. Missing, expired, or malformed evidence fails closed; run a fresh build
-rather than falling back to a mutable tag.
+the newest successful main build and checks that the artifact matches its run
+SHA. Promotion stops if evidence is missing, expired, or malformed. Run a fresh build
+instead of a mutable tag fallback.
 
 Promotion invokes the ISO boot gate, plain install, and LUKS install workflows
 with that exact SHA and digest. All check out the candidate source and write
-`ghcr.io/tuna-os/tromso@sha256:…` to `tromso/payload_ref` before building. The
-terminal job requires all three reusable workflow results to succeed in the
-same promotion run. Run dependencies and summaries record the candidate and
-results; unrelated scheduled E2E runs are no longer release evidence.
+`ghcr.io/tuna-os/tromso@sha256:…` to `tromso/payload_ref` before the build.
+The terminal job needs success from all three reusable workflows in the same
+promotion run. Run dependencies and summaries record the candidate and results.
+Unrelated scheduled E2E runs are no longer release evidence.
 
 The shared ISO recipe reads `payload_ref` once and fetches that image.
 The live filesystem and kernel use a squashed copy with a local build name.
 The Containerfile has no default base image. The install payload keeps the
 original registry manifest. Skopeo copies it from the registry to an OCI
 archive, then imports it into the embedded VFS store inside the live container.
-Both copies require `--preserve-digests`. The export must read the registry:
-local container storage has unpacked layers and cannot guarantee the original
-compressed bytes on export.
+Both copies use `--preserve-digests`.
+
+The export must read the registry. Local container storage has unpacked layers
+and cannot guarantee the original compressed bytes on export.
 
 A real tiny-image check used buildah, a local registry, skopeo and podman.
 The registry, OCI archive and embedded store had byte-identical manifests.
-Podman resolved the installed digest reference, and an export from that
-reference kept the image config and rootfs. The squashed live alias had a
+Podman resolved the installed digest reference. An OCI export and import from
+that reference kept the image config and rootfs. The squashed live alias had a
 different manifest. This check did not build or boot a full Tromso ISO.
 
-Following Dakota's published-digest release pattern, promotion copies the
+Promotion follows Dakota's published-digest release pattern. It copies the
 verified digest to `:stable` with `skopeo --preserve-digests` and advances the
-stable bookmark without rebuilding the OCI image. It then publishes the
-stable ISO using the same candidate inputs. This covers x86_64; the existing
-independent aarch64 pipeline is not part of this gate. Registry publication
-and the git update are sequential, not transactional; a failed push needs
-operator reconciliation. Stable branch updates remain fast-forward only.
+stable bookmark without an OCI rebuild. It then publishes the stable ISO with
+the same candidate inputs. This covers x86_64. The independent aarch64 pipeline
+is not part of this gate.
 
-Every event requires successful candidate, ISO, plain, and LUKS evidence.
-Manual dispatch cannot override a failed or missing gate. Validation jobs
+Registry publication and the git update are sequential, not transactional.
+A failed push needs operator reconciliation. Stable branch updates remain
+fast-forward only.
+
+Every event needs successful candidate, ISO, plain, and LUKS evidence.
+Manual dispatch does not bypass a failed or missing gate. Validation jobs
 have read-only repository tokens and receive no inherited secrets.
-The ISO build and boot job also has no OIDC signing authority. A separate
-publication job signs the successful artifact under the existing
-`build-iso.yml` identity without checking out candidate code. It writes all
-four immutable dated objects before latest sidecars, then advances the ISO
-alias last. Every upload error fails the workflow. R2 aliases are separate
-objects: partial promotion can leave mixed sidecars, but not a successful
-run. Existing weekly/PR install tests retain their payload defaults.
+The ISO build and boot job also has no OIDC authority.
+
+The publication job is separate. It signs the successful artifact under the
+existing `build-iso.yml` identity without a checkout of candidate code.
+It writes the four dated objects before latest sidecars, then advances the ISO
+alias last. Each dated object is immutable. Every upload error fails the workflow.
+
+R2 aliases are separate objects. Partial promotion can leave mixed sidecars,
+but not a successful run. Existing weekly/PR install tests retain their
+payload defaults.
 
 | Bug class | Guard |
 | --- | --- |
