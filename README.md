@@ -1,8 +1,8 @@
-# Tromso — KDE Linux OCI/bootc Image
+# TunaOS Tromsø — KDE Linux OCI/bootc Image
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/tuna-os/tromso/blob/main/LICENSE)
 
-**Tromso** is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's
+**TunaOS Tromsø** is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's
 [`projectbluefin/dakota`](https://github.com/projectbluefin/dakota). It builds KDE Plasma 6 on top
 of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso`.
 
@@ -13,8 +13,9 @@ remaining blockers.
 
 ![Tromso wordmark](branding/tromso/tromso-wordmark.svg)
 
-Tromso's icon and wallpaper are original TunaOS artwork, not KDE or Aurora
-branding.
+Tromsø's icon and wallpaper are original TunaOS artwork, not KDE or Aurora
+branding. Installed and live sessions select the Tromsø wallpaper and About
+page identity, while retaining KDE Breeze controls and splash.
 
 ![Tromso desktop wallpaper preview](branding/tromso/tromso-wallpaper.png)
 
@@ -151,13 +152,11 @@ cosign verify ghcr.io/tuna-os/tromso:latest \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-**Live ISOs** (the workflow publishes `.sig` and `.cert` beside each dated ISO,
-for example `tromso-live-<date>-<sha>.iso.sig`):
+**Live ISOs** (cosign publishes a Sigstore `.bundle` beside each dated ISO):
 
 ```bash
-cosign verify-blob tromso-live-<date>-<sha>.iso \
-  --certificate tromso-live-<date>-<sha>.iso.cert \
-  --signature tromso-live-<date>-<sha>.iso.sig \
+cosign verify-blob tromso-live-<date>-<sha>-<run>-<attempt>.iso \
+  --bundle tromso-live-<date>-<sha>-<run>-<attempt>.iso.bundle \
   --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/build-iso\.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

@@ -43,6 +43,18 @@ Free GitHub runners can't hold the whole KDE build, so it's split:
 
 BuildStream settings CI uses live in the checked-in `buildstream-ci.conf`.
 
+Sources use a separate Actions cache at `~/.cache/buildstream/sources`, the
+same HOME directory mounted by `just bst`. Keys include architecture and the
+element/configuration inputs; restore prefixes reuse content-addressed sources.
+The CAS archives exclude sources. `cache.quota: 60G` bounds the active CAS,
+leaving space for source downloads, build sandboxes and OCI export. Legacy
+archives can still exceed disk capacity before BuildStream starts pruning.
+
+For branch qualification, dispatch the image workflow with `push_image=false`
+and `publish_candidate=true`. It publishes only `ghcr.io/tuna-os/tromso:<sha>`,
+never a channel alias. Pass that exact ref to the `payload_ref` input of the
+plain, LUKS and ISO workflows; branch ISO builds require `skip_upload=true`.
+
 #### Remote execution (tromso#311)
 
 The whole plan, core, chunk and merge design exists because this repository
@@ -95,8 +107,12 @@ recover after they refresh the GHCR caches.
    initramfs (incl. the `95tromso-isofile` Ventoy dracut module) → final
    stage installs flatpaks (`src/install-flatpaks.sh`) and configures the
    live env (`src/configure-live.sh`).
-2. The recipe squashes the payload image and imports it into VFS container
-   storage inside the squashfs. This process enables the offline installation.
+2. Resolve the payload once to a registry digest. The live base and embedded
+   image use that same digest. `scripts/embed-oci-payload.sh` copies the gzip
+   OCI layout to `/usr/lib/tunaos/payload` inside the squashfs and writes
+   `/etc/bootc-installer/media-input.json` from its actual manifest and config.
+   Fisherman verifies it before disk writes; no VFS graphroot or network
+   fallback is used. The catalog and day-2 update ref match the chosen payload.
 3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
@@ -106,8 +122,8 @@ link at `/usr/local/bin/fisherman` points to fisherman. It uses the shared
 organization workspace.
 
 Publication fails closed: the local candidate must pass the UEFI ready-token
-assertion before any R2 upload. All four dated objects (ISO, checksum, signature,
-certificate) must upload before latest aliases are updated. Dated names include
+assertion before any R2 upload. All three dated objects (ISO, checksum, Sigstore
+bundle) must upload before latest aliases are updated. Dated names include
 the workflow run ID and attempt, and `rclone --immutable` rejects replacement.
 The latest checksum is published too, with the ISO alias updated last. R2 has
 no transaction across these aliases: a failed promotion can leave mixed sidecars,
@@ -144,6 +160,10 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-02 | Main build 41281483906 fails in WebKit CMake | Unset link target expands into malformed condition | Integrate existing #427 backport rather than bypass WebKit |
+| 2026-11-02 | ISO 41244306172 fails signing before boot check | cosign requires a bundle; detached signature/certificate flags no longer provide the output contract | Publish and document `.bundle`; retain the existing #411 boot-before-publication gate |
+| 2026-11-02 | Plain and LUKS in 41257942781 reach live Plasma, then refuse installation | New fisherman requires immutable `media-input.json`; legacy VFS-only media has none | Embed one OCI layout, generate metadata from actual output, bind empty-image E2E recipes to that source, and pin live/payload digests together |
+| 2026-11-02 | Repeated source downloads and growing historical CAS | Sources cached outside the HOME directory mounted by `just bst`; sources duplicated in CAS archives; no explicit CAS quota | Pin bst-ci source-cache correction, restore the same HOME source cache in final assembly, retain sources until save, set 60G quota |
 | 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
 | 2026-10-24 | Four workflows inherited repository token defaults (#321) | Job-level permissions did not constrain other jobs | Add top-level `contents: read`; retain job overrides and require explicit workflow permissions in the invariant tests |
 | 2026-10-24 | Main publish stops in WebKitGTK CMake configuration (run 40064106136, #392) | WebKit 2.53.1 expands unset `_linked_into` into missing `if()` arguments in `_WEBKIT_TARGET_LINK_FRAMEWORK` | Backport the exact condition from WebKitGTK 2.54.1 used by gnome-build-meta; keep variable names unexpanded so CMake handles the unset value |
@@ -166,6 +186,15 @@ prompt, and installed desktop.
 
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
+
+Local checks for this cutover: 281 pytest tests passed, one pre-existing expected
+failure; 31 BATS tests passed; actionlint and Just parsing passed; ShellCheck
+passed at the CI error severity. YAML checks reported only line-length warnings.
+Real smoke copied Fedora Minimal through the actual OCI-media producer and
+verified every emitted blob digest/size, executed the branding install commands,
+and signed/verified a local-key Sigstore bundle. These checks do not prove a
+Tromsø image boot, installed desktop, or GitHub OIDC signing. Full build and
+KVM install evidence must come from the candidate workflows.
 
 ## Channels: nightly (main) and stable
 
