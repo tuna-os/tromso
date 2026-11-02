@@ -23,6 +23,9 @@ in a VM.
 
 Icon: [Tromsø Bridge city mark](branding/tromso/tromso-logo.svg).
 
+`DejaVu Sans Bold` supplies the paths for the SVG labels.
+The SVG metadata includes the font license.
+
 To make the PNG files from their SVG sources:
 
 ```bash

@@ -1,23 +1,65 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
   <title id="title">TunaOS Tromsø Bridge and aurora wallpaper</title>
   <desc id="desc">Original illustration of Tromsø Bridge crossing the strait beneath the northern lights. The same bridge, water and aurora motif identifies the TunaOS Tromsø city mark.</desc>
-  <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#07182d"/><stop offset=".65" stop-color="#174357"/><stop offset="1" stop-color="#25566a"/></linearGradient>
-    <linearGradient id="curtain" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8cf2c8" stop-opacity=".05"/><stop offset=".45" stop-color="#75ddc2" stop-opacity=".5"/><stop offset="1" stop-color="#5dc0d3" stop-opacity=".04"/></linearGradient>
-    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#123b50"/><stop offset="1" stop-color="#071b2d"/></linearGradient>
+  <metadata>Lettering outlined from DejaVu Sans Bold; no runtime font is required.
+Copyright: Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. 
+Bitstream Vera is a trademark of Bitstream, Inc.
+DejaVu changes are in public domain.
+License: bitstream-vera
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of the fonts accompanying this license ("Fonts") and associated
+documentation files (the "Font Software"), to reproduce and distribute the
+Font Software, including without limitation the rights to use, copy, merge,
+publish, distribute, and/or sell copies of the Font Software, and to permit
+persons to whom the Font Software is furnished to do so, subject to the
+following conditions:
+
+The above copyright and trademark notices and this permission notice shall
+be included in all copies of one or more of the Font Software typefaces.
+
+The Font Software may be modified, altered, or added to, and in particular
+the designs of glyphs or characters in the Fonts may be modified and
+additional glyphs or characters may be added to the Fonts, only if the fonts
+are renamed to names not containing either the words "Bitstream" or the word
+"Vera".
+
+This License becomes null and void to the extent applicable to Fonts or Font
+Software that has been modified and is distributed under the "Bitstream
+Vera" names.
+
+The Font Software may be sold as part of a larger software package but no
+copy of one or more of the Font Software typefaces may be sold by itself.
+
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF COPYRIGHT, PATENT,
+TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL BITSTREAM OR THE GNOME
+FOUNDATION BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING
+ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE
+FONT SOFTWARE.
+
+Except as contained in this notice, the names of Gnome, the Gnome
+Foundation, and Bitstream Inc., shall not be used in advertising or
+otherwise to promote the sale, use or other dealings in this Font Software
+without prior written authorization from the Gnome Foundation or Bitstream
+Inc., respectively. For further information, contact: fonts at gnome dot
+org.</metadata><defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#07182d" /><stop offset=".65" stop-color="#174357" /><stop offset="1" stop-color="#25566a" /></linearGradient>
+    <linearGradient id="curtain" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8cf2c8" stop-opacity=".05" /><stop offset=".45" stop-color="#75ddc2" stop-opacity=".5" /><stop offset="1" stop-color="#5dc0d3" stop-opacity=".04" /></linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#123b50" /><stop offset="1" stop-color="#071b2d" /></linearGradient>
   </defs>
-  <rect width="1920" height="1080" fill="url(#sky)"/>
-  <path d="M100 206C390-88 663 241 920 110S1390-40 1830 80L1920 0H0v270z" fill="url(#curtain)"/>
-  <path d="M90 215C420-18 648 284 925 134S1434 15 1847 91" fill="none" stroke="#9bf3d6" stroke-opacity=".5" stroke-width="9"/>
-  <path d="M185 380C490 154 736 420 1053 240S1510 166 1782 253" fill="none" stroke="#6ecbbf" stroke-opacity=".18" stroke-width="42"/>
-  <g fill="#def4ed" fill-opacity=".7"><circle cx="294" cy="145" r="2"/><circle cx="553" cy="331" r="2"/><circle cx="1183" cy="91" r="2"/><circle cx="1450" cy="343" r="3"/><circle cx="1670" cy="187" r="2"/></g>
-  <text x="960" y="269" text-anchor="middle" fill="#eff8f3" font-family="sans-serif" font-size="78" font-weight="600">Tromsø</text>
-  <text x="960" y="314" text-anchor="middle" fill="#b7deda" font-family="sans-serif" font-size="27" letter-spacing="2">TunaOS · KDE Plasma</text>
-  <path d="M0 870C300 830 532 911 833 858S1435 812 1920 870v210H0z" fill="url(#water)"/>
-  <g fill="#b5d2d8"><path d="M146 743h20v176h-20zM412 663h22v285h-22zM650 584h27l11 378h-49zM852 555h31l12 416h-55zM1081 568h29l12 394h-52zM1349 669h25v278h-25zM1620 729h23v190h-23z"/></g>
-  <path d="M0 755C317 751 550 570 891 558S1485 740 1920 739" fill="none" stroke="#f1eee4" stroke-width="19"/>
-  <path d="M0 733C317 729 550 548 891 536S1485 718 1920 717" fill="none" stroke="#b4d6de" stroke-width="5"/>
-  <path d="M156 745v-23M310 715v-23M462 654v-23M614 601v-23M766 570v-23M918 559v-23M1070 573v-23M1222 624v-23M1374 682v-23M1526 721v-23M1678 738v-23M1830 740v-23" stroke="#b4d6de" stroke-width="5"/>
-  <path d="M425 984h169m86 0h342m77 0h283M667 1021h185m80 0h217" fill="none" stroke="#7cdcc8" stroke-opacity=".25" stroke-width="7" stroke-linecap="round"/>
-  <path d="M0 963q117-57 263 0v117H0zM1676 968q129-54 244-11v123h-244z" fill="#071b2d"/>
+  <rect width="1920" height="1080" fill="url(#sky)" />
+  <path d="M100 206C390-88 663 241 920 110S1390-40 1830 80L1920 0H0v270z" fill="url(#curtain)" />
+  <path d="M90 215C420-18 648 284 925 134S1434 15 1847 91" fill="none" stroke="#9bf3d6" stroke-opacity=".5" stroke-width="9" />
+  <path d="M185 380C490 154 736 420 1053 240S1510 166 1782 253" fill="none" stroke="#6ecbbf" stroke-opacity=".18" stroke-width="42" />
+  <g fill="#def4ed" fill-opacity=".7"><circle cx="294" cy="145" r="2" /><circle cx="553" cy="331" r="2" /><circle cx="1183" cy="91" r="2" /><circle cx="1450" cy="343" r="3" /><circle cx="1670" cy="187" r="2" /></g>
+  <g fill="#eff8f3" aria-label="Tromsø"><path transform="translate(796.7256 269) scale(0.03808594 -0.03808594)" d="M10 1493H1386V1202H891V0H506V1202H10Z" /><path transform="translate(849.9316 269) scale(0.03808594 -0.03808594)" d="M1004 815Q957 837 910.5 847.5Q864 858 817 858Q679 858 604.5 769.5Q530 681 530 516V0H172V1120H530V936Q599 1046 688.5 1096.5Q778 1147 903 1147Q921 1147 942.0 1145.5Q963 1144 1003 1139Z" /><path transform="translate(888.3984 269) scale(0.03808594 -0.03808594)" d="M705 891Q586 891 523.5 805.5Q461 720 461 559Q461 398 523.5 312.5Q586 227 705 227Q822 227 884.0 312.5Q946 398 946 559Q946 720 884.0 805.5Q822 891 705 891ZM705 1147Q994 1147 1156.5 991.0Q1319 835 1319 559Q1319 283 1156.5 127.0Q994 -29 705 -29Q415 -29 251.5 127.0Q88 283 88 559Q88 835 251.5 991.0Q415 1147 705 1147Z" /><path transform="translate(941.9854 269) scale(0.03808594 -0.03808594)" d="M1210 934Q1278 1038 1371.5 1092.5Q1465 1147 1577 1147Q1770 1147 1871.0 1028.0Q1972 909 1972 682V0H1612V584Q1613 597 1613.5 611.0Q1614 625 1614 651Q1614 770 1579.0 823.5Q1544 877 1466 877Q1364 877 1308.5 793.0Q1253 709 1251 550V0H891V584Q891 770 859.0 823.5Q827 877 745 877Q642 877 586.0 792.5Q530 708 530 551V0H170V1120H530V956Q596 1051 681.5 1099.0Q767 1147 870 1147Q986 1147 1075.0 1091.0Q1164 1035 1210 934Z" /><path transform="translate(1023.2607 269) scale(0.03808594 -0.03808594)" d="M1047 1085V813Q932 861 825.0 885.0Q718 909 623 909Q521 909 471.5 883.5Q422 858 422 805Q422 762 459.5 739.0Q497 716 594 705L657 696Q932 661 1027.0 581.0Q1122 501 1122 330Q1122 151 990.0 61.0Q858 -29 596 -29Q485 -29 366.5 -11.5Q248 6 123 41V313Q230 261 342.5 235.0Q455 209 571 209Q676 209 729.0 238.0Q782 267 782 324Q782 372 745.5 395.5Q709 419 600 432L537 440Q298 470 202.0 551.0Q106 632 106 797Q106 975 228.0 1061.0Q350 1147 602 1147Q701 1147 810.0 1132.0Q919 1117 1047 1085Z" /><path transform="translate(1069.6875 269) scale(0.03808594 -0.03808594)" d="M856 836Q827 864 789.5 877.5Q752 891 705 891Q586 891 523.5 805.5Q461 720 461 559Q461 518 464.5 485.5Q468 453 475 426ZM547 287Q578 257 617.5 242.0Q657 227 705 227Q822 227 884.0 312.5Q946 398 946 559Q946 602 942.5 635.5Q939 669 932 698ZM223 158Q156 236 122.0 336.0Q88 436 88 559Q88 835 251.5 991.0Q415 1147 705 1147Q811 1147 900.5 1125.0Q990 1103 1065 1059L1212 1217L1321 1116L1180 967Q1250 887 1284.5 786.0Q1319 685 1319 559Q1319 283 1156.5 127.0Q994 -29 705 -29Q597 -29 506.0 -6.5Q415 16 338 61L190 -94L78 0Z" /></g><g fill="#b7deda" aria-label="TunaOS · KDE Plasma"><path transform="translate(778.2993 314) scale(0.01318359 -0.01318359)" d="M10 1493H1386V1202H891V0H506V1202H10Z" /><path transform="translate(798.7168 314) scale(0.01318359 -0.01318359)" d="M160 436V1120H520V1008Q520 917 519.0 779.5Q518 642 518 596Q518 461 525.0 401.5Q532 342 549 315Q571 280 606.5 261.0Q642 242 688 242Q800 242 864.0 328.0Q928 414 928 567V1120H1286V0H928V162Q847 64 756.5 17.5Q666 -29 557 -29Q363 -29 261.5 90.0Q160 209 160 436Z" /><path transform="translate(819.9385 314) scale(0.01318359 -0.01318359)" d="M1298 682V0H938V111V522Q938 667 931.5 722.0Q925 777 909 803Q888 838 852.0 857.5Q816 877 770 877Q658 877 594.0 790.5Q530 704 530 551V0H172V1120H530V956Q611 1054 702.0 1100.5Q793 1147 903 1147Q1097 1147 1197.5 1028.0Q1298 909 1298 682Z" /><path transform="translate(841.1602 314) scale(0.01318359 -0.01318359)" d="M674 504Q562 504 505.5 466.0Q449 428 449 354Q449 286 494.5 247.5Q540 209 621 209Q722 209 791.0 281.5Q860 354 860 463V504ZM1221 639V0H860V166Q788 64 698.0 17.5Q608 -29 479 -29Q305 -29 196.5 72.5Q88 174 88 336Q88 533 223.5 625.0Q359 717 649 717H860V745Q860 830 793.0 869.5Q726 909 584 909Q469 909 370.0 886.0Q271 863 186 817V1090Q301 1118 417.0 1132.5Q533 1147 649 1147Q952 1147 1086.5 1027.5Q1221 908 1221 639Z" /><path transform="translate(861.3799 314) scale(0.01318359 -0.01318359)" d="M870 1241Q694 1241 597.0 1111.0Q500 981 500 745Q500 510 597.0 380.0Q694 250 870 250Q1047 250 1144.0 380.0Q1241 510 1241 745Q1241 981 1144.0 1111.0Q1047 1241 870 1241ZM870 1520Q1230 1520 1434.0 1314.0Q1638 1108 1638 745Q1638 383 1434.0 177.0Q1230 -29 870 -29Q511 -29 306.5 177.0Q102 383 102 745Q102 1108 306.5 1314.0Q511 1520 870 1520Z" /><path transform="translate(886.3325 314) scale(0.01318359 -0.01318359)" d="M1227 1446V1130Q1104 1185 987.0 1213.0Q870 1241 766 1241Q628 1241 562.0 1203.0Q496 1165 496 1085Q496 1025 540.5 991.5Q585 958 702 934L866 901Q1115 851 1220.0 749.0Q1325 647 1325 459Q1325 212 1178.5 91.5Q1032 -29 731 -29Q589 -29 446.0 -2.0Q303 25 160 78V403Q303 327 436.5 288.5Q570 250 694 250Q820 250 887.0 292.0Q954 334 954 412Q954 482 908.5 520.0Q863 558 727 588L578 621Q354 669 250.5 774.0Q147 879 147 1057Q147 1280 291.0 1400.0Q435 1520 705 1520Q828 1520 958.0 1501.5Q1088 1483 1227 1446Z" /><path transform="translate(919.1782 314) scale(0.01318359 -0.01318359)" d="M209 905H569V518H209Z" /><path transform="translate(942.8350 314) scale(0.01318359 -0.01318359)" d="M188 1493H573V948L1128 1493H1575L856 786L1649 0H1167L573 588V0H188Z" /><path transform="translate(965.7573 314) scale(0.01318359 -0.01318359)" d="M573 1202V291H711Q947 291 1071.5 408.0Q1196 525 1196 748Q1196 970 1072.0 1086.0Q948 1202 711 1202ZM188 1493H594Q934 1493 1100.5 1444.5Q1267 1396 1386 1280Q1491 1179 1542.0 1047.0Q1593 915 1593 748Q1593 579 1542.0 446.5Q1491 314 1386 213Q1266 97 1098.0 48.5Q930 0 594 0H188Z" /><path transform="translate(990.1694 314) scale(0.01318359 -0.01318359)" d="M188 1493H1227V1202H573V924H1188V633H573V291H1249V0H188Z" /><path transform="translate(1022.0132 314) scale(0.01318359 -0.01318359)" d="M188 1493H827Q1112 1493 1264.5 1366.5Q1417 1240 1417 1006Q1417 771 1264.5 644.5Q1112 518 827 518H573V0H188ZM573 1214V797H786Q898 797 959.0 851.5Q1020 906 1020 1006Q1020 1106 959.0 1160.0Q898 1214 786 1214Z" /><path transform="translate(1043.8018 314) scale(0.01318359 -0.01318359)" d="M172 1556H530V0H172Z" /><path transform="translate(1055.0566 314) scale(0.01318359 -0.01318359)" d="M674 504Q562 504 505.5 466.0Q449 428 449 354Q449 286 494.5 247.5Q540 209 621 209Q722 209 791.0 281.5Q860 354 860 463V504ZM1221 639V0H860V166Q788 64 698.0 17.5Q608 -29 479 -29Q305 -29 196.5 72.5Q88 174 88 336Q88 533 223.5 625.0Q359 717 649 717H860V745Q860 830 793.0 869.5Q726 909 584 909Q469 909 370.0 886.0Q271 863 186 817V1090Q301 1118 417.0 1132.5Q533 1147 649 1147Q952 1147 1086.5 1027.5Q1221 908 1221 639Z" /><path transform="translate(1075.2764 314) scale(0.01318359 -0.01318359)" d="M1047 1085V813Q932 861 825.0 885.0Q718 909 623 909Q521 909 471.5 883.5Q422 858 422 805Q422 762 459.5 739.0Q497 716 594 705L657 696Q932 661 1027.0 581.0Q1122 501 1122 330Q1122 151 990.0 61.0Q858 -29 596 -29Q485 -29 366.5 -11.5Q248 6 123 41V313Q230 261 342.5 235.0Q455 209 571 209Q676 209 729.0 238.0Q782 267 782 324Q782 372 745.5 395.5Q709 419 600 432L537 440Q298 470 202.0 551.0Q106 632 106 797Q106 975 228.0 1061.0Q350 1147 602 1147Q701 1147 810.0 1132.0Q919 1117 1047 1085Z" /><path transform="translate(1093.3472 314) scale(0.01318359 -0.01318359)" d="M1210 934Q1278 1038 1371.5 1092.5Q1465 1147 1577 1147Q1770 1147 1871.0 1028.0Q1972 909 1972 682V0H1612V584Q1613 597 1613.5 611.0Q1614 625 1614 651Q1614 770 1579.0 823.5Q1544 877 1466 877Q1364 877 1308.5 793.0Q1253 709 1251 550V0H891V584Q891 770 859.0 823.5Q827 877 745 877Q642 877 586.0 792.5Q530 708 530 551V0H170V1120H530V956Q596 1051 681.5 1099.0Q767 1147 870 1147Q986 1147 1075.0 1091.0Q1164 1035 1210 934Z" /><path transform="translate(1123.4810 314) scale(0.01318359 -0.01318359)" d="M674 504Q562 504 505.5 466.0Q449 428 449 354Q449 286 494.5 247.5Q540 209 621 209Q722 209 791.0 281.5Q860 354 860 463V504ZM1221 639V0H860V166Q788 64 698.0 17.5Q608 -29 479 -29Q305 -29 196.5 72.5Q88 174 88 336Q88 533 223.5 625.0Q359 717 649 717H860V745Q860 830 793.0 869.5Q726 909 584 909Q469 909 370.0 886.0Q271 863 186 817V1090Q301 1118 417.0 1132.5Q533 1147 649 1147Q952 1147 1086.5 1027.5Q1221 908 1221 639Z" /></g><path d="M0 870C300 830 532 911 833 858S1435 812 1920 870v210H0z" fill="url(#water)" />
+  <g fill="#b5d2d8"><path d="M146 743h20v176h-20zM412 663h22v285h-22zM650 584h27l11 378h-49zM852 555h31l12 416h-55zM1081 568h29l12 394h-52zM1349 669h25v278h-25zM1620 729h23v190h-23z" /></g>
+  <path d="M0 755C317 751 550 570 891 558S1485 740 1920 739" fill="none" stroke="#f1eee4" stroke-width="19" />
+  <path d="M0 733C317 729 550 548 891 536S1485 718 1920 717" fill="none" stroke="#b4d6de" stroke-width="5" />
+  <path d="M156 745v-23M310 715v-23M462 654v-23M614 601v-23M766 570v-23M918 559v-23M1070 573v-23M1222 624v-23M1374 682v-23M1526 721v-23M1678 738v-23M1830 740v-23" stroke="#b4d6de" stroke-width="5" />
+  <path d="M425 984h169m86 0h342m77 0h283M667 1021h185m80 0h217" fill="none" stroke="#7cdcc8" stroke-opacity=".25" stroke-width="7" stroke-linecap="round" />
+  <path d="M0 963q117-57 263 0v117H0zM1676 968q129-54 244-11v123h-244z" fill="#071b2d" />
 </svg>
