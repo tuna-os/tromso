@@ -116,9 +116,9 @@ just luks-test-qemu tromso          # boot → fisherman LUKS install → reboot
 
 `tromso/src/luks-unlock.py` drives the QEMU monitor. It checks screen dumps
 until Plymouth appears, types the passphrase with `sendkey`, and verifies the
-installed system boot. The workflow publishes screenshots to the
-`ci-screenshots` branch and PR comments. They show the live desktop, Plymouth
-prompt, and installed desktop.
+installed system boot. Screenshots and serial logs remain in Actions artifacts.
+The install jobs have read-only tokens and no registry login. They do not
+write a screenshot branch or PR comments.
 
 ## Source updates
 
@@ -136,6 +136,8 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
+| 2026-10-24 | Four workflows inherited repository token defaults (#321) | Job-level permissions did not constrain other jobs | Add top-level `contents: read`; retain job overrides and require explicit workflow permissions in the invariant tests |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |
 | 2026-07-19 | `just iso-sd-boot tromso` in build-iso.yml never worked | recipe + `tromso/Containerfile` + dracut module never existed in this repo | ported from xfce-linux/dakota-iso (PR #74) |
 | 2026-07-19 | `tromso/Containerfile` missing from git after commit | `.gitignore` had unanchored `Containerfile` rule | anchored to `/Containerfile` |
@@ -161,12 +163,10 @@ skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
   publishes `:latest`, `:nightly`, `:nightly-YYYYMMDD`, `:<sha>`; the ISO
   lands at R2 `tromso/`.
 - **stable** is a release bookmark branch. A weekly schedule or manual dispatch
-  starts `promote-stable.yml`; set `force=true` for an override. The workflow
-  verifies the newest nightly build and ISO. It force-pushes that commit to
-  `stable` and starts the stable build. The build creates the `:stable` and
-  `:stable-YYYYMMDD` tags, plus an ISO under R2 `tromso/stable/`. The stable ISO
-  embeds the `:stable` payload. The build-iso.yml workflow changes `payload_ref`
-  for each channel.
+  starts `promote-stable.yml`. One immutable main candidate must pass the ISO,
+  plain install, and LUKS gates. Only then can promotion copy its digest to
+  `:stable` and fast-forward the bookmark. There is no force override.
+  The stable ISO embeds that same digest and lands under R2 `tromso/stable/`.
 - Update PRs from source trackers or Renovate target only main. Stable moves
   only through promotion.
 
@@ -193,7 +193,7 @@ design gives one shared CAS and one final signer.
 
 Post-merge: salvage-enabled nightly world build → ISO boot gate
 (ready-marker + screenshot artifact) → weekly LUKS install e2e
-(screenshots on the `ci-screenshots` branch + PR comments). A cloud
+(screenshots and serial logs in Actions artifacts). A cloud
 routine ("tromso + xfce-linux CI babysitter", every 3 h) diagnoses
 completed failures from logs and pushes fixes.
 
@@ -270,12 +270,17 @@ independent aarch64 pipeline is not part of this gate. Registry publication
 and the git update are sequential, not transactional; a failed push needs
 operator reconciliation. Stable branch updates remain fast-forward only.
 
-A manual `force=true` may override failed verification, but cannot override
-missing candidate identity. The run summary records the actor, override flag,
-SHA, digest, and every required result. Normal scheduled promotion cannot
-use this override. Existing weekly/PR installation tests retain their current
-payload defaults outside the promotion call.
+Every event requires successful candidate, ISO, plain, and LUKS evidence.
+Manual dispatch cannot override a failed or missing gate. Validation jobs
+have read-only repository tokens and receive no inherited secrets.
+The ISO build and boot job also has no OIDC signing authority. A separate
+publication job signs the successful artifact under the existing
+`build-iso.yml` identity without checking out candidate code. It writes all
+four immutable dated objects before latest sidecars, then advances the ISO
+alias last. Every upload error fails the workflow. R2 aliases are separate
+objects: partial promotion can leave mixed sidecars, but not a successful
+run. Existing weekly/PR install tests retain their payload defaults.
 
 | Bug class | Guard |
 | --- | --- |
-| Unrelated green runs composed into stable (#309) | Candidate-bound reusable jobs and terminal dependency gate; `test_stable_promotion_uses_one_candidate` |
+| Unrelated green runs composed into stable (#309) | Candidate-bound workflows; behavioral gate and upload-failure cases in `test_release_candidate.py` |
