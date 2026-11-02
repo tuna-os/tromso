@@ -28,7 +28,7 @@ This document audits the current observability facilities and establishes privac
 
 ### 2.3 CI Timing & Code Coverage Infrastructure
 - **Matrix Duration Analysis**: `scripts/autotune-chunk-grouping.py` (invoked via `just autotune-chunks limit=N`) queries the API for GitHub Actions via `gh api`. It inspects recent runs of `build-tromso-multirunner.yml`. It calculates wall-clock durations of chunks (min, max, average) and the duration imbalance ratio (`Max / Min`) to identify stragglers.
-- **Code Coverage**: `codecov.yml` defines thresholds for repository test coverage (project target: 45%, patch target: 70% informational). CI has no workflow that uploads coverage reports to Codecov yet, so these targets receive no data. [#303](https://github.com/tuna-os/tromso/issues/303) tracks this gap.
+- **Code Coverage**: `codecov.yml` defines thresholds for repository test coverage (project target: 45%, patch target: 70% informational). The Python Tests job now creates coverage data and uploads it to Codecov. Upload errors fail the job. The external prerequisite for Codecov remains unresolved. [#303](https://github.com/tuna-os/tromso/issues/303) tracks this integration.
 
 ---
 
