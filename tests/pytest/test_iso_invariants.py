@@ -96,21 +96,17 @@ def test_no_quiet_karg_in_elements():
             assert '"quiet"' not in text, f"{bst} adds quiet karg"
 
 
-def test_high_frequency_workflows_cancel_superseded_runs():
-    """Push bursts once left stale checks and image/ISO builds queued for
-    hours. Newer work on the same ref must replace those obsolete runs."""
+def test_workflow_cancellation_preserves_expensive_image_builds():
+    """Supersede cheap checks, but let long builds finish and save their CAS."""
     workflows = REPO / ".github" / "workflows"
-    names = (
-        "test.yml",
-        "build-iso.yml",
-        "build-tromso-multirunner.yml",
-    )
-    for name in names:
+    for name, policy in (
+        ("test.yml", "true"),
+        ("build-iso.yml", "true"),
+        ("build-tromso-multirunner.yml", "false"),
+    ):
         text = (workflows / name).read_text()
         assert "concurrency:" in text, f"{name} lacks a concurrency group"
-        assert re.search(
-            r"cancel-in-progress:\s*true", text
-        ), f"{name} queues superseded same-ref runs"
+        assert re.search(rf"cancel-in-progress:\s*{policy}", text), name
 
     iso = (workflows / "build-iso.yml").read_text()
     assert "github.event.workflow_run.head_branch || github.ref_name" in iso, (
@@ -212,3 +208,57 @@ def test_iso_upload_failures_stop_publication(tmp_path):
         )
         assert (result.returncode == 0) == (fail_at == 7), result.stderr
         assert len(log.read_text().splitlines()) == min(fail_at, 6)
+
+
+def test_offline_media_is_an_oci_layout_not_a_vfs_graphroot():
+    recipe = (REPO / "iso.justfile").read_text()
+    producer = (REPO / "scripts/embed-oci-payload.sh").read_text()
+    driver = (REPO / "scripts/lib-install-qemu.sh").read_text()
+    assert "PAYLOAD_PINNED" in recipe
+    assert "scripts/embed-oci-payload.sh" in recipe
+    assert "SQUASHFS_STORAGE" not in recipe
+    assert 'LAYOUT_PATH=/usr/lib/tunaos/payload' in producer
+    assert 'platformManifestDigest: $manifest' in producer
+    assert 'targetImgref: $image' in producer
+    assert '"${LAYOUT}/index.json"' in producer
+    assert 'INSTALL_IMAGE=""' in driver
+    assert 'docker://${PAYLOAD_IMAGE}' not in driver
+    assert "offline-stores" not in CONFIGURE_LIVE
+
+
+def test_live_iso_preserves_root_mountpoints_and_matching_label():
+    recipe = (REPO / "iso.justfile").read_text()
+    assert "-wildcards -e 'proc/*' -e 'sys/*' -e 'dev/*'" in recipe
+    hook = (SRC / "dracut/95tromso-isofile/tromso-isofile.sh").read_text()
+    assert 'LABEL="TROMSO_LIVE"' in hook
+
+
+def test_iso_signing_publishes_sigstore_bundle():
+    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
+    assert 'cosign sign-blob --yes --bundle "${ISO}.bundle"' in workflow
+    assert "--output-signature" not in workflow
+    assert "--output-certificate" not in workflow
+    assert "tromso-live-latest.iso.bundle" in workflow
+
+
+def test_installed_identity_selects_shipped_tromso_artwork():
+    identity = (REPO / "elements/oci/os-release.bst").read_text()
+    assert 'IMAGE_PRETTY_NAME: "TunaOS Tromsø"' in identity
+    assert "ID_LIKE" not in identity
+    brand = (REPO / "elements/tromso/branding.bst").read_text()
+    assert "Image=Tromso" in brand
+    assert "wallpapers/Tromso/contents/images/1920x1080.png" in brand
+    defaults = REPO / "files/tromso/aurora-common/system_files/shared/usr/share/kde-settings/kde-profile/default/xdg"
+    about = (defaults / "kcm-about-distrorc").read_text()
+    assert "Name=TunaOS Tromsø" in about
+    assert "tromso-logo.svg" in about
+    assert "Aurora" not in (defaults / "kscreenlockerrc").read_text()
+
+
+def test_manual_candidate_publish_never_changes_channel_aliases():
+    workflow = (REPO / ".github/workflows/build-tromso-multirunner.yml").read_text()
+    candidate = workflow.split('if [ "${{ inputs.publish_candidate }}" = "true" ]; then', 1)[1].split("elif", 1)[0]
+    assert 'TAGS="${{ github.sha }}"' in candidate
+    assert "latest" not in candidate and "nightly" not in candidate
+    assert "path: ~/.cache/buildstream/sources" in workflow
+    assert "/cache/sources" not in workflow

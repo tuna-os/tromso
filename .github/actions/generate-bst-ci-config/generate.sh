@@ -129,6 +129,7 @@ EOF
     fi
 
     echo "cache:"
+    echo "  quota: 60G"
     echo "  cache-buildtrees: never"
 
     if [ "$ENABLE_REMOTE_EXECUTION" = "true" ]; then

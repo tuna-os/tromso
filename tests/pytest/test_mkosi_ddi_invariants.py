@@ -37,7 +37,7 @@ def test_ddi_keeps_tromso_identity_and_distinct_output():
     assert "tromso/deps.bst" in stack
     assert "oci/os-release.bst" in stack
     assert 'ID: "tromso"' in identity
-    assert 'IMAGE_PRETTY_NAME: "Tromso"' in identity
+    assert 'IMAGE_PRETTY_NAME: "TunaOS Tromsø"' in identity
     assert re.search(r"(?m)^Format=disk$", CONFIG)
     assert re.search(r"(?m)^Output=tromso-mkosi-ddi$", CONFIG)
     assert re.search(r"(?m)^OutputDirectory=../../output/mkosi-ddi$", CONFIG)
