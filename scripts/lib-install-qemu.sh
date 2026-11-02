@@ -15,14 +15,14 @@ set -euo pipefail
 
 install_qemu_init() {
 	DISK="/dev/vda"
-	PAYLOAD_IMAGE=$(cat "${TARGET}/payload_ref" | tr -d '[:space:]')
 	local ssh_opts="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5 -o PreferredAuthentications=password -o ServerAliveInterval=30 -o ServerAliveCountMax=20"
 	SSH="sshpass -p live ssh $ssh_opts liveuser@127.0.0.1 -p ${SSH_PORT}"
 	SCP="sshpass -p live scp $ssh_opts -P ${SSH_PORT}"
 
 	# The ISO's media-input binds the immutable OCI source before disk writes.
 	# Missing media is a build error, never a reason to pull a mutable tag.
-	$SSH 'sudo test -s /etc/bootc-installer/media-input.json'
+	# Use the installed update target, which can differ from the pinned source.
+	PAYLOAD_IMAGE=$($SSH 'sudo cat /etc/bootc-installer/media-input.json' | jq -er .targetImgref)
 	BOOTLOADER=$(cat "${TARGET}/bootloader" 2>/dev/null | tr -d '[:space:]' || echo "systemd")
 
 	# Normalise "grub" → "grub2" for fisherman's recipe validator.

@@ -11,6 +11,9 @@ debug := "0"
 # Example: just installer_channel=dev iso-sd-boot tromso
 installer_channel := "stable"
 
+# Keep the installed update channel separate from an immutable build source.
+export TUNA_UPDATE_REF := env("TUNA_UPDATE_REF", "")
+
 # LUKS passphrase used by luks-install for testing.
 luks-passphrase := "testpassphrase"
 
@@ -75,6 +78,8 @@ iso-sd-boot target:
 
     PAYLOAD_REF=$(tr -d '[:space:]' < "{{target}}/payload_ref")
     PAYLOAD_PINNED=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Name + "@" + .Digest')
+    UPDATE_REF="${TUNA_UPDATE_REF:-$PAYLOAD_REF}"
+    printf -v UPDATE_REF_Q '%q' "$UPDATE_REF"
     PAYLOAD_PREPARED=$(sudo bash scripts/prepare-payload.sh "$PAYLOAD_PINNED" "{{target}}")
     just debug={{debug}} installer_channel={{installer_channel}} container {{target}} "$PAYLOAD_PREPARED"
     mkdir -p {{output_dir}}
@@ -107,7 +112,7 @@ iso-sd-boot target:
         # payloads must be squashed (Dakota payload-oci.sh); exporting the
         # original layer stack bypasses that required preparation.
         # Never also embed a VFS graphroot: media-input names this OCI layout.
-        bash scripts/embed-oci-payload.sh 'containers-storage:${PAYLOAD_PREPARED}' '${PAYLOAD_REF}' \"\${SQUASHFS_ROOT}\"
+        bash scripts/embed-oci-payload.sh 'containers-storage:${PAYLOAD_PREPARED}' ${UPDATE_REF_Q} \"\${SQUASHFS_ROOT}\"
         mkdir -p \"\${SQUASHFS_ROOT}/proc\" \"\${SQUASHFS_ROOT}/sys\" \"\${SQUASHFS_ROOT}/dev\"
 
         SFS_LEVEL=3; SFS_BLOCK=131072

@@ -1,13 +1,14 @@
 """Invariants across the live-ISO build scripts.
 
-Each assertion here encodes a bug class that actually shipped (see
-docs/ci-and-iso-pipeline.md troubleshooting table). Cheap to run, no
-containers needed — pure source inspection.
+These cover shipped bug classes, command failure handling and real OCI
+conversion with native skopeo. No OS build or running container is needed.
 """
 
 import os
 import re
 from pathlib import Path
+
+import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 TARGET = "tromso"
@@ -156,7 +157,12 @@ def test_iso_upload_failures_stop_publication(tmp_path):
         assert len(log.read_text().splitlines()) == min(fail_at, 6)
 
 
-def test_media_producer_copies_and_binds_a_real_oci_layout(tmp_path):
+@pytest.mark.parametrize("update", [
+    "ghcr.io/tuna-os/tromso:qualification",
+    "ghcr.io/tuna-os/tromso:stable",
+    "ghcr.io/tuna-os/tromso@sha256:" + "a" * 64,
+])
+def test_media_producer_copies_and_binds_a_real_oci_layout(tmp_path, update):
     """Exercise skopeo conversion and verify the bytes fisherman will consume."""
     import gzip
     import hashlib
@@ -196,7 +202,6 @@ def test_media_producer_copies_and_binds_a_real_oci_layout(tmp_path):
         (root / "etc/bootc-installer" / name).write_bytes(
             (SRC / "etc/bootc-installer" / name).read_bytes()
         )
-    update = "ghcr.io/tuna-os/tromso:qualification"
     subprocess.run(
         ["bash", str(REPO / "scripts/embed-oci-payload.sh"), f"oci:{source}", update, str(root)],
         check=True, capture_output=True, text=True,

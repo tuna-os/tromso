@@ -115,7 +115,7 @@ jobs:
             installer_channel=${{ matrix.installer_channel }} \
             output_dir=/var/iso-build \
             iso-sd-boot "$TARGET"
-          sudo cp "/var/iso-build/${TARGET}-live.iso" "output/${TARGET}-live.iso"
+          sudo cp "/var/iso-build/${TARGET}-live.iso" "/var/iso-build/${TARGET}-payload-ref" output/
           sudo chown -R "$USER:$(id -gn)" output/
           # sudo keeps XDG_RUNTIME_DIR, so root's just left a root-owned
           # tempdir there that the unprivileged test step cannot write into.

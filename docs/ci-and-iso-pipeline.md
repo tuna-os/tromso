@@ -127,11 +127,25 @@ recover after they refresh the GHCR caches.
    gzip OCI layout at `/usr/lib/tunaos/payload`. It writes
    `/etc/bootc-installer/media-input.json` from the actual manifest and config.
    Fisherman verifies the layout before disk writes. No VFS graphroot or
-   network fallback is used. The catalog and ref for updates match the payload.
+   network fallback is used. The catalog keeps a separate ref for updates.
 4. `usr-lib-tunaos-payload.mount` binds the layout read-only. The live overlay
    alone is writable to `statfs`, even with squashfs beneath it.
    The ready marker needs this mount. If the mount fails, publication stops.
 5. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
+
+The recipe writes `<target>-payload-ref` in its actual output directory.
+CI copies that file with the ISO into `output/`.
+The qualification record uses this exact source digest.
+
+The ISO job uses the official Sigstore CLI to sign bytes from a stream.
+Its bundle binds the SHA-256 of the actual ISO, not a checksum file.
+Cosign 3.0.6 checks the bundle with a hash read from the actual bytes.
+It checks the exact workflow identity and GitHub issuer.
+A check of a truncated copy must fail.
+
+These signature checks also run when `skip_upload=true`, without an R2 upload.
+Earlier 9.36 GB probes did not sign ISOs. They do not prove this new path.
+The actual large-ISO run must supply that evidence.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
 `org.tunaos.InstallerKde` from the OCI flatpak remote for tuna-os. A symbolic
@@ -219,7 +233,7 @@ prompt, and installed desktop.
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
 
-Local checks: 295 pytest tests passed, with one pre-existing expected failure.
+Local checks: 297 pytest tests passed, with one pre-existing expected failure.
 Seven subtests also passed.
 All 19 BATS tests passed. `actionlint` and `just --summary` passed.
 ShellCheck passed at the error severity that CI uses. YAML checks reported only
@@ -322,6 +336,11 @@ opt-outs or increase the budget, which remains zero.
   The stable ISO embeds an offline payload and keeps `:stable` for updates.
 - Update PRs from source trackers or Renovate target only main. Stable moves
   only through promotion.
+
+Promotion passes the verified digest as `payload_ref` to the ISO job.
+It passes `:stable` separately as `update_ref`.
+The ISO job uses that digest if the stable tag changes while it waits.
+The local recipe uses `TUNA_UPDATE_REF` for the same separation.
 
 Before a tag moves, the workflow checks the image revision and publisher signature.
 The certificate must name the same source commit.

@@ -141,9 +141,9 @@ See `AGENTS.md` for full conventions and workflows.
 
 ## Verifying Signatures
 
-GitHub Actions OIDC uses [cosign](https://github.com/sigstore/cosign) to sign OCI
-images and live ISOs without a key. Thus, no long-lived signer key can leak or
-need rotation.
+The workflows use GitHub Actions OIDC to sign images and ISOs without a key.
+The OCI job uses `cosign`; the ISO job uses the official `sigstore-python` CLI.
+Both use Sigstore, without a long-lived key that can leak or need rotation.
 
 **OCI images:**
 
@@ -153,14 +153,19 @@ cosign verify ghcr.io/tuna-os/tromso:latest \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-**Live ISOs** (cosign publishes a Sigstore `.bundle` beside each dated ISO):
+**Live ISOs** (the workflow publishes a Sigstore `.bundle` beside the dated ISO):
 
 ```bash
-cosign verify-blob tromso-live-<date>-<sha>-<run>-<attempt>.iso \
-  --bundle tromso-live-<date>-<sha>-<run>-<attempt>.iso.bundle \
+ISO=tromso-live-<date>-<sha>-<run>-<attempt>.iso
+digest=$(sha256sum -- "$ISO")
+cosign verify-blob "sha256:${digest%% *}" \
+  --bundle "${ISO}.bundle" \
   --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/build-iso\.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
+
+Compute the digest from the actual ISO, not from its checksum file.
+This verifies the same artifact without a full copy in memory.
 
 ## Community outreach
 

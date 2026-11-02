@@ -1,0 +1,31 @@
+# Official Sigstore Python CLI and its resolved runtime dependencies.
+# Used only by ISO CI; it streams artifact hashes into a standard Sigstore bundle.
+annotated-types==0.8.0
+certifi==2026.10.23
+cffi==2.1.1
+charset-normalizer==3.5.2
+cryptography==50.0.2
+dnspython==2.9.1
+email-validator==2.3.0
+id==1.6.1
+idna==3.20
+markdown-it-py==4.2.0
+mdurl==0.1.2
+platformdirs==4.14.3
+pycparser==3.12
+pydantic==2.14.2
+pydantic_core==2.50.2
+Pygments==2.21.0
+PyJWT==2.15.1
+requests==2.34.2
+rfc3161-client==1.0.9
+rfc8785==0.1.4
+rich==15.0.0
+securesystemslib==1.6.0
+sigstore==4.5.1
+sigstore-models==0.0.6
+sigstore-rekor-types==0.0.18
+tuf==7.0.1
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+urllib3==2.8.0

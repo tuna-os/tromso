@@ -87,7 +87,10 @@ jobs:
         if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run build-iso.yml --ref stable
+          SOURCE_REF: ${{ steps.health.outputs.ref }}
+        run: |
+          gh workflow run build-iso.yml --ref stable \
+            -f payload_ref="$SOURCE_REF" -f update_ref=ghcr.io/tuna-os/tromso:stable
 
       - name: Summary
         if: always()

@@ -129,10 +129,11 @@ skopeo inspect docker://ghcr.io/tuna-os/tromso:stable --format '{{.Digest}}'
 skopeo inspect docker://ghcr.io/tuna-os/tromso:stable-aarch64 --format '{{.Digest}}'
 git ls-remote --heads https://github.com/tuna-os/tromso stable
 curl -sI https://download.tunaos.org/tromso/stable/tromso-live-latest.iso
+digest=$(sha256sum -- tromso-live-latest.iso)
 cosign verify-blob --bundle tromso-live-latest.iso.bundle \
   --certificate-identity-regexp '^https://github.com/tuna-os/tromso/\.github/workflows/build-iso\.yml@.*$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  tromso-live-latest.iso
+  "sha256:${digest%% *}"
 ```
 
 All four digests/refs must name the target commit, the ISO URL must return
