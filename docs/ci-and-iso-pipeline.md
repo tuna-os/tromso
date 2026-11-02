@@ -22,7 +22,7 @@ The plan, core, and parallel dependency chunks (steps 1-3) use the shared
 [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci) reusable workflow. Each
 BuildStream desktop repository uses this workflow, with different image names,
 targets, and chunk counts. Final assembly delegates to the repository-owned
-`build-final.yml` workflow. Signing remains in separate jobs in
+`build-final.yml` workflow. Separate jobs sign the image in
 `build-tromso-multirunner.yml`, which keeps the existing Fulcio identity.
 README verifiers therefore need no new trusted workflow or wider regex.
 The experimental aarch64 path stays manual-only, with remote execution off.
