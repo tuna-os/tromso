@@ -52,7 +52,13 @@ BuildStream settings CI uses live in the checked-in `buildstream-ci.conf`.
 
 Sources use a separate Actions cache at `~/.cache/buildstream/sources`.
 `just bst` mounts this HOME directory. Keys include architecture and the
-element/configuration inputs. A restore prefix lets CI reuse sources.
+element/configuration inputs. CI tries the input-hash prefix first, then the
+architecture prefix.
+
+The `plan` seed and core, chunk and final snapshots have separate keys.
+Each snapshot key includes `github.run_id` and `github.run_attempt`.
+Both final jobs save the sources when the cache grows or the job fails.
+An `always()` save does not change the failed job result.
 Archives of the CAS do not include sources.
 
 `cache.quota: 60G` limits the active CAS. This reserves space for sources,
@@ -144,8 +150,14 @@ It checks the exact workflow identity and GitHub issuer.
 A check of a truncated copy must fail.
 
 These signature checks also run when `skip_upload=true`, without an R2 upload.
-Earlier 9.36 GB probes did not sign ISOs. They do not prove this new path.
-The actual large-ISO run must supply that evidence.
+[ISO run 41490405440](https://github.com/tuna-os/tromso/actions/runs/41490405440)
+signed the full ISO and verified the hash of its actual bytes.
+It rejected the first 1 MiB with `artifact does not match digest`.
+The source was `aaa62c2`, with the older payload digest `2b89f634…`.
+
+The run retained a bundle, checksum, source record and screenshot, with no R2 upload.
+The screenshot still has unreadable panel text and a black desktop.
+This signature proof does not qualify the current desktop.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
 `org.tunaos.InstallerKde` from the OCI flatpak remote for tuna-os. A symbolic
@@ -243,7 +255,9 @@ The other chunk used its exact cache key and did not build.
 Four warnings mark a 200-minute limit and partial CAS.
 They do not mean that all targets built.
 These results show that CAS archives can retain work after a failure.
-New runs use bst-ci `95e71ae`, which also limits builder shutdown to its workspace.
+New runs use bst-ci `564c18f`, which retains the workspace-scoped builder stop.
+It also saves source snapshots after failed core and chunk jobs.
+The final jobs use unique snapshot keys, not an immutable seed key.
 
 We changed only `samba_pub` to the official alternate path.
 Native `just bst source fetch --deps none` then downloaded PPP 2.5.2 and Samba 4.24.0.

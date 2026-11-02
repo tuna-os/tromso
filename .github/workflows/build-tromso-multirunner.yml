@@ -55,7 +55,7 @@ concurrency:
 jobs:
   # ── Phase 1-3: Plan, core, parallel dependency chunks ────────────────
   multirunner:
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@95e71ae02d8863f7b8bf2b6fc381119932998e5c # source/CAS cache fixes
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@564c18f070c85ff73d070eb9f3d4bd436d82efb8 # growing source cache checkpoints
     permissions:
       contents: read
       packages: write
@@ -159,13 +159,21 @@ jobs:
 
       - run: podman pull "$BST2_IMAGE"
 
-      - name: Cache BuildStream sources
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - name: Restore BuildStream sources
+        id: sources
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/buildstream/sources
-          key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('elements/**/*.bst', 'project.conf', 'include/**', 'patches/**') }}
+          key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('elements/**/*.bst', 'project.conf', 'include/**', 'patches/**') }}-final-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('elements/**/*.bst', 'project.conf', 'include/**', 'patches/**') }}-
             bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Measure restored source cache
+        id: sources_before
+        run: |
+          mkdir -p "$HOME/.cache/buildstream/sources"
+          echo "bytes=$(du -sb "$HOME/.cache/buildstream/sources" | cut -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Just
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
@@ -387,6 +395,26 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
+      - name: Measure source cache after assembly
+        id: sources_after
+        if: ${{ always() && steps.sources_before.outcome == 'success' }}
+        env:
+          BEFORE: ${{ steps.sources_before.outputs.bytes }}
+        run: |
+          after=$(du -sb "$HOME/.cache/buildstream/sources" | cut -f1)
+          if [ "$after" -gt "$BEFORE" ]; then
+            echo "grew=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "grew=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save BuildStream sources after assembly
+        if: ${{ always() && steps.sources_before.outcome == 'success' && steps.sources.outputs.cache-primary-key != '' && steps.sources.outputs.cache-hit != 'true' && (steps.sources_after.outputs.grew == 'true' || failure()) }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/buildstream/sources
+          key: ${{ steps.sources.outputs.cache-primary-key }}
+
       - name: Build summary
         if: always()
         run: |
@@ -406,7 +434,7 @@ jobs:
   # regress the x86_64 image consumers actually run.
   multirunner_aarch64:
     if: github.event_name == 'workflow_dispatch' && inputs.build_aarch64 == true
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@95e71ae02d8863f7b8bf2b6fc381119932998e5c # source/CAS cache fixes
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@564c18f070c85ff73d070eb9f3d4bd436d82efb8 # growing source cache checkpoints
     permissions:
       contents: read
       packages: write
@@ -476,6 +504,22 @@ jobs:
           path: chunkah
 
       - run: podman pull "$BST2_IMAGE"
+
+      - name: Restore BuildStream sources
+        id: sources
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/buildstream/sources
+          key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('elements/**/*.bst', 'project.conf', 'include/**', 'patches/**') }}-final-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('elements/**/*.bst', 'project.conf', 'include/**', 'patches/**') }}-
+            bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Measure restored source cache
+        id: sources_before
+        run: |
+          mkdir -p "$HOME/.cache/buildstream/sources"
+          echo "bytes=$(du -sb "$HOME/.cache/buildstream/sources" | cut -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Just
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
@@ -642,6 +686,26 @@ jobs:
         uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           sarif_file: trivy-results.sarif
+
+      - name: Measure source cache after assembly
+        id: sources_after
+        if: ${{ always() && steps.sources_before.outcome == 'success' }}
+        env:
+          BEFORE: ${{ steps.sources_before.outputs.bytes }}
+        run: |
+          after=$(du -sb "$HOME/.cache/buildstream/sources" | cut -f1)
+          if [ "$after" -gt "$BEFORE" ]; then
+            echo "grew=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "grew=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save BuildStream sources after assembly
+        if: ${{ always() && steps.sources_before.outcome == 'success' && steps.sources.outputs.cache-primary-key != '' && steps.sources.outputs.cache-hit != 'true' && (steps.sources_after.outputs.grew == 'true' || failure()) }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/buildstream/sources
+          key: ${{ steps.sources.outputs.cache-primary-key }}
 
       - name: Build summary
         if: always()
