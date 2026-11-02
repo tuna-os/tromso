@@ -214,6 +214,7 @@ The candidate workflows must supply the full build and KVM install evidence.
 We exercised the read-only self-bind in a private mount namespace.
 Reads succeeded and writes failed with EROFS. `systemd-analyze verify` accepted
 the actual mount unit. This is host mount evidence, not a guest boot claim.
+
 The shared prose tool at `7c070815` reports no new findings in these changes.
 Its full scan still reports 494 findings across eight files, against a budget
 of zero. Most are in existing outreach and architecture documents. This
