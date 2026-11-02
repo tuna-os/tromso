@@ -1,29 +1,29 @@
 # Tromso Architecture: Reproducible Desktop Images with BuildStream
 
-This document provides a technical overview of **Tromso**, a BuildStream-based KDE Plasma 6 desktop operating system targeting bootable OCI container images managed with `bootc`. It documents the system architecture, build graph design, sandboxing policies, container composition, and distributed CI pipeline.
+This document provides a technical overview of **Tromso**, a desktop operating system based on BuildStream and KDE Plasma 6. Tromso targets images in bootable OCI format that `bootc` manages. This document covers the architecture, build graph, sandbox policies, container composition, and distributed CI pipeline.
 
-Tromso serves as a production reference implementation of **BuildStream 2** and **freedesktop-sdk** applied to large-scale, source-based desktop operating system delivery.
+Tromso serves as a production reference for **BuildStream 2** and **freedesktop-sdk**. It applies them to large-scale delivery of desktop operating systems from source.
 
 ---
 
 ## 1. Context & Motivation
 
-Modern desktop operating systems face a challenge in balancing **developer agility**, **reproducibility**, and **operational immutability**:
+Modern desktop operating systems must balance **developer agility**, **reproducibility**, and **operational immutability**:
 
-1. **Traditional distribution packaging (RPM/DEB)**: Package updates can lead to state divergence across installations, dependency fragmentation, and difficult rollbacks.
-2. **Containerized desktops (ad-hoc Containerfiles)**: Standard `Containerfile` layers depend on pre-built package repositories, nondeterministic package-manager resolution, and external network state at build time, undermining cryptographic reproducibility.
-3. **Source-composed image-based systems**: Systems that build entire operating systems from verified source trees into content-addressed artifacts, then package the result into immutable OCI/bootc images.
+1. **Traditional distribution packages (RPM/DEB)**: Package updates can cause state divergence across installations, fragmented dependencies, and difficult rollbacks.
+2. **Containerized desktops (ad-hoc Containerfiles)**: Standard `Containerfile` layers depend on pre-built package repositories and nondeterministic resolution of packages. They also depend on external network state at build time. These dependencies do undermine cryptographic reproducibility.
+3. **Source-composed image-based systems**: These systems build entire operating systems from verified source trees into content-addressed artifacts. They then package the result into immutable OCI/bootc images.
 
 Tromso adopts the third approach:
-- **BuildStream 2.5+**: Orchestrates the dependency directed acyclic graph (DAG), hermetic sandboxing, content-addressable storage (CAS), and artifact caching.
-- **freedesktop-sdk**: Serves as the upstream base runtime, toolchain, and base libraries.
-- **bootc (bootable OCI containers)**: Standardizes OS image distribution and transaction-safe atomic upgrades on target hardware.
+- **BuildStream 2.5+**: Controls the directed acyclic graph (DAG) of dependencies, hermetic sandboxes, content-addressable storage (CAS), and artifact caches.
+- **freedesktop-sdk**: Provides the upstream base runtime, toolchain, and base libraries.
+- **bootc (bootable OCI containers)**: Standardizes distribution of OS images and transaction-safe atomic upgrades on target hardware.
 
 ---
 
 ## 2. High-Level Architecture
 
-The build process transforms verified upstream source tarballs and Git repositories into a bootable desktop image through discrete BuildStream stages:
+The build process transforms sources from verified upstream projects into a bootable desktop image through discrete BuildStream stages. Sources include tarballs and Git repositories:
 
 ```
 Upstream Sources (KDE, freedesktop-sdk, system utilities)
@@ -71,22 +71,22 @@ Upstream Sources (KDE, freedesktop-sdk, system utilities)
 
 ## 3. The Single-Repository Model
 
-Earlier iterations of Tromso split element definitions across multiple repositories: a separate `kde-build-meta` repository junctioned into the image repository.
+Earlier versions of Tromso had element definitions across multiple repositories. A separate `kde-build-meta` repository served as a junction into the image repository.
 
-In practice, nested junctions for rapidly evolving desktop environments introduced significant friction:
-- **Junction cache invalidation**: Bumping a junction reference or tarball invalidated large subtrees of the downstream cache.
-- **Staleness tracking**: Maintaining separate Git repositories and PR reviews for packaging updates introduced cross-repository coordination overhead.
-- **Junction-nesting bugs**: Complex multi-level junctions complicated BuildStream path resolution and source tracking.
+In practice, nested junctions for desktop environments that evolve rapidly were a source of significant friction:
+- **Junction cache invalidation**: Changes to a junction reference or tarball caused invalidation of large subtrees in the downstream cache.
+- **Staleness checks**: Separate Git repositories and PR reviews for package updates were a source of overhead for cross-repository coordination.
+- **Bugs with nested junctions**: Complex multi-level junctions were a source of complications in path resolution and source updates in BuildStream.
 
 ### Current Design: Unified `elements/` Hierarchy
 Tromso consolidated all KDE, Plasma, and desktop elements directly into this repository (`elements/`). Only one external junction remains:
-- **`elements/freedesktop-sdk.bst`**: Points to upstream `freedesktop-sdk` (`gitlab.com/freedesktop-sdk/freedesktop-sdk.git`). Because freedesktop-sdk is an independent upstream project, maintaining it as a clean junction aligns with standard BuildStream architectural practices.
+- **`elements/freedesktop-sdk.bst`**: Points to upstream `freedesktop-sdk` (`gitlab.com/freedesktop-sdk/freedesktop-sdk.git`). This project is independent upstream. It remains a clean junction, in line with standard architectural practices for BuildStream.
 
 ---
 
 ## 4. Element Hierarchy & Package Layout
 
-The repository organizes element definitions across clear functional domains:
+The repository organizes definitions of elements across clear functional domains:
 
 ```
 elements/
@@ -105,15 +105,15 @@ elements/
 ```
 
 ### Key Build Patterns
-1. **CMake Frameworks**: KDE Frameworks require CMake configuration detection at build time. Frameworks listed in `depends:` that provide CMake find modules must also appear in `build-depends:` so they are present in the configure-time sandbox.
-2. **Options & Flags**: All KDE CMake elements standardize on `cmake-local` rather than `cmake-options` to inject architecture-specific flags without overriding upstream defaults.
-3. **No Redefinition of Base Modules**: Packages provided by `freedesktop-sdk` (such as `linux-pam-base`, `polkit`, `networkmanager`) are consumed directly from the SDK junction rather than re-declared.
+1. **CMake Frameworks**: KDE Frameworks need detection of CMake configuration at build time. Frameworks in `depends:` that provide CMake find modules must also appear in `build-depends:`. This makes them available in the configure-time sandbox.
+2. **Options & Flags**: All KDE CMake elements use `cmake-local` instead of `cmake-options` for architecture-specific flags. This preserves upstream defaults.
+3. **No Redefinition of Base Modules**: Tromso consumes packages from `freedesktop-sdk` directly through the SDK junction, without re-declarations. Examples include `linux-pam-base`, `polkit`, `networkmanager`.
 
 ---
 
 ## 5. Sandboxing Policies & Upstream Standards
 
-Tromso enforces strict BuildStream sandboxing rules aligned with freedesktop-sdk upstream practices (see [ADR 0004](adr/0004-freedesktop-sdk-upstream-practices.md)):
+Tromso enforces rules for strict BuildStream sandboxes. These align with upstream practices for freedesktop-sdk (see [ADR 0004](adr/0004-freedesktop-sdk-upstream-practices.md)):
 
 ### Fatal Warnings
 `project.conf` sets:
@@ -122,49 +122,49 @@ fatal-warnings:
   - unaliased-url
   - unstaged-files
 ```
-- **`unaliased-url`**: Hardcoded URLs in `.bst` files prevent redirecting sources through mirrors and corrupt cache keys. Every source must use an alias declared in `include/aliases.yml`.
-- **`unstaged-files`**: Prevents elements from silently omitting files from target installation trees.
+- **`unaliased-url`**: Hardcoded URLs in `.bst` files prevent source redirects through mirrors and corrupt cache keys. Every source must use an alias from `include/aliases.yml`.
+- **`unstaged-files`**: Prevents elements from silently excluding files from target installation trees.
 
 ### Source Mirroring & Offline Verification
-All aliases map to fallback mirrors in `include/mirrors.yml`. The test suite runs `tests/pytest/test_source_aliases.py` offline to guarantee that no unaliased or un-mirrored sources enter the build graph.
+All aliases map to fallback mirrors in `include/mirrors.yml`. The test suite runs `tests/pytest/test_source_aliases.py` offline. This guarantees that no unaliased or un-mirrored sources enter the build graph.
 
 ### Controlled System Root Assembly (`elements/oci/tromso.bst`)
 During final image composition:
-- **`fakecap`**: Enforces POSIX file capabilities (e.g. `cap_sys_nice` on `kwin_wayland`, `cap_setuid` on `newuidmap`) inside unprivileged user namespaces.
-- **Linker cache (`ldconfig`)**: Composes `/parent` and `/layer` in an overlay filesystem to execute `ldconfig` against the full system library tree, ensuring SDDM can resolve Qt 6 dynamic libraries on first boot.
+- **`fakecap`**: Enforces capabilities for POSIX files inside unprivileged user namespaces. Examples include `cap_sys_nice` on `kwin_wayland`, and `cap_setuid` on `newuidmap`.
+- **Linker cache (`ldconfig`)**: Composes `/parent` and `/layer` in an overlay filesystem. It executes `ldconfig` against the full library tree of the system. This ensures SDDM can resolve Qt 6 dynamic libraries on first boot.
 - **`systemd-sysusers`**: Populates system users and groups deterministically in `/layer/etc` and `/usr/share/factory/etc`.
 
 ---
 
 ## 6. Container & Bootable Image Delivery (bootc)
 
-Rather than assembling bare partition disk images in the sandbox (such as `genimage`), Tromso targets standard bootable OCI container images:
+Tromso targets containers with standard OCI images that are bootable. It does not assemble images of bare disks with partitions in the sandbox (such as `genimage`):
 
-1. **`build-oci` Tooling**: The final element produces an OCI image layout with gzip-compressed layers (`gzip: gzip`).
-2. **Bootc Annotations**: The OCI image manifest includes `containers.bootc: '1'` and standard OCI annotations.
-3. **Composefs Backend**: Disk installation utilizes `bootc` with `--composefs-backend`, enabling dm-verity and composefs deduplication without requiring local `bootupd` binaries in the image payload.
-4. **Live Media**: `iso.justfile` builds a UEFI live ISO embedding the OCI container image into VFS container storage inside squashfs, enabling reliable offline bare-metal installation via `tuna-installer`.
+1. **`build-oci` Tooling**: The final element produces a layout for an OCI image with gzip-compressed layers (`gzip: gzip`).
+2. **Bootc Annotations**: The manifest for the OCI image includes `containers.bootc: '1'` and standard OCI annotations.
+3. **Composefs Backend**: Disk installation uses `bootc` with `--composefs-backend`. This enables dm-verity and composefs deduplication without local `bootupd` binaries in the image payload.
+4. **Live Media**: `iso.justfile` builds a live ISO for UEFI. It embeds the OCI image into VFS container storage inside squashfs. This enables reliable installation on bare metal offline via `tuna-installer`.
 
 ---
 
 ## 7. Distributed Multi-Runner CI Orchestration
 
-A full source build of KDE Plasma and its dependencies comprises over 200 elements and exceeds the compute and time limits of standard free CI runners. Tromso solves this with a multi-runner BuildStream pipeline (`.github/workflows/build-tromso-multirunner.yml`):
+A full source build of KDE Plasma and its dependencies has over 200 elements. It exceeds the compute and time limits of standard free runners for CI. Tromso solves this with a multi-runner pipeline for BuildStream (`.github/workflows/build-tromso-multirunner.yml`):
 
-1. **Plan Phase**: Analyzes the BuildStream graph using `bst show`, separates the core bootstrap elements from application dependencies, and partitions the remaining elements into deterministic chunks.
-2. **Core Phase**: Builds the bootstrap SDK and core dependencies, pushing the resulting CAS archive to GHCR as an ORAS artifact.
-3. **Chunk Matrix**: Concurrent CI runner matrix jobs fetch the core CAS, build their respective chunk elements, and publish chunk CAS tarballs tagged with composite cache keys.
-4. **Final Assembly & CAS Merge**: The final runner downloads and merges all chunk CAS archives into a unified local CAS, builds `oci/tromso.bst`, exports the OCI container, and signs the image with Cosign.
+1. **Plan Phase**: Uses `bst show` to analyze the BuildStream graph. It separates core elements for bootstrap from application dependencies, then partitions the remaining elements into deterministic chunks.
+2. **Core Phase**: Builds the bootstrap SDK and core dependencies. It pushes the CAS archive from this build to GHCR as an ORAS artifact.
+3. **Chunk Matrix**: Concurrent matrix jobs on CI runners fetch the core CAS and build their respective chunk elements. They publish tarballs of chunk CAS with composite cache keys as tags.
+4. **Final Assembly & CAS Merge**: The final runner downloads all archives of chunk CAS. It merges them into a unified local CAS. It builds `oci/tromso.bst`, exports the OCI container, and signs the image with Cosign.
 
 ---
 
 ## 8. Cryptographic Supply Chain Integrity
 
-Tromso validates software supply chain integrity from source to distribution:
-- **Reproducible Elements**: Pinned Git revisions and SHA256 tarball checksums for all elements.
-- **Keyless Signing**: Published OCI images and Live ISO media are signed via **Cosign** using GitHub Actions OIDC identity (`https://token.actions.githubusercontent.com`), recording provenance in the Rekor public transparency log.
+Tromso validates integrity of the software supply chain from source to distribution:
+- **Reproducible Elements**: All elements have pinned Git revisions and SHA256 tarball checksums.
+- **Keyless Signatures**: Cosign signs the published images in OCI format and Live ISO media. It uses the OIDC identity from GitHub Actions (`https://token.actions.githubusercontent.com`). It records provenance in the public transparency log, Rekor.
 
-Verification instructions are maintained in the [README](../README.md#verifying-signatures).
+The [README](../README.md#verifying-signatures) contains verification instructions.
 
 ---
 
