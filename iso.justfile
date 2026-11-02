@@ -129,6 +129,7 @@ iso-sd-boot target:
     TMPDIR="${OUTPUT_DIR}" \
     PATH="/usr/sbin:/usr/bin:/home/linuxbrew/.linuxbrew/bin:${PATH}" \
         bash "{{target}}/src/build-iso.sh" "${BOOT_TAR}" "${SQUASHFS}" "${OUTPUT_DIR}/{{target}}-live.iso"
+    printf '%s\n' "$PAYLOAD_PINNED" > "${OUTPUT_DIR}/{{target}}-payload-ref"
 
     echo "ISO ready: ${OUTPUT_DIR}/{{target}}-live.iso"
 

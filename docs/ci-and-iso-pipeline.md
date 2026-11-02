@@ -219,7 +219,7 @@ prompt, and installed desktop.
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
 
-Local checks: 278 pytest tests passed, with one pre-existing expected failure.
+Local checks: 295 pytest tests passed, with one pre-existing expected failure.
 Seven subtests also passed.
 All 19 BATS tests passed. `actionlint` and `just --summary` passed.
 ShellCheck passed at the error severity that CI uses. YAML checks reported only
@@ -247,6 +247,13 @@ It fetched the current database and completed in 160 seconds.
 The SARIF report has 437 findings across 78 unique IDs and 17 locations.
 We have not assessed whether each report applies.
 This is not a clean security result or a scan of the current candidate.
+
+We used the native script to check commit `bf255cec` and image `2b89f634`.
+It verified the GitHub issuer, publisher workflow and certificate commit.
+A check with an incorrect SHA did not pass.
+The real health check also refused main ISO run `41403728621`.
+That run has no exact-image artifact, even with `force=true`.
+No stable image tag or branch moved.
 
 We exercised the read-only self-bind in a private mount namespace.
 Reads succeeded and writes failed with EROFS. `systemd-analyze verify` accepted
@@ -307,15 +314,26 @@ opt-outs or increase the budget, which remains zero.
 - **main** is the nightly trunk: the daily scheduled multi-runner build
   publishes `:latest`, `:nightly`, `:nightly-YYYYMMDD`, `:<sha>`; the ISO
   lands at R2 `tromso/`.
-- **stable** is a release bookmark branch. A weekly schedule or manual dispatch
-  starts `promote-stable.yml`; set `force=true` for an override. The workflow
-  verifies the newest nightly build and ISO. It force-pushes that commit to
-  `stable` and starts the stable build. The build creates the `:stable` and
-  `:stable-YYYYMMDD` tags, plus an ISO under R2 `tromso/stable/`. The stable ISO
-  embeds the `:stable` payload. The build-iso.yml workflow changes `payload_ref`
-  for each channel.
+- **stable** is a release bookmark branch.
+  A weekly schedule or manual dispatch starts `promote-stable.yml`.
+  A manual run defaults to `dry_run=true`.
+  It copies the qualified digest to `:stable` and `:stable-YYYYMMDD`.
+  Then it moves the branch and starts only the ISO job, not another OS build.
+  The stable ISO embeds an offline payload and keeps `:stable` for updates.
 - Update PRs from source trackers or Renovate target only main. Stable moves
   only through promotion.
+
+Before a tag moves, the workflow checks the image revision and publisher signature.
+The certificate must name the same source commit.
+ISO, plain and LUKS artifacts must qualify that exact image digest.
+`force=true` can ignore workflow status, but not image identity or evidence.
+
+Each successful ISO or install check records its pinned image.
+Its `qualification-*` artifact also names the workflow SHA and run ID.
+Promotion checks these fields against the GitHub run, not only a green status.
+Old runs without this evidence cannot authorize a new promotion.
+The artifacts remain available for 14 days.
+
 
 ## Release-linked sources
 
@@ -385,16 +403,17 @@ arguments change so the test can observe the installed boot on serial.
 ## Rollback
 
 `rollback-stable.yml` runs only after a manual dispatch, and `dry_run` defaults
-to true. It reverses a promotion. The workflow verifies that the target
-`:<sha>` image exists. Then, `skopeo copy --preserve-digests` puts it on
-`:stable` and a dated `stable-rollback-*` tag. It force-pushes the stable branch
-to the same commit, so the branch and tag cannot diverge. It shares the
-concurrency group for promotion and cannot run at the same time.
+to true. It checks the target commit, image revision and publisher signature.
+It uses the same keyless trust policy as promotion.
 
-This workflow does not restore a full release. It restores only the x86_64
-`:stable` tag and the git branch. The `-aarch64` tags and R2 ISO under
-`tromso/stable/` stay on the bad build. The workflow does not use
-`cosign verify` on the target before the new tag. Signatures are available
-because `build-tromso-multirunner.yml` signs each pushed digest. The
-[rollback runbook](../runbooks/rollback-a-bad-stable-release.md) gives the
+Then, `skopeo copy --preserve-digests` puts the original digest on `:stable`
+and a dated `stable-rollback-*` tag. The workflow checks the target digests.
+It moves the stable branch to the same source commit without an OS build.
+Promotion and rollback cannot run at the same time.
+
+This workflow restores only the x86_64 image tag and the git branch.
+It does not change the `-aarch64` tags or the R2 ISO.
+An existing ISO keeps its payload after a tag moves.
+Restore the ISO objects separately if that payload is bad.
+The [rollback runbook](../runbooks/rollback-a-bad-stable-release.md) gives the
 manual steps for other artifacts and the final verification.
