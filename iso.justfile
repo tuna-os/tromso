@@ -49,6 +49,7 @@ container target payload_ref="":
         BASE_IMAGE="$(tr -d '[:space:]' < './{{target}}/payload_ref')"
     fi
     [[ -n "$BASE_IMAGE" ]] || { echo "ERROR: {{target}}/payload_ref is empty" >&2; exit 1; }
+    BASE_IMAGE="$(bash scripts/resolve-payload-ref.sh "$BASE_IMAGE")"
     # The squashed image has a new digest; give it a local build-only name,
     # never the original candidate's digest reference.
     BUILD_BASE="localhost/{{target}}-iso-base:latest"
@@ -64,8 +65,8 @@ container target payload_ref="":
         fi
         echo "Payload image ${BASE_IMAGE} verified"
     fi
-    # Keep the fetched candidate available for the embedded install payload.
-    sudo podman pull --policy missing "${BASE_IMAGE}"
+    # Fetch the selected live candidate before the no-pull squash step.
+    sudo podman pull "${BASE_IMAGE}"
     echo "Squashing base image: ${BASE_IMAGE}"
     SQUASH_CTR=$(sudo buildah from --pull-never "${BASE_IMAGE}")
     sudo buildah commit --squash "${SQUASH_CTR}" oci-archive:/tmp/squashed-base.oci:"${BUILD_BASE}"
@@ -98,6 +99,7 @@ iso-sd-boot target:
     # Capture once: the live image, kernel and embedded payload must agree.
     PAYLOAD_REF="$(tr -d '[:space:]' < '{{target}}/payload_ref')"
     [[ -n "$PAYLOAD_REF" ]] || { echo "ERROR: {{target}}/payload_ref is empty" >&2; exit 1; }
+    PAYLOAD_REF="$(bash scripts/resolve-payload-ref.sh "$PAYLOAD_REF")"
 
     just debug={{debug}} installer_channel={{installer_channel}} container {{target}} "$PAYLOAD_REF"
     mkdir -p {{output_dir}}
@@ -113,9 +115,8 @@ iso-sd-boot target:
 
     SQUASHFS="${OUTPUT_DIR}/{{target}}-rootfs.sfs"
     BOOT_TAR="${OUTPUT_DIR}/{{target}}-boot-files.tar"
-    CS_STAGING="${OUTPUT_DIR}/{{target}}-cs-staging"
     SQUASHFS_ROOT="${OUTPUT_DIR}/{{target}}-sfs-root"
-    trap "rm -f '${SQUASHFS}' '${BOOT_TAR}' '${OUTPUT_DIR}/{{target}}-payload.oci.tar'; _ns_rm '${CS_STAGING}' '${SQUASHFS_ROOT}' 2>/dev/null || true" EXIT
+    trap "rm -f '${SQUASHFS}' '${BOOT_TAR}' '${OUTPUT_DIR}/{{target}}-payload.oci.tar'; _ns_rm '${SQUASHFS_ROOT}' 2>/dev/null || true" EXIT
     echo "Building squashfs and boot tar from localhost/{{target}}-installer..."
     _ns "
         set -euo pipefail
@@ -123,38 +124,19 @@ iso-sd-boot target:
         PATH=/usr/sbin:/usr/bin:/home/linuxbrew/.linuxbrew/bin:\$PATH
 
         PAYLOAD_OCI='${OUTPUT_DIR}/{{target}}-payload.oci.tar'
-        CS_STAGING='${CS_STAGING}'
         SQUASHFS_ROOT='${SQUASHFS_ROOT}'
-        SQUASHFS_STORAGE=\"\${CS_STAGING}/var/lib/containers/storage\"
-        STORAGE_CONF=\"\$(mktemp '${OUTPUT_DIR}'/live-storage-XXXXXX.conf)\"
-        mkdir -p \"\${SQUASHFS_STORAGE}\"
-        printf '[storage]\ndriver = \"vfs\"\nrunroot = \"/tmp/cs-runroot\"\ngraphroot = \"/vfs-storage\"\n' \
-            > \"\${STORAGE_CONF}\"
 
         # containers-storage keeps unpacked layers, so re-exporting it can
         # require recompression and cannot guarantee the registry digest.
         echo 'Exporting the original candidate without changing its manifest digest...'
         skopeo copy --preserve-digests docker://${PAYLOAD_REF} oci-archive:\${PAYLOAD_OCI}:${PAYLOAD_REF}
 
-        echo 'Importing tromso OCI image into squashfs containers-storage...'
-        podman run --rm \
-            --privileged \
-            -v \"\${PAYLOAD_OCI}:/payload.oci.tar:ro\" \
-            -v \"\${SQUASHFS_STORAGE}:/vfs-storage\" \
-            -v \"\${STORAGE_CONF}:/tmp/st.conf:ro\" \
-            localhost/{{target}}-installer \
-            sh -c 'mkdir -p /tmp/cs-runroot /var/tmp && CONTAINERS_STORAGE_CONF=/tmp/st.conf skopeo copy --preserve-digests oci-archive:/payload.oci.tar:${PAYLOAD_REF} containers-storage:${PAYLOAD_REF}'
-
-        rm -f \"\${PAYLOAD_OCI}\" \"\${STORAGE_CONF}\"
-
         echo 'Building unified squashfs source tree...'
         mkdir -p \"\${SQUASHFS_ROOT}\"
         cp -a --reflink=auto \"\${MOUNT}/.\" \"\${SQUASHFS_ROOT}/\" 2>/dev/null || \
             cp -a \"\${MOUNT}/.\" \"\${SQUASHFS_ROOT}/\"
-        mkdir -p \"\${SQUASHFS_ROOT}/var/lib/containers/storage\"
-        cp -a \"\${CS_STAGING}/var/lib/containers/storage/.\" \
-            \"\${SQUASHFS_ROOT}/var/lib/containers/storage/\"
-        rm -rf \"\${CS_STAGING}\"
+        bash scripts/embed-oci-payload.sh \"oci-archive:\${PAYLOAD_OCI}:${PAYLOAD_REF}\" '${PAYLOAD_REF}' \"\${SQUASHFS_ROOT}\"
+        rm -f \"\${PAYLOAD_OCI}\"
 
         SFS_LEVEL=3; SFS_BLOCK=131072
         [[ '{{compression}}' == 'release' ]] && { SFS_LEVEL=15; SFS_BLOCK=1048576; }
