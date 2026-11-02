@@ -43,20 +43,23 @@ Free GitHub runners can't hold the whole KDE build, so it's split:
 
 BuildStream settings CI uses live in the checked-in `buildstream-ci.conf`.
 
-Sources use a separate Actions cache at `~/.cache/buildstream/sources`, the
-same HOME directory mounted by `just bst`. Keys include architecture and the
-element/configuration inputs; restore prefixes reuse content-addressed sources.
-The CAS archives exclude sources. `cache.quota: 60G` bounds the active CAS,
-leaving space for source downloads, build sandboxes and OCI export. Legacy
-archives can still exceed disk capacity before BuildStream starts pruning.
-All branches share one non-cancelling build concurrency group because they
-write the same rolling CAS tags. This prevents concurrent branch builds from
-overwriting newer cache progress with older snapshots.
+Sources use a separate Actions cache at `~/.cache/buildstream/sources`.
+`just bst` mounts this HOME directory. Keys include architecture and the
+element/configuration inputs. A restore prefix lets CI reuse sources.
+Archives of the CAS do not include sources.
+
+`cache.quota: 60G` limits the active CAS. This reserves space for sources,
+build sandboxes and OCI export. An old archive can exceed disk capacity
+before BuildStream can prune it.
+
+Builds from all branches use the same concurrency group. This group does not
+cancel an active build. Branches write the same CAS tags, so concurrent builds could
+replace newer cache progress with an older snapshot.
 
 For branch qualification, dispatch the image workflow with `push_image=false`
 and `publish_candidate=true`. It publishes only `ghcr.io/tuna-os/tromso:<sha>`,
 never a channel alias. Pass that exact ref to the `payload_ref` input of the
-plain, LUKS and ISO workflows; branch ISO builds require `skip_upload=true`.
+plain, LUKS and ISO workflows. For a branch ISO, set `skip_upload=true`.
 
 #### Remote execution (tromso#311)
 
@@ -115,10 +118,10 @@ recover after they refresh the GHCR caches.
    OCI layout to `/usr/lib/tunaos/payload` inside the squashfs and writes
    `/etc/bootc-installer/media-input.json` from its actual manifest and config.
    Fisherman verifies it before disk writes; no VFS graphroot or network
-   fallback is used. The catalog and day-2 update ref match the chosen payload.
+   fallback is used. The catalog and ref for day-2 updates match the payload.
    `usr-lib-tunaos-payload.mount` self-binds the layout read-only. The live
    overlay alone is writable to `statfs`, even with squashfs beneath it.
-   The ready marker requires this mount, so a failed mount blocks publication.
+   The ready marker needs this mount. If the mount fails, publication stops.
 3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
@@ -127,13 +130,14 @@ link at `/usr/local/bin/fisherman` points to fisherman. It uses the shared
 `org.tunaos.Installer.install` polkit action. See INSTALLER-FRONTENDS.md in the
 organization workspace.
 
-Publication fails closed: the local candidate must pass the UEFI ready-token
-assertion before any R2 upload. All three dated objects (ISO, checksum, Sigstore
-bundle) must upload before latest aliases are updated. Dated names include
-the workflow run ID and attempt, and `rclone --immutable` rejects replacement.
-The latest checksum is published too, with the ISO alias updated last. R2 has
-no transaction across these aliases: a failed promotion can leave mixed sidecars,
-but fails the workflow; dated objects remain the consistent download set.
+Publication fails closed. The candidate must pass the UEFI ready-token assertion
+before any upload to R2. The workflow uploads an ISO, a checksum and a Sigstore
+bundle under dated names. Only then does it update the latest aliases.
+
+Dated names include the run ID and `run_attempt`. `rclone --immutable` rejects
+replacement. The workflow publishes the latest checksum and updates the ISO
+alias last. R2 has no transaction across these aliases. A promotion failure can
+leave mixed sidecars, but the workflow fails. The dated objects remain consistent.
 
 ### LUKS end-to-end test (`test-luks-install.yml`)
 
@@ -193,19 +197,27 @@ prompt, and installed desktop.
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
 
-Local checks for this cutover: 269 pytest tests passed, one pre-existing expected
-failure; 31 BATS tests passed; actionlint and Just parsing passed; ShellCheck
-passed at the CI error severity. YAML checks reported only line-length warnings.
-Real smoke copied Fedora Minimal through the actual OCI-media producer and
-verified every emitted blob digest/size, executed the branding install commands,
-and signed/verified a local-key Sigstore bundle. Permanent media tests execute
-real skopeo conversion from a valid OCI fixture, verify the gzip layer and all
-digests, and reject an absent source. These checks do not prove a Tromsø image
-boot, installed desktop, or GitHub OIDC signing. Full build and
-KVM install evidence must come from the candidate workflows.
-The read-only self-bind was exercised in a private mount namespace: reads
-succeeded and writes failed with EROFS. `systemd-analyze verify` accepted the
-actual mount unit. This is host mount evidence, not a guest boot claim.
+Local checks: 269 pytest tests passed, with one pre-existing expected failure.
+All 19 BATS tests passed. `actionlint` and `just --summary` passed.
+ShellCheck passed at the error severity that CI uses. YAML checks reported only
+warnings about line length.
+
+We used the actual producer for OCI media to copy `fedora-minimal:44`.
+It verified every blob digest and size. We executed the install commands for
+the identity assets. We also signed and verified a Sigstore bundle with a local key.
+
+Permanent tests use `skopeo` with a valid OCI fixture. They verify the gzip
+layer and all digests, and reject an absent source. These checks do not prove a
+Tromsø boot or installed desktop. They do not verify signatures from GitHub OIDC.
+The candidate workflows must supply the full build and KVM install evidence.
+
+We exercised the read-only self-bind in a private mount namespace.
+Reads succeeded and writes failed with EROFS. `systemd-analyze verify` accepted
+the actual mount unit. This is host mount evidence, not a guest boot claim.
+The shared prose tool at `7c070815` reports no new findings in these changes.
+Its full scan still reports 494 findings across eight files, against a budget
+of zero. Most are in existing outreach and architecture documents. This
+remains a separate gate failure; the budget has not increased.
 
 ## Channels: nightly (main) and stable
 
@@ -276,11 +288,14 @@ skipped job reports success, so each required check always reports. If the
 
 The plain and LUKS install tests build the same ISO and use different install
 paths. A change to their shared inputs (`tromso/`, the justfiles,
-`scripts/lib-install-qemu.sh`, `scripts/fisherman-install.sh`) runs one of
+`scripts/lib-install-qemu.sh`, `scripts/embed-oci-payload.sh`) runs one of
 the two tests. The run number selects the test. Set the repository variable
 `E2E_ROUND_ROBIN_SIZE` to 2 to run both. A change to the install script or
 workflow of one test always runs that test. The two tests run fully on their
 weekly schedules and on manual dispatch.
+The tests execute the installer from the ISO. They do not replace that binary
+or repair the hostname or LUKS arguments after installation. Only console
+arguments change so the test can observe the installed boot on serial.
 
 ## Rollback
 

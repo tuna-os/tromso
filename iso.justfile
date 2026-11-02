@@ -262,10 +262,6 @@ boot-iso-vnc target:
 #   just luks-boot-qemu-installed tromso  # reboot QEMU into installed disk
 #   just luks-unlock-qemu tromso          # send passphrase via QEMU monitor
 
-# Path to a local fisherman checkout for bootcDirect (ostree) installs; unused
-# on the default composefs path.
-fisher_repo := ""
-
 # QEMU memory (MiB) / vCPUs for the e2e test VMs.
 qemu-mem := "8192"
 qemu-smp := "4"
@@ -406,7 +402,7 @@ luks-boot-qemu-live target:
 
 # Run fisherman LUKS install via SSH into the live QEMU VM.
 luks-install-qemu target:
-    ./scripts/luks-install-qemu.sh "{{target}}" "{{luks-passphrase}}" "{{luks-qemu-ssh-port}}" "{{luks-qemu-monitor-live}}" "{{fisher_repo}}"
+    ./scripts/luks-install-qemu.sh "{{target}}" "{{luks-passphrase}}" "{{luks-qemu-ssh-port}}" "{{luks-qemu-monitor-live}}"
 
 # Boot the installed disk in QEMU (no ISO). Called after luks-install-qemu.
 luks-boot-qemu-installed target:
@@ -528,7 +524,7 @@ plain-test-qemu target installer_channel="stable":
 
 # Run fisherman plain (no-encryption) install via SSH into the live QEMU VM.
 plain-install-qemu target:
-    ./scripts/plain-install-qemu.sh "{{target}}" "{{luks-qemu-ssh-port}}" "{{luks-qemu-monitor-live}}" "{{fisher_repo}}"
+    ./scripts/plain-install-qemu.sh "{{target}}" "{{luks-qemu-ssh-port}}" "{{luks-qemu-monitor-live}}"
 
 # Wait for the installed disk to boot to a ready state. No passphrase to
 # handle here (that's the whole point of the plain path) — just watch serial

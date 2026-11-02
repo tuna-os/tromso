@@ -1,42 +1,38 @@
 # Local Mkosi DDI experiment
 
-Tromso has an isolated Mkosi configuration for experimenting with a GPT disk
-image from the BuildStream root tree:
+Tromsø has a local Mkosi experiment. It creates a GPT disk image from the
+BuildStream root tree:
 
 ```sh
 just build-mkosi-ddi
 ```
 
-The configuration is under `mkosi/ddi/`; the raw image is written to
-`output/mkosi-ddi/tromso-mkosi-ddi.raw`. It uses Mkosi's `Distribution=buildstream`
-backend and exactly one package, the `elements/mkosi/tromso-ddi.bst` compose
-target. That compose uses Tromso's KDE runtime stack and carries the established
-Tromso `os-release` identity. The raw DDI is separate from `bootable.raw`, the
-OCI image, and ISO outputs. The Mkosi tools tree is generated from Ubuntu
-`stonking` and includes BuildStream and its Python plugins, so the host only
-needs Mkosi's system dependencies and access to the BuildStream project
-sources/cache.
+The configuration lives in `mkosi/ddi/`. Mkosi writes the raw image to
+`output/mkosi-ddi/tromso-mkosi-ddi.raw`. It uses `Distribution=buildstream`
+with one package, `elements/mkosi/tromso-ddi.bst`. This compose target uses
+Tromsø's KDE runtime and `os-release` identity.
+
+The DDI output is separate from `bootable.raw`, the OCI image and ISO files.
+Mkosi creates a tools tree from Ubuntu `stonking` with BuildStream and its
+Python plugins. The host needs Mkosi's system dependencies and access to
+the project sources and cache.
 
 ## Not currently bootable
 
-This output is a local root-tree disk artifact, **not a bootable image** and not
-a bootc deployment. The explicit GPT layout reserves a 512 MiB EFI System
-Partition and an ext4 x86-64 root partition, but defining partitions alone does
-not establish a working boot chain.
+This local artifact contains a root tree, **not a bootable image** or a bootc
+deployment. The GPT layout reserves 512 MiB for the ESP and an ext4 root for
+x86-64. These partitions alone do not provide a boot chain.
 
-The available Tromso initramfs is `elements/oci/initramfs.bst`, built with
-`INITRD_MODE=oci`. Tromso's root tree also carries OSTree/bootc integration
-(`ostree` points into `/sysroot/ostree`), while this Mkosi build only checks out
-a BuildStream filesystem tree: it does not create an OSTree deployment in that
-sysroot or run `bootc install`. No local element supplies a tested initramfs
-and kernel command-line contract for mounting this direct ext4 root as the
-running system. Therefore this DDI deliberately has no `Bootable=yes`, boot
-loader, or root kernel-argument configuration. Do not boot or distribute it as
-a working OS image.
+The available initramfs, `elements/oci/initramfs.bst`, uses `INITRD_MODE=oci`.
+Tromsø's root tree contains OSTree/bootc integration: `ostree` points into
+`/sysroot/ostree`. This Mkosi path only checks out a filesystem tree.
+It does not create an OSTree deployment or run `bootc install`.
 
-Making it bootable requires a Tromso-supported direct-root boot contract: an
-initramfs suitable for a non-OSTree root, a defined root-device discovery / root
-mount command line, and evidence that the composed tree can boot with those
-artifacts. This is an experimental local output only; it adds no CI, release,
-push, signing, or publication path and does not alter the existing bootc
-`generate-bootable-image`, OCI, ISO, or publication recipes.
+No local element provides a tested initramfs and command line for this direct
+ext4 root. The DDI therefore has no `Bootable=yes`, boot loader, or root
+kernel arguments. Do not boot or distribute it as an OS image.
+
+A bootable output needs a supported contract for a non-OSTree root.
+It needs an initramfs, a command line that finds and mounts that root, and
+evidence of a successful boot. This experiment has no release or publication
+path. It does not change the bootc, OCI, ISO or publication recipes.

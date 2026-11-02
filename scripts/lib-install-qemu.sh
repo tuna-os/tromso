@@ -4,12 +4,11 @@
 # Sourced by scripts/plain-install-qemu.sh and scripts/luks-install-qemu.sh —
 # not meant to be run directly.
 #
-# Callers must set TARGET, SSH_PORT, MONITOR_LIVE, FISHER_REPO before sourcing,
+# Callers must set TARGET, SSH_PORT and MONITOR_LIVE before sourcing,
 # then call the functions below in order:
-#   install_qemu_init            # sets DISK/PAYLOAD_IMAGE/SSH/SCP/INSTALL_IMAGE/
-#                                 # COMPOSEFS_BACKEND/BOOTLOADER/FILESYSTEM,
-#                                 # mounts the scratch disk
-#   install_qemu_run_fisherman <recipe_tmp_path> <remote_recipe_name> <composefs_json> <bootcdirect_json>
+#   install_qemu_init            # sets DISK/PAYLOAD_IMAGE/SSH/SCP/
+#                                 # BOOTLOADER/FILESYSTEM and mounts scratch
+#   install_qemu_run_fisherman <recipe_tmp_path> <remote_recipe_name> <recipe_json>
 #   install_qemu_shutdown
 
 set -euo pipefail
@@ -24,9 +23,6 @@ install_qemu_init() {
 	# The ISO's media-input binds the immutable OCI source before disk writes.
 	# Missing media is a build error, never a reason to pull a mutable tag.
 	$SSH 'sudo test -s /etc/bootc-installer/media-input.json'
-	INSTALL_IMAGE=""
-
-	COMPOSEFS_BACKEND=$(cat "${TARGET}/composefs" 2>/dev/null | tr -d '[:space:]' || echo "true")
 	BOOTLOADER=$(cat "${TARGET}/bootloader" 2>/dev/null | tr -d '[:space:]' || echo "systemd")
 
 	# Normalise "grub" → "grub2" for fisherman's recipe validator.
@@ -43,52 +39,16 @@ install_qemu_init() {
     "'
 }
 
-# install_qemu_run_fisherman <recipe_tmp_path> <remote_recipe_name> <composefs_json> <bootcdirect_json>
-#
-# Writes whichever recipe JSON matches COMPOSEFS_BACKEND to recipe_tmp_path,
-# uploads it, and runs fisherman — building a bootcDirect-patched binary from
-# FISHER_REPO when composefs is off. Dumps diagnostics and re-raises on failure.
+# Upload the recipe and run the exact installer shipped on the ISO.
+# Every nonzero installer exit fails the test; do not repair the deployment.
 install_qemu_run_fisherman() {
 	local recipe_tmp="$1"
 	local remote_recipe_name="$2"
-	local composefs_json="$3"
-	local bootcdirect_json="$4"
-
-	if [[ "${COMPOSEFS_BACKEND}" == "true" ]]; then
-		# Empty image binds fisherman's verified OCI media input.
-		printf '%s\n' "${composefs_json}" >"${recipe_tmp}"
-		$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/${remote_recipe_name}"
-		echo "Uploaded recipe — running fisherman (takes several minutes)..."
-		$SCP "scripts/fisherman-install.sh" liveuser@127.0.0.1:/tmp/fisherman-install.sh
-		$SSH "sudo bash /tmp/fisherman-install.sh /tmp/${remote_recipe_name}"
-	else
-		# Ostree path (stable, lts): bootcDirect — fisherman runs bootc natively.
-		# Empty image triggers bootcDirect; targetImgref sets the day-2 rebase ref.
-		# Fisherman emits --source-imgref containers-storage:<targetImgref> when
-		# targetImgref is present and image is empty, resolving the payload from
-		# the overlay additionalimagestore embedded in the squashfs.
-		printf '%s\n' "${bootcdirect_json}" >"${recipe_tmp}"
-		$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/${remote_recipe_name}"
-		echo "Uploaded recipe — building patched fisherman for bootcDirect..."
-		local fisherman_bin
-		fisherman_bin=$(mktemp /tmp/fisherman-XXXXXX)
-		trap "rm -f '${recipe_tmp}' '${fisherman_bin}'" EXIT
-		(cd "${FISHER_REPO}" && CGO_ENABLED=0 go build -o "${fisherman_bin}" ./cmd/fisherman/)
-		$SCP "${fisherman_bin}" liveuser@127.0.0.1:/tmp/fisherman
-		$SSH 'chmod +x /tmp/fisherman'
-		echo "Running fisherman (bootcDirect, takes several minutes)..."
-		$SCP "scripts/fisherman-install.sh" liveuser@127.0.0.1:/tmp/fisherman-install.sh
-		if ! $SSH "sudo FISHERMAN_BIN=/tmp/fisherman bash /tmp/fisherman-install.sh /tmp/${remote_recipe_name}"; then
-			echo "=== INSTALL FAILURE DIAGNOSTICS ==="
-			echo "--- dmesg ---"
-			$SSH 'sudo dmesg | tail -n 100' || true
-			echo "--- journalctl ---"
-			$SSH 'sudo journalctl -n 100 --no-pager' || true
-			echo "--- systemd-oomd status ---"
-			$SSH 'sudo systemctl status systemd-oomd --no-pager' || true
-			exit 1
-		fi
-	fi
+	local recipe_json="$3"
+	printf '%s\n' "${recipe_json}" >"${recipe_tmp}"
+	$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/${remote_recipe_name}"
+	echo "Uploaded recipe — running shipped fisherman (takes several minutes)..."
+	$SSH "sudo /usr/local/bin/fisherman /tmp/${remote_recipe_name}"
 }
 
 install_qemu_shutdown() {
