@@ -236,7 +236,7 @@ Both install tests run PR-supplied recipes with read-only repository tokens
 (tromso#270). Checkout does not persist credentials. They do not log
 in to GHCR: the payload image is public. Screenshots, serial logs, and job
 summaries remain available in Actions. No privileged job reports results,
-and no write boundary connects untrusted artifacts to the repository.
+and no write boundary connects the untrusted artifacts to the repository.
 Any future change to reports needs its own review and behavioral security tests.
 
 ## Rollback
