@@ -1,184 +1,183 @@
-# BuildStream Community Visibility & Reference Implementation Kit
+# BuildStream community reference drafts
 
-Tracking: [#374](https://github.com/tuna-os/tromso/issues/374).  
-Status: Drafts for maintainer review; external outreach, submissions, and coordination remain outstanding.
+Issue: [#374](https://github.com/tuna-os/tromso/issues/374).
 
----
+Status: drafts for maintainer review. External outreach and submissions remain incomplete.
 
-## Overview & Context
+## Context and maturity
 
-This kit provides reviewable outreach copy, technical case studies, and coordination proposals to increase visibility for Tromso within the **BuildStream** and **freedesktop-sdk** upstream communities.
+TunaOS Tromsø is an independent Alpha project. It composes KDE Plasma 6 with BuildStream 2 on `freedesktop-sdk`.
+The repository includes an element tree, OCI composition, live ISO tools, and CI for multiple runners.
+The design targets images for `bootc`.
+These drafts do not establish reliable installation, production readiness, or bit-for-bit reproducibility.
+Consult the [roadmap](../../ROADMAP.md) and exact run evidence before public claims or candidate tests.
 
-### Project Maturity & Evidence Grounding
-In accordance with the [Tromso Roadmap](../../ROADMAP.md), Tromso is currently in **Alpha**. The outreach materials in this kit focus on Tromso's implemented technical architecture:
-- A large-scale, single-repo BuildStream 2 project (~200+ elements).
-- A pure source-based composition of KDE Plasma 6 on top of `freedesktop-sdk`.
-- Delivery as a bootable OCI container image using `bootc` and `build-oci`.
-- A distributed multi-runner CAS chunking workflow running on GitHub Actions.
+## 1. BuildStream outreach pitch
 
-These drafts describe the verified build architecture and packaging patterns without making premature claims of end-user general availability or enterprise production stability before the Roadmap Alpha-to-Beta release gates are satisfied.
+Target: the BuildStream project at `buildstream.build` and `buildstream/buildstream` on GitLab.
 
----
+Possible route: an issue or documentation merge request for a project list or case study.
+Confirm the venue and its rules before submission.
 
-## 1. BuildStream Upstream Coordination Pitch
+### Draft proposal
 
-**Target**: BuildStream upstream project (`buildstream.build`, GitLab `buildstream/buildstream`).  
-**Channel**: GitLab issue or documentation merge request proposing inclusion in "Notable Projects", "In the Wild", or the documentation Case Studies section.
-
-### Proposal Text
-
-**Title**: Propose Tromso (KDE Plasma desktop) as a BuildStream production reference implementation
+Title: Propose TunaOS Tromsø as an Alpha project that uses BuildStream
 
 Hello BuildStream team,
 
-We would like to propose adding [Tromso](https://github.com/tuna-os/tromso) to the BuildStream documentation under "Notable Projects" or as a desktop OS reference implementation.
+We would like to propose [TunaOS Tromsø](https://github.com/tuna-os/tromso) for a project list or technical case study.
+Tromsø is an independent Alpha project that composes Plasma 6 from source with BuildStream 2 and `freedesktop-sdk`.
+It targets OCI images for `bootc`. We do not claim qualified installation or production readiness.
 
-Tromso is an independent community project that uses BuildStream 2 to build a complete KDE Plasma 6 desktop operating system from source on top of `freedesktop-sdk`. Rather than relying on traditional distribution package managers or ad-hoc Containerfiles, Tromso leverages BuildStream's sandboxed, content-addressed build engine to assemble a reproducible OS tree, which is then packaged directly into a bootable OCI container managed by `bootc`.
+Topics that could help other BuildStream users include:
 
-#### Architectural Highlights & Relevance to BuildStream
-- **Scale**: Tromso's element tree comprises over 200 elements, spanning the complete KDE stack (Qt 6, ~70 KDE Frameworks, Plasma 6, and applications) alongside core OS plumbing and graphics drivers.
-- **Single-Repository Model**: Packaging is consolidated directly under `elements/` with `freedesktop-sdk.bst` as the sole external junction, illustrating how to manage complex desktop dependency graphs cleanly without nested-junction friction.
-- **Upstream Standards Compliance**: Tromso strictly enforces BuildStream best practices (such as `fatal-warnings: [unaliased-url, unstaged-files]` and comprehensive fallback mirror coverage via `include/mirrors.yml`).
-- **Distributed Multi-Runner CI**: Demonstrates how to partition large BuildStream dependency DAGs across concurrent runners on standard GitHub Actions using CAS archive streaming and cache key orchestration.
-- **Container-Native OS Delivery**: Utilizes BuildStream's `build-oci` tooling to output bootable OCI container images (`containers.bootc: '1'`) and live UEFI installation media.
+- Recipes for Qt 6, KDE Frameworks, Plasma, and desktop components.
+- A common `elements/` tree with `freedesktop-sdk.bst` as an external junction.
+- Source aliases and mirrors in `include/aliases.yml` and `include/mirrors.yml`.
+- Project checks such as `fatal-warnings: [unaliased-url, unstaged-files]`.
+- CI that divides the dependency graph across runners and exchanges CAS archives.
+- Export through `build-oci` with `containers.bootc: '1'` and tools for live media.
 
-#### Proposed Listing
-```markdown
-- **[Tromso](https://github.com/tuna-os/tromso)**: A KDE Plasma 6 desktop operating system built entirely from source with BuildStream 2 on top of freedesktop-sdk, publishing bootable OCI container images managed with bootc.
-```
+We can offer a short case study about these mechanisms and their limits.
+Source control and sandbox isolation support repeatable builds. They do not prove reproducibility of output.
 
-We would be glad to contribute a short case study or documentation summary to `buildstream.build` highlighting our experiences and architectural patterns with BuildStream 2.
+### Proposed entry
 
-- **Repository**: https://github.com/tuna-os/tromso
-- **Architecture Documentation**: https://github.com/tuna-os/tromso/blob/main/docs/ARCHITECTURE.md
-- **CI Pipeline Guide**: https://github.com/tuna-os/tromso/blob/main/docs/ci-and-iso-pipeline.md
+[TunaOS Tromsø](https://github.com/tuna-os/tromso) is an Alpha project that composes Plasma 6 with BuildStream 2 and `freedesktop-sdk`.
+It targets OCI images for `bootc` and explores CI across multiple runners.
 
----
+References:
 
-## 2. freedesktop-sdk Alignment Memo
+- Repository: https://github.com/tuna-os/tromso
+- Architecture: https://github.com/tuna-os/tromso/blob/main/docs/ARCHITECTURE.md
+- Pipeline: https://github.com/tuna-os/tromso/blob/main/docs/ci-and-iso-pipeline.md
 
-**Target**: `freedesktop-sdk` maintainers (`freedesktop-sdk.io`, GitLab `freedesktop-sdk/freedesktop-sdk`).  
-**Channel**: freedesktop-sdk Matrix room (`#freedesktop-sdk:matrix.org`) or GitLab discussion.
+## 2. freedesktop-sdk alignment memo
 
-### Alignment Summary
+Target: maintainers at `freedesktop-sdk.io` and `freedesktop-sdk/freedesktop-sdk` on GitLab.
 
-Tromso relies directly on `freedesktop-sdk` as its foundational build junction (`elements/freedesktop-sdk.bst`). We view freedesktop-sdk as our primary upstream.
+Possible channels: `#freedesktop-sdk:matrix.org` or a relevant GitLab discussion, subject to local rules.
 
-#### Current Alignment Practices
-1. **Upstream Conventions (ADR 0004)**:
-   - Enforcing `fatal-warnings: unaliased-url` across all 650+ source URLs in the project.
-   - Comprehensive mirror coverage via `include/mirrors.yml` to ensure build resilience against upstream source outages.
-   - Using freedesktop-sdk standard components directly (e.g. `linux-pam-base`, `polkit`, `networkmanager`) without re-implementing them.
-2. **Snapshot Tracking**:
-   - Tracking stable freedesktop-sdk releases (currently on `25.08.x` stable branch).
-   - Synchronizing upstream junction updates through automated source tracking (`bst source track`).
-3. **Collaboration & Upstream Value**:
-   - Tromso's element recipes for KDE Frameworks 6 and Qt 6 provide a battle-tested reference for any freedesktop-sdk consumers targeting Qt/KDE software.
-   - We actively document and monitor build quirks, capability requirements (`fakecap`), and dynamic linker caching in sandbox environments.
+Tromsø uses `elements/freedesktop-sdk.bst` as its base junction.
+Before outreach, compare these topics with the candidate's source and [roadmap](../../ROADMAP.md):
 
----
+- Source aliases and mirrors under the conventions in ADR 0004.
+- Use of SDK components such as `linux-pam-base`, `polkit`, and `networkmanager`.
+- The exact SDK branch and pinned reference; do not copy an old version claim.
+- Review of source updates from `bst source track`.
+- Recipes for Qt and KDE that other consumers could inspect or adapt.
+- Reports about capabilities, `fakecap`, and the cache that `ldconfig` generates.
 
-## 3. Blog Post / Technical Case Study Draft
+Mirrors can provide alternative sources. They do not guarantee availability during upstream outages.
+The recipes are Alpha work, not a proven reference for production.
 
-**Title**: Building KDE with BuildStream: Lessons from Tromso  
-**Target Publication**: `buildstream.build` news / `tunaos.org` blog  
-**Author**: Tromso Maintainers
+## 3. Technical article draft
 
-### Draft Article
+Proposed title: KDE with BuildStream: lessons from TunaOS Tromsø.
 
-In modern Linux infrastructure, containerization and immutable operating systems are standard practice for server deployments. However, the desktop ecosystem has largely relied on traditional package managers or non-deterministic container layering.
+Possible venues: `buildstream.build` news or the `tunaos.org` blog, subject to editorial approval.
 
-**Tromso** explores an alternative path: composing a complete, modern KDE Plasma 6 desktop operating system directly from upstream source trees using **BuildStream 2**, built upon **freedesktop-sdk**, and publishing the result as a bootable OCI container image managed with **bootc**.
+Proposed authors: Tromsø maintainers, after their consent.
 
-Here are the key technical lessons learned from building a desktop OS from source with BuildStream.
+### Draft article
 
-#### 1. Managing Scale: The Single-Repository Model
-A desktop operating system is a massive dependency graph. Tromso includes Qt 6 (~30 elements), KDE Frameworks 6 (~70 elements), KDE Plasma 6 (~41 elements), system libraries, audio servers, graphics drivers, and system plumbing.
+TunaOS Tromsø explores desktop composition from source with BuildStream 2 and `freedesktop-sdk`.
+The target is Plasma 6 in OCI images for `bootc`.
+The project remains Alpha. The architecture offers topics for review, not proof of a qualified desktop release.
 
-Initially, we split packaging into a separate metadata repository connected via a BuildStream junction. However, we discovered that nested junctions introduced cache invalidation penalties and increased cross-repository maintenance friction. 
+### One tree for desktop recipes
 
-By consolidating all KDE elements directly into a single `elements/` hierarchy and retaining only `freedesktop-sdk.bst` as an external junction, we achieved:
-- Atomic commits across package definitions and system configuration.
-- Simplified dependency tracking and cleaner caching behavior.
-- Clear separation between the upstream SDK foundation and the desktop application layer.
+The `elements/` tree contains recipes for Qt, KDE Frameworks, Plasma, libraries, audio, and graphics components.
+The SDK remains an external junction.
+A common repository allows changes to desktop recipes and system configuration in the same commit.
+Do not claim measured improvements to cache behavior without comparative run evidence.
 
-#### 2. Strict Sandboxing & Source Discipline
-Reproducibility cannot be an afterthought. By configuring `fatal-warnings: [unaliased-url, unstaged-files]` in `project.conf`, Tromso guarantees that every single source tarball or Git repository resolves through a structured alias in `include/aliases.yml` and is backed by fallback mirrors in `include/mirrors.yml`.
+### Source discipline and sandbox constraints
 
-In our offline pytest suite, we validate that no hardcoded URLs or un-mirrored tarballs can be committed, preventing unexpected upstream network breaks from halting builds.
+`project.conf` defines fatal warnings such as `unaliased-url` and `unstaged-files`.
+The files for aliases and mirrors describe routes to sources. Repository tests check the source conventions.
+These checks help find defects in configuration. They cannot guarantee availability of sources or identical output across builds.
 
-#### 3. Overcoming Sandbox Nuances for Desktop Environments
-Building a desktop environment in hermetic sandboxes presents unique integration challenges:
-- **File Capabilities**: Security-sensitive binaries like `kwin_wayland` (`cap_sys_nice`) and `newuidmap`/`newgidmap` (`cap_setuid`/`cap_setgid`) require specific POSIX capabilities. In unprivileged build environments, we utilize `fakecap` inside the sandbox to capture and commit these attributes cleanly.
-- **Dynamic Linker Caching (`ldconfig`)**: In layered OCI images, Qt 6 libraries reside across both the base OS parent layer and the desktop layer. Assembling an ephemeral overlay filesystem during the image composition element allows `ldconfig` to generate a unified linker cache that enables SDDM and Plasma to boot smoothly without runtime path discovery delays.
+Capabilities need care in unprivileged sandboxes.
+The build uses `fakecap` to preserve metadata for binaries such as `kwin_wayland`, `newuidmap`, and `newgidmap`.
+Relevant capabilities include `cap_sys_nice`, `cap_setuid`, and `cap_setgid`.
+Maintainers must validate the final image's metadata and behavior.
 
-#### 4. Distributed Multi-Runner CI with Content-Addressable Storage
-Building 200+ source packages on free GitHub Actions runners exceeds single-runner time limits. To solve this without requiring a dedicated build farm, Tromso implements a multi-runner pipeline:
-1. A planning job calculates the topological execution order and partitions uncached elements into balanced chunks.
-2. An initial runner builds the core bootstrap elements and publishes the CAS snapshot to GitHub Container Registry (GHCR) using ORAS.
-3. Concurrent matrix runners pull the core CAS, execute their designated chunks in parallel, and export chunk CAS archives.
-4. A final runner merges the CAS archives, performs the final OCI export, and signs the resulting container image with Cosign via GitHub Actions OIDC keyless signing.
+The OCI composition also needs a library cache across layers.
+The build uses `ldconfig` for this cache. Its presence does not by itself prove that SDDM or Plasma starts correctly.
 
-#### Conclusion
-BuildStream 2 provides the exact primitives needed for reproducible, source-driven OS composition: deterministic sandboxing, fine-grained artifact caching, and content-addressed storage. Tromso demonstrates that these capabilities scale beyond isolated developer SDKs to complete, bootable desktop operating systems.
+### CI across runners
 
----
+The pipeline divides work across runners on GitHub Actions:
 
-## 4. Conference Proposal (FOSDEM 2027)
+1. The job for the plan orders dependencies and groups elements into chunks.
+2. A runner builds bootstrap artifacts and exports CAS through ORAS to GitHub Container Registry.
+3. Jobs in the matrix import CAS, build their assigned elements, and export archives.
+4. A job combines the archives and tries OCI export.
+5. Publication uses Cosign with OIDC from GitHub Actions.
 
-**Target Devroom**: Distributions / Desktops / Build Systems  
-**Format**: 25-minute presentation + 5-minute Q&A  
-**Submission Title**: Build Systems for Immutable Desktops: Composing KDE Linux with BuildStream and bootc
+This describes the workflow design. A workflow definition does not prove a successful publication or a valid signature for every run.
+Use the [pipeline guide](https://github.com/tuna-os/tromso/blob/main/docs/ci-and-iso-pipeline.md) for current details and evidence.
+
+### Conclusion
+
+BuildStream offers dependency control, sandbox isolation, and content-addressed artifacts for source composition.
+Tromsø explores these mechanisms for a desktop OS. Reproducibility and release readiness still need evidence for specific candidates.
+
+## 4. Conference proposal: FOSDEM 2027
+
+Possible devrooms: distributions, desktops, or build systems.
+
+Proposed format: 25 minutes plus 5 minutes for questions.
+
+Proposed title: Desktop composition with BuildStream and bootc.
 
 ### Abstract
-Container-native operating systems managed with `bootc` bring container agility and atomic upgrades to bare-metal systems. Yet, most bootc images are built by layering package managers inside standard Containerfiles, sacrificing source reproducibility and dependency provenance.
 
-This talk presents **Tromso**, a community operating system project that uses **BuildStream 2** and **freedesktop-sdk** to build a KDE Plasma 6 desktop completely from source into bootable OCI container images. 
+TunaOS Tromsø explores Plasma 6 from source with BuildStream 2 and `freedesktop-sdk`.
+The goal is OCI images for `bootc`, with tools for UEFI live media.
+This talk describes the architecture, Alpha failures, and evidence needed to qualify a candidate.
+It does not claim a production release or guaranteed reproducibility.
 
-We will walk through the architectural journey of building a desktop distribution:
-- Designing a 200+ element BuildStream DAG for Qt 6, KDE Frameworks, and Wayland desktop components.
-- Transitioning from multi-repo nested junctions to a unified single-tree model.
-- Solving sandbox challenges: managing file capabilities, linker cache generation, and user configuration.
-- Scaling CI: partitioning large BuildStream dependency graphs across ephemeral multi-runner workers using CAS chunking.
-- Transforming BuildStream trees into bootable OCI containers and UEFI live installation media.
+Proposed topics:
 
-Attendees will gain practical insights into applying BuildStream 2 and modern image-based deployment patterns to desktop operating systems.
+- The dependency graph for Qt, KDE Frameworks, and Wayland components.
+- Desktop recipes in one tree with an SDK junction.
+- Capabilities, the library cache, and system configuration in sandboxes.
+- CAS exchange across CI runners.
+- OCI export and tools for live media.
 
----
+Maintainers and speakers must approve the proposal before submission.
+A suitable call for participation and acceptance from organizers are separate requirements.
 
-## 5. Community Engagement Protocol & Channels
+## 5. Community channels and conduct
 
-When engaging with the BuildStream and freedesktop-sdk communities, maintainers should observe the following guidelines:
+Confirm each venue's current scope before contact.
 
-### Primary Communication Venues
-- **Matrix**:
-  - BuildStream: `#buildstream:matrix.org`
-  - freedesktop-sdk: `#freedesktop-sdk:matrix.org`
-- **GitLab**:
-  - BuildStream: `https://gitlab.com/BuildStream/buildstream`
-  - freedesktop-sdk: `https://gitlab.com/freedesktop-sdk/freedesktop-sdk`
-- **Discourse**: `https://discourse.gnome.org/c/buildstream/` (where applicable)
+- BuildStream Matrix: `#buildstream:matrix.org`.
+- SDK Matrix: `#freedesktop-sdk:matrix.org`.
+- BuildStream GitLab: https://gitlab.com/BuildStream/buildstream
+- SDK GitLab: https://gitlab.com/freedesktop-sdk/freedesktop-sdk
+- BuildStream Discourse, where applicable: https://discourse.gnome.org/c/buildstream/
 
-### Engagement Principles
-1. **Be Honest About Maturity**: Acknowledge that Tromso is an active Alpha project under open development. Present Tromso as an architectural showcase and learning experience rather than a finished commercial product.
-2. **Offer Upstream Value**: When discussing packaging solutions, share the `.bst` manifests and build patterns with other projects (such as `gnome-build-meta` or the early `kde-buildstream` project under ADR 0003).
-3. **Respect Upstream Feedback**: Actively listen to suggestions from BuildStream and freedesktop-sdk maintainers regarding junction management, cache retention, and sandboxing best practices.
+State Alpha status and the limits of the evidence.
+Share `.bst` recipes and concrete reports that upstream maintainers can inspect.
+Projects such as `gnome-build-meta` or `kde-buildstream` might have related concerns; do not assume their interest or approval.
+See ADR 0003 for the upstream context.
+Respect feedback about junctions, cache retention, and sandbox isolation.
+Do not use unrelated code issues for publicity.
 
----
+## 6. Maintainer approval and publication checklist
 
-## 6. Maintainer Publication & Action Checklist
+A maintainer must approve the final copy and each external action. This document publishes no outreach.
 
-Before public transmission, a maintainer must review and execute the following steps:
-
-- [ ] **Verify Against Roadmap**: Confirm that the technical details align with the current state in [ROADMAP.md](../../ROADMAP.md). Ensure no unverified claims of production stability are made.
-- [ ] **Designate Contact**: Confirm the maintainer acting as the official contact for BuildStream/freedesktop-sdk outreach.
-- [ ] **Submit Upstream Documentation PR / Issue**:
-  - Open an issue or MR on `buildstream/buildstream` or `buildstream.build` proposing Tromso's inclusion in documentation.
-  - Link to `docs/ARCHITECTURE.md` and repository README.
-- [ ] **Matrix Introduction**:
-  - Introduce Tromso in `#buildstream:matrix.org` using the short coordination pitch.
-  - Invite feedback on the multi-runner CAS chunking architecture and packaging patterns.
-- [ ] **FOSDEM 2027 Submission**:
-  - Submit the presentation abstract during the FOSDEM 2027 call for participation (CFP) window.
-- [ ] **Record Execution**:
-  - Update issue [#374](https://github.com/tuna-os/tromso/issues/374) with links to submitted proposals, pull requests, and conference submissions. Keep #374 open until external visibility milestones are completed.
+- [ ] Compare claims with [ROADMAP.md](../../ROADMAP.md), source definitions, and exact run evidence.
+- [ ] Select a maintainer as the public contact.
+- [ ] Confirm the preferred route for a BuildStream project entry or case study.
+- [ ] Submit an issue or merge request only after review.
+- [ ] Include `docs/ARCHITECTURE.md` and the repository README as references.
+- [ ] Introduce the project in Matrix only with permission under channel rules.
+- [ ] Request feedback on CAS exchange and desktop recipes.
+- [ ] Submit the FOSDEM proposal through a suitable call after speaker approval.
+- [ ] Record submissions, feedback, and live URLs in [#374](https://github.com/tuna-os/tromso/issues/374).
+- [ ] Keep #374 open until maintainers account for the intended external actions.
