@@ -131,9 +131,10 @@ iso-sd-boot target:
         printf '[storage]\ndriver = \"vfs\"\nrunroot = \"/tmp/cs-runroot\"\ngraphroot = \"/vfs-storage\"\n' \
             > \"\${STORAGE_CONF}\"
 
-        echo 'Squashing tromso image layers to reduce disk footprint...'
-        SQUASH_CTR=\$(buildah from --pull-never \"${PAYLOAD_REF}\")
-        buildah commit --squash \"\${SQUASH_CTR}\" oci-archive:\${PAYLOAD_OCI}:${PAYLOAD_REF}
+        # containers-storage keeps unpacked layers, so re-exporting it can
+        # require recompression and cannot guarantee the registry digest.
+        echo 'Exporting the original candidate without changing its manifest digest...'
+        skopeo copy --preserve-digests docker://${PAYLOAD_REF} oci-archive:\${PAYLOAD_OCI}:${PAYLOAD_REF}
 
         echo 'Importing tromso OCI image into squashfs containers-storage...'
         podman run --rm \
@@ -142,7 +143,7 @@ iso-sd-boot target:
             -v \"\${SQUASHFS_STORAGE}:/vfs-storage\" \
             -v \"\${STORAGE_CONF}:/tmp/st.conf:ro\" \
             localhost/{{target}}-installer \
-            sh -c 'mkdir -p /tmp/cs-runroot /var/tmp && CONTAINERS_STORAGE_CONF=/tmp/st.conf skopeo copy oci-archive:/payload.oci.tar:${PAYLOAD_REF} containers-storage:${PAYLOAD_REF}'
+            sh -c 'mkdir -p /tmp/cs-runroot /var/tmp && CONTAINERS_STORAGE_CONF=/tmp/st.conf skopeo copy --preserve-digests oci-archive:/payload.oci.tar:${PAYLOAD_REF} containers-storage:${PAYLOAD_REF}'
 
         rm -f \"\${PAYLOAD_OCI}\" \"\${STORAGE_CONF}\"
 

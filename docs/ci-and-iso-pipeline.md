@@ -95,8 +95,9 @@ recover after they refresh the GHCR caches.
    initramfs (incl. the `95tromso-isofile` Ventoy dracut module) → final
    stage installs flatpaks (`src/install-flatpaks.sh`) and configures the
    live env (`src/configure-live.sh`).
-2. The recipe squashes the payload image and imports it into VFS container
-   storage inside the squashfs. This process enables the offline installation.
+2. The recipe squashes the candidate for the live filesystem and kernel only.
+   It copies the original registry image into VFS storage inside the squashfs
+   for offline installation. Both copies use the same candidate reference.
 3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
@@ -262,10 +263,20 @@ terminal job requires all three reusable workflow results to succeed in the
 same promotion run. Run dependencies and summaries record the candidate and
 results; unrelated scheduled E2E runs are no longer release evidence.
 
-The shared ISO recipe captures `payload_ref` once and explicitly fetches it.
-It uses that candidate for the live filesystem and kernel as well as the
-embedded installer payload. A local name holds the squashed live build input;
-the Containerfile has no independent mutable image default.
+The shared ISO recipe reads `payload_ref` once and fetches that image.
+The live filesystem and kernel use a squashed copy with a local build name.
+The Containerfile has no default base image. The install payload keeps the
+original registry manifest. Skopeo copies it from the registry to an OCI
+archive, then imports it into the embedded VFS store inside the live container.
+Both copies require `--preserve-digests`. The export must read the registry:
+local container storage has unpacked layers and cannot guarantee the original
+compressed bytes on export.
+
+A real tiny-image check used buildah, a local registry, skopeo and podman.
+The registry, OCI archive and embedded store had byte-identical manifests.
+Podman resolved the installed digest reference, and an export from that
+reference kept the image config and rootfs. The squashed live alias had a
+different manifest. This check did not build or boot a full Tromso ISO.
 
 Following Dakota's published-digest release pattern, promotion copies the
 verified digest to `:stable` with `skopeo --preserve-digests` and advances the
