@@ -109,8 +109,9 @@ recover after they refresh the GHCR caches.
    initramfs (incl. the `95tromso-isofile` Ventoy dracut module) → final
    stage installs flatpaks (`src/install-flatpaks.sh`) and configures the
    live env (`src/configure-live.sh`).
-2. The recipe squashes the payload image and imports it into VFS container
-   storage inside the squashfs. This process enables the offline installation.
+2. The recipe selects one immutable manifest for the platform, then squashes it
+   for the live filesystem and kernel only. It embeds the original OCI blobs
+   in compressed form and writes `/etc/bootc-installer/media-input.json` for offline installs.
 3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
@@ -118,6 +119,80 @@ The live session automatically logs in to Plasma as `liveuser`. It starts
 link at `/usr/local/bin/fisherman` points to fisherman. It uses the shared
 `org.tunaos.Installer.install` polkit action. See INSTALLER-FRONTENDS.md in the
 organization workspace.
+
+#### Immutable installation media
+
+The shared ISO recipe reads `payload_ref` once. Before the build,
+`scripts/resolve-payload-ref.sh` resolves a tag or index to its immutable
+linux/amd64 platform manifest. The live filesystem and kernel use a squashed
+copy with a local build name.
+
+The install payload keeps the original registry manifest. Skopeo copies it from
+the registry to an OCI archive, then `scripts/embed-oci-payload.sh` copies the
+archive into `/usr/lib/tunaos/payload` in the squashfs. Both copies use
+`--preserve-digests`; the producer refuses a manifest different from the selected
+candidate. It derives the config digest and platform from the transported blobs.
+Local container storage is not an export source: it has unpacked layers and
+cannot guarantee the original compressed bytes.
+
+The producer writes the v1 media contract with the immutable image, manifest,
+config, platform and day-2 update ref. It updates both frontend catalogs and
+the shipped recipe to request that exact image. Plain and LUKS E2E callers read
+the same shipped contract; neither chooses a network fallback. The day-2 ref
+comes from the configured recipe, not from the local name for the live image.
+
+The live `/usr` is a writable overlay. The contract instead names
+`/run/rootfsbase/usr/lib/tunaos/payload`, under the read-only bind that dracut
+retains for the squashfs. See the [dmsquash-live implementation](https://github.com/dracut-ng/dracut/blob/main/modules.d/70dmsquash-live/dmsquash-live-root.sh).
+The producer omits the duplicate VFS payload and additional-image-store declaration.
+Fisherman runs the install container from the OCI layout and bind-mounts the
+same layout read-only for bootc.
+
+#### Released consumer contract and bounded check
+
+The [Flatpak index for TunaOS](https://tunaos.org/flatpak/index/static) published
+`org.tunaos.InstallerKde/x86_64/master` at OCI digest
+`sha256:4176c2bb0ce0cd8b352281443c1d0f3a390b3c5a5050750675a662bb574d3edd`.
+Its embedded `files/manifest.json` records fisherman
+`230f6ec856bf70f40faf76dc1c9e7327cf1a7a2f`, also the submodule in
+[bootc-installer release v2026.10.31-23e47c51](https://github.com/tuna-os/bootc-installer/releases/tag/v2026.10.31-23e47c51).
+
+That revision's [binding](https://github.com/tuna-os/fisherman/blob/230f6ec856bf70f40faf76dc1c9e7327cf1a7a2f/fisherman/cmd/fisherman/host_recipe.go)
+makes media input mandatory on live ISOs and checks image/target agreement.
+Its [preflight](https://github.com/tuna-os/fisherman/blob/230f6ec856bf70f40faf76dc1c9e7327cf1a7a2f/fisherman/internal/install/bound_media_linux.go)
+needs a canonical, symlink-free path on a filesystem with a read-only mount.
+It hashes the manifest/config/layers, and checks sizes and the host platform.
+Its limits are 1,024 layers, 8 MiB of metadata and 10 GiB of unique blob bytes.
+
+The optional catalog and qualification fields are opaque identifiers, not
+certificates; the producer does not invent them. This media contract does not
+replace hosted ISO, plain and LUKS release checks.
+
+`tests/pytest/test_media_input.py` copies a real OCI image through an archive
+and the production embed helper. It checks byte identity, catalog and
+update references, and rejects mutable or mismatched candidates. Run the full
+affected modules with skopeo and jq installed:
+
+```bash
+python3 -m pytest tests/pytest/test_media_input.py \
+  tests/pytest/test_iso_invariants.py tests/pytest/test_luks_unlock.py
+```
+
+A bounded consumer check must use the published fisherman binary or its exact
+source revision, with the transported layout on a real read-only mount. Use
+`sudo unshare --mount --propagation private` for isolation, mount the prepared
+root at `/run/rootfsbase` read-only, and expose its media input under a private
+`/etc/bootc-installer`. Run the actual install entry point with an intentionally
+invalid recipe to stop after source verification, before disk operations.
+With valid media, the check must reach validation of the recipe.
+Writable, missing or corrupt blobs, symlinks, mismatched image/target/digest
+and platform must fail source preflight.
+`fisherman validate` alone does not exercise media-source verification in the
+released revision.
+
+This check does not prove that the full ISO can boot or qualify a release.
+Full ISO/QEMU installation still needs the hosted gates and suitable disk/KVM
+capacity.
 
 ### LUKS end-to-end test (`test-luks-install.yml`)
 
@@ -130,9 +205,9 @@ just luks-test-qemu tromso          # boot → fisherman LUKS install → reboot
 
 `tromso/src/luks-unlock.py` drives the QEMU monitor. It checks screen dumps
 until Plymouth appears, types the passphrase with `sendkey`, and verifies the
-installed system boot. The workflow publishes screenshots to the
-`ci-screenshots` branch and PR comments. They show the live desktop, Plymouth
-prompt, and installed desktop.
+installed system boot. Screenshots and serial logs remain in Actions artifacts.
+The install jobs use read-only tokens and do not write screenshot branches
+or PR comments.
 
 ## Source updates
 
@@ -210,7 +285,7 @@ design gives one shared CAS and one final signer.
 
 Post-merge: salvage-enabled nightly world build → ISO boot gate
 (ready-marker + screenshot artifact) → weekly LUKS install e2e
-(screenshots on the `ci-screenshots` branch + PR comments). A cloud
+(screenshots and serial logs in Actions artifacts). A cloud
 routine ("tromso + xfce-linux CI babysitter", every 3 h) diagnoses
 completed failures from logs and pushes fixes.
 
@@ -246,6 +321,13 @@ the two tests. The run number selects the test. Set the repository variable
 `E2E_ROUND_ROBIN_SIZE` to 2 to run both. A change to the install script or
 workflow of one test always runs that test. The two tests run fully on their
 weekly schedules and on manual dispatch.
+
+Both install tests run PR-supplied recipes with read-only repository tokens
+(tromso#270). Checkout does not persist credentials. They do not log
+in to GHCR: the payload image is public. Screenshots, serial logs, and job
+summaries remain available in Actions. No privileged job reports results,
+and no write boundary connects the untrusted artifacts to the repository.
+Any future change to reports needs its own review and behavioral security tests.
 
 ## Rollback
 
