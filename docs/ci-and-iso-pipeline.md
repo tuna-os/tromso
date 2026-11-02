@@ -107,13 +107,13 @@ organization workspace.
 
 Publication fails closed: the local candidate must pass the UEFI ready-token
 assertion before any R2 upload. All four dated objects (ISO, checksum, signature,
-certificate) must upload before latest aliases are updated. Dated names include
-the checked-out source SHA, workflow run ID and attempt; `rclone --immutable`
-rejects replacement. Checkout uses an immutable action pin and does not
-persist credentials. Existing signing identity and R2 secret names are unchanged.
-The latest checksum is published too, with the ISO alias updated last. R2 has
-no transaction across these aliases: a failed promotion can leave mixed sidecars,
-but fails the workflow; dated objects remain the consistent download set.
+certificate) must upload before the workflow updates latest aliases.
+Dated names include the checked-out source SHA, the workflow run ID, and the run attempt;
+`rclone --immutable` rejects replacement. Checkout uses an immutable action pin and does not
+persist credentials. The signer identity and R2 secret names remain unchanged.
+The workflow also publishes the latest checksum and updates the ISO alias last.
+R2 has no transaction across these aliases: a failed promotion can leave mixed sidecars,
+but fails the workflow. Dated objects remain the consistent download set.
 
 ### LUKS end-to-end test (`test-luks-install.yml`)
 
