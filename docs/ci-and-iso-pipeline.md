@@ -10,7 +10,7 @@ patterns originate in projectbluefin/dakota and dakota-iso.)
 elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/tromso:latest
                         │ (workflow_run)
                         ▼
-              Build and Publish Tromsø Live ISO  ──►  R2: tromso/tromso-live-*.iso
+              Build local ISO → sign → UEFI boot gate → R2 dated objects → latest aliases
                         │
                         ▼ (boot gate: TROMSO_LIVE_READY on serial + screenshot)
               LUKS Install End-to-End Test (PR round-robin / weekly / dispatch)
@@ -24,6 +24,13 @@ BuildStream desktop repository uses this workflow, with different image names,
 targets, and chunk counts. The local `build_final` job (step 4) uses cosign
 without a key. This process puts the identity of this workflow in the Fulcio
 certificate. The verification instructions in README.md use that identity.
+
+Image publication uses the digest from `podman push --digestfile`.
+Local image digests can differ after compression during the push.
+Candidate and channel publications both run Trivy on the pushed digest.
+If the scan or SARIF upload fails, the job fails.
+The scan reports vulnerabilities but does not need a clean report to pass.
+A successful build alone does not prove a clean security report.
 
 Free GitHub runners can't hold the whole KDE build, so it's split:
 
@@ -42,6 +49,24 @@ Free GitHub runners can't hold the whole KDE build, so it's split:
    (`bootc container lint`), pushes `latest` + date + sha tags (main only).
 
 BuildStream settings CI uses live in the checked-in `buildstream-ci.conf`.
+
+Sources use a separate Actions cache at `~/.cache/buildstream/sources`.
+`just bst` mounts this HOME directory. Keys include architecture and the
+element/configuration inputs. A restore prefix lets CI reuse sources.
+Archives of the CAS do not include sources.
+
+`cache.quota: 60G` limits the active CAS. This reserves space for sources,
+build sandboxes and OCI export. An old archive can exceed disk capacity
+before BuildStream can prune it.
+
+Builds from all branches use the same concurrency group. This group does not
+cancel an active build. Branches write the same CAS tags, so concurrent builds could
+replace newer cache progress with an older snapshot.
+
+For branch qualification, dispatch the image workflow with `push_image=false`
+and `publish_candidate=true`. It publishes only `ghcr.io/tuna-os/tromso:<sha>`,
+never a channel alias. Pass that exact ref to the `payload_ref` input of the
+plain, LUKS and ISO workflows. For a branch ISO, set `skip_upload=true`.
 
 #### Remote execution (tromso#311)
 
@@ -90,20 +115,43 @@ recover after they refresh the GHCR caches.
 
 `just iso-sd-boot tromso` (see `iso.justfile`, imported from `Justfile`):
 
-1. `just container tromso` — 3-stage `tromso/Containerfile`:
-   ghcr payload (kernel modules) → Debian stage builds a dmsquash-live
-   initramfs (incl. the `95tromso-isofile` Ventoy dracut module) → final
-   stage installs flatpaks (`src/install-flatpaks.sh`) and configures the
-   live env (`src/configure-live.sh`).
-2. The recipe squashes the payload image and imports it into VFS container
-   storage inside the squashfs. This process enables the offline installation.
-3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
+1. Resolve the source to a registry digest. `scripts/prepare-payload.sh`
+   follows Dakota's composefs preparation: add the root mount policy, squash
+   to one layer, and set `ostree.final-diffid` in both label and annotation.
+   The helper checks this metadata before it publishes a local cache tag.
+   The tag includes the source digest and preparation version.
+2. `just container tromso` uses this prepared image for the live base.
+   The Debian stage builds a dmsquash-live initramfs. The final stage adds
+   Flatpaks and the configuration for the live session.
+3. `scripts/embed-oci-payload.sh` exports that same prepared image to the
+   gzip OCI layout at `/usr/lib/tunaos/payload`. It writes
+   `/etc/bootc-installer/media-input.json` from the actual manifest and config.
+   Fisherman verifies the layout before disk writes. No VFS graphroot or
+   network fallback is used. The catalog and ref for updates match the payload.
+4. `usr-lib-tunaos-payload.mount` binds the layout read-only. The live overlay
+   alone is writable to `statfs`, even with squashfs beneath it.
+   The ready marker needs this mount. If the mount fails, publication stops.
+5. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
 `org.tunaos.InstallerKde` from the OCI flatpak remote for tuna-os. A symbolic
 link at `/usr/local/bin/fisherman` points to fisherman. It uses the shared
 `org.tunaos.Installer.install` polkit action. See INSTALLER-FRONTENDS.md in the
 organization workspace.
+
+Publication fails closed. The candidate must pass the UEFI ready-token assertion
+and capture a stable, non-dark frame before any upload to R2. The workflow
+uploads an ISO, checksum and Sigstore bundle under dated names. Only then
+does it update the latest aliases.
+
+Dated names include the run ID and `run_attempt`. `rclone --immutable` rejects
+replacement. The workflow publishes the latest checksum and updates the ISO
+alias last. R2 has no transaction across these aliases. A promotion failure can
+leave mixed sidecars, but the workflow fails. The dated objects remain consistent.
+
+The headless checks use `virtio-vga`, as the VNC recipes do. This selects the
+same GPU for live and installed boots. We do not override the renderer or hide
+graphics errors. Fonts still need evidence from the actual candidate.
 
 ### LUKS end-to-end test (`test-luks-install.yml`)
 
@@ -136,8 +184,22 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-02 | Plain in 41447171165 completes installation but fails its five-minute boot wait | The VM reaches a getty prompt; serial output contains no display-manager start message, which the plain predicate required | Reuse the boot parser with a generic getty marker and require the strict graphical wait; emergency, timeout, or graphical failure must still fail |
+| 2026-11-02 | Five chunks in candidate 41390175592 lose their archives after the soft budget; final assembly is skipped | The host `just` process exits but BuildStream still writes to CAS, so `tar` reports `file changed as we read it` and exits 1 | Pin bst-ci `200ad7c`, which stops the builders before archive creation; preserve `pipefail` rather than suppress the archive failure |
+| 2026-11-02 | Candidate 41390175592 cannot fetch `pam-wrapper.bst` from `git.samba.org` | The runner reports an unreachable network after 120 seconds; `--on-error continue` then spends its remaining budget elsewhere | Use cwrap's GitLab repository with the same `pam_wrapper-1.1.8` commit; actual pinned-container source fetch succeeds with one processed source and zero failures, preserving the artifact key |
+| 2026-11-02 | Both installs in 41395843658 fail with `Unexpected EOF in splitstream` after media verification | [INFERENCE] Dropped source-only composefs preparation left the original layers; the precise EOF mechanism is not yet proven | Restore Dakota's squash, root policy and final-diffid contract before both live customization and OCI export; rerun 41447171165 completes both installs and LUKS unlocks to the installed login screen |
+| 2026-11-02 | ISO 41395837392 reports ready after 25 seconds but its screenshot is black | The serial marker precedes a rendered session; the capture occurred immediately | Use the existing graphical wait before capture; fail on dark/unstable timeout or screenshot-copy error instead of returning success |
+| 2026-11-02 | Shipped bootc installation policy has no effect | `00-tromso.conf` is not the `.toml` file bootc reads; its bare `btrfs` value is invalid TOML | Ship `00-tromso.toml` with quoted filesystem and explicit root mount policy; actual element commands emitted a parseable policy |
+| 2026-11-02 | Python producer test and both debug ISO jobs fail in 41392502489 | Ubuntu 24.04 supplies skopeo 1.13.3, without `--dest-force-compress-format`; initial host smoke used a newer binary | Use OCI destination `--dest-compress-format gzip` only; all 269 tests pass with Ubuntu's binary, final 15 ISO tests pass, and actual Fedora copy verifies gzip bytes and all descriptors without warnings |
+| 2026-11-02 | ISO 41390885095 fails payload preflight | Digest pin retained the tag (`:latest@sha256:…`), which skopeo rejects | Construct the canonical ref from inspect `.Name + "@" + .Digest`; real GHCR tag and digest inspection both succeed with identical digest |
+| 2026-11-02 | Main build 41281483906 fails in WebKit CMake | Unset link target expands into malformed condition | Integrate existing #427 backport rather than bypass WebKit |
+| 2026-11-02 | ISO 41244306172 fails signing before boot check | cosign requires a bundle; detached signature/certificate flags no longer provide the output contract | Publish and document `.bundle`; retain the existing #411 boot-before-publication gate |
+| 2026-11-02 | Plain and LUKS in 41257942781 reach live Plasma, then refuse installation | New fisherman requires immutable `media-input.json`; legacy VFS-only media has none | Embed one OCI layout, generate metadata from actual output, bind empty-image E2E recipes to that source, and pin live/payload digests together |
+| 2026-11-02 | Repeated source downloads and growing historical CAS | Sources cached outside the HOME directory mounted by `just bst`; sources duplicated in CAS archives; no explicit CAS quota | Pin bst-ci source-cache correction, restore the same HOME source cache in final assembly, retain sources until save, set 60G quota |
 | 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
 | 2026-10-24 | Four workflows inherited repository token defaults (#321) | Job-level permissions did not constrain other jobs | Add top-level `contents: read`; retain job overrides and require explicit workflow permissions in the invariant tests |
+| 2026-10-24 | Main publish stops in WebKitGTK CMake configuration (run 40064106136, #392) | WebKit 2.53.1 expands unset `_linked_into` into missing `if()` arguments in `_WEBKIT_TARGET_LINK_FRAMEWORK` | Backport the exact condition from WebKitGTK 2.54.1 used by gnome-build-meta; keep variable names unexpanded so CMake handles the unset value |
+| 2026-10-24 | Unverified ISO could replace public latest (#334) | Upload preceded boot verification and ignored R2 failures | Boot gate precedes publication; immutable dated set completes before latest aliases; upload failures fail the job |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |
 | 2026-07-19 | `just iso-sd-boot tromso` in build-iso.yml never worked | recipe + `tromso/Containerfile` + dracut module never existed in this repo | ported from xfce-linux/dakota-iso (PR #74) |
 | 2026-07-19 | `tromso/Containerfile` missing from git after commit | `.gitignore` had unanchored `Containerfile` rule | anchored to `/Containerfile` |
@@ -156,6 +218,89 @@ prompt, and installed desktop.
 
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
+
+Local checks: 278 pytest tests passed, with one pre-existing expected failure.
+Seven subtests also passed.
+All 19 BATS tests passed. `actionlint` and `just --summary` passed.
+ShellCheck passed at the error severity that CI uses. YAML checks reported only
+warnings about line length.
+
+We used the actual producer for OCI media to copy `fedora-minimal:44`.
+It verified every blob digest and size. We executed the install commands for
+the identity assets. We also signed and verified a Sigstore bundle with a local key.
+
+We also prepared the actual published Tromsø image with native Podman.
+We combined six layers into one. Both the label and annotation matched its diff ID.
+A second call reused the cache without build output.
+
+Native Skopeo exported it as one gzip layer. We verified every blob digest and size,
+preserved metadata, and the root policy inside the archive. This does not
+prove that bootc can install or boot it.
+
+Permanent tests use `skopeo` with a valid OCI fixture. They verify the gzip
+layer and all digests, and reject an absent source. These checks do not prove a
+Tromsø boot or installed desktop. They do not verify signatures from GitHub OIDC.
+The candidate workflows must supply the full build and KVM install evidence.
+
+Trivy 0.70.0 scanned the older published payload at digest `2b89f634`.
+It fetched the current database and completed in 160 seconds.
+The SARIF report has 437 findings across 78 unique IDs and 17 locations.
+We have not assessed whether each report applies.
+This is not a clean security result or a scan of the current candidate.
+
+We exercised the read-only self-bind in a private mount namespace.
+Reads succeeded and writes failed with EROFS. `systemd-analyze verify` accepted
+the actual mount unit. This is host mount evidence, not a guest boot claim.
+
+Runtime evidence from `4e30385`: [production ISO run](https://github.com/tuna-os/tromso/actions/runs/41395837392)
+passed its UEFI serial gate. That is not proof of a healthy desktop.
+The downloaded production screenshot is black. The
+[debug live screenshot](https://raw.githubusercontent.com/tuna-os/tromso/ci-screenshots/luks-e2e/41395843658/stable/live-boot.png)
+shows the installer, but also missing glyphs and a black desktop.
+It uses the older published payload, not the new candidate.
+
+[Both install tests](https://github.com/tuna-os/tromso/actions/runs/41395843658)
+accepted the immutable media and reached bootc, then failed with a splitstream
+EOF. The other jobs in that Test run passed.
+
+The [prepared-payload rerun](https://github.com/tuna-os/tromso/actions/runs/41447171165)
+completed both installs. LUKS accepted the passphrase and reached a login screen.
+Its [actual frame](https://raw.githubusercontent.com/tuna-os/tromso/ci-screenshots/luks-e2e/41447171165/stable/final-boot.png)
+shows boxes in place of letters and the old theme, not the new identity.
+
+Plain reached a login prompt, but its gate waited for a display-manager message
+absent from serial output. The new gate recognizes getty but still needs a stable
+frame. The [rerun](https://github.com/tuna-os/tromso/actions/runs/41454608790)
+succeeded in every job of the Test workflow.
+
+Its [plain frame](https://raw.githubusercontent.com/tuna-os/tromso/ci-screenshots/plain-e2e/41454608790/stable/final-boot.png)
+and [encrypted frame](https://raw.githubusercontent.com/tuna-os/tromso/ci-screenshots/luks-e2e/41454608790/stable/final-boot.png)
+show the installed login screen. The text has boxes in place of letters.
+Both frames use the old theme. These are from the old published payload,
+not the current candidate.
+
+The [corrected ISO](https://github.com/tuna-os/tromso/actions/runs/41447164858)
+booted through UEFI and waited for a stable GUI. Its actual
+[screenshot](https://github.com/tuna-os/tromso/actions/runs/41447164858/artifacts/13144831230)
+shows a readable installer. KDE titles and the panel use boxes in place of
+letters. The desktop is black, with a red error icon. This frame uses the older
+published payload, not the new candidate.
+
+The [`virtio-vga` ISO run](https://github.com/tuna-os/tromso/actions/runs/41462038652)
+also booted through UEFI. It reached the ready token after 30 seconds and then
+waited for a stable frame. We downloaded and read its
+[actual screenshot](https://github.com/tuna-os/tromso/actions/runs/41462038652/artifacts/13153670942).
+The same KDE text and desktop defects remain.
+
+The [Test run](https://github.com/tuna-os/tromso/actions/runs/41462097232) passed
+every job, with real plain and LUKS installs. We also read both installed frames.
+They still show the old login screen and boxes in place of letters.
+Both runs use the older payload at digest `2b89f634`, not the current
+candidate. The GPU change does not prove a fix for fonts or the new identity.
+
+The shared prose tool at `7c070815` now reports zero findings in its full scan.
+We corrected the 494 inherited findings across eight files. We did not add
+opt-outs or increase the budget, which remains zero.
 
 ## Channels: nightly (main) and stable
 
@@ -183,7 +328,7 @@ branch. Do not set `track:` to one exact tag, because the tracker cannot move it
 ## Guard rails (what stops a bad commit)
 
 Branch protection on main needs pre-merge checks. These checks include
-shellcheck, yamllint, actionlint, BATS, pytest, the 52-test luks-unlock suite,
+shellcheck, yamllint, actionlint, BATS, pytest, the luks-unlock suite,
 and `test_iso_invariants.py`. Each invariant represents a class of defect that
 reached a release. The BuildStream graph gate runs `bst show --deps all` on the
 release target with resolved junctions.
@@ -226,11 +371,16 @@ skipped job reports success, so each required check always reports. If the
 
 The plain and LUKS install tests build the same ISO and use different install
 paths. A change to their shared inputs (`tromso/`, the justfiles,
-`scripts/lib-install-qemu.sh`, `scripts/fisherman-install.sh`) runs one of
+`scripts/lib-install-qemu.sh`, `scripts/embed-oci-payload.sh`,
+`scripts/prepare-payload.sh`) runs one of
 the two tests. The run number selects the test. Set the repository variable
 `E2E_ROUND_ROBIN_SIZE` to 2 to run both. A change to the install script or
 workflow of one test always runs that test. The two tests run fully on their
 weekly schedules and on manual dispatch.
+
+The tests execute the installer from the ISO. They do not replace that binary
+or repair the hostname or LUKS arguments after installation. Only console
+arguments change so the test can observe the installed boot on serial.
 
 ## Rollback
 

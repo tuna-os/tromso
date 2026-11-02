@@ -2,6 +2,8 @@ sources:
 - kind: tar
   url: webkitgtk:webkitgtk-2.53.1.tar.xz
   ref: bf4b4f66b45f53b267aceb35e750653de97bc907419b5ad77fca62cff3a37a09
+- kind: patch
+  path: patches/webkitgtk/fix-empty-linked-into.patch
 build-depends:
 - sdk-deps/unifdef.bst
 - sdk/gi-docgen.bst

@@ -3,10 +3,10 @@
   "fallback_flatpaks": [],
   "images": [
     {
-      "name": "Tromso KDE Linux",
+      "name": "TunaOS Tromsø",
       "imgref": "ghcr.io/tuna-os/tromso:latest",
-      "desc": "Tromso KDE Linux — KDE Plasma desktop on freedesktop-sdk",
-      "icon": "resource:///org/bootcinstaller/Installer/images/tromso.png",
+      "desc": "TunaOS Tromsø — KDE Plasma desktop on freedesktop-sdk",
+      "icon": "/run/host/usr/share/icons/hicolor/scalable/apps/tromso-logo.svg",
       "bootloader": "systemd",
       "filesystem": "btrfs",
       "composefs": true,

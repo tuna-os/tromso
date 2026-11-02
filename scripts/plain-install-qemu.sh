@@ -7,15 +7,14 @@
 
 set -euo pipefail
 
-if [[ $# -lt 4 ]]; then
-	echo "Usage: $0 <target> <ssh_port> <monitor_live_socket> <fisher_repo>" >&2
+if [[ $# -lt 3 ]]; then
+	echo "Usage: $0 <target> <ssh_port> <monitor_live_socket>" >&2
 	exit 1
 fi
 
 TARGET="$1"
 SSH_PORT="$2"
 MONITOR_LIVE="$3"
-FISHER_REPO="$4"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=scripts/lib-install-qemu.sh
@@ -26,12 +25,10 @@ install_qemu_init
 RECIPE_TMP=$(mktemp /tmp/plain-recipe-XXXXXX.json)
 trap 'rm -f "${RECIPE_TMP}"' EXIT
 
-COMPOSEFS_JSON=$(printf '{\n  "disk": "%s",\n  "filesystem": "%s",\n  "image": "%s",\n  "composeFsBackend": true,\n  "bootloader": "%s",\n  "hostname": "tromso-plain-test",\n  "encryption": {"type": "none"},\n  "flatpaks": []\n}\n' \
-	"${DISK}" "${FILESYSTEM}" "${INSTALL_IMAGE}" "${BOOTLOADER}")
-BOOTCDIRECT_JSON=$(printf '{\n  "disk": "%s",\n  "filesystem": "%s",\n  "image": "",\n  "targetImgref": "%s",\n  "composeFsBackend": false,\n  "bootloader": "%s",\n  "hostname": "tromso-plain-test",\n  "encryption": {"type": "none"},\n  "flatpaks": []\n}\n' \
+COMPOSEFS_JSON=$(printf '{\n  "disk": "%s",\n  "filesystem": "%s",\n  "image": "",\n  "targetImgref": "%s",\n  "composeFsBackend": true,\n  "bootloader": "%s",\n  "hostname": "tromso-plain-test",\n  "encryption": {"type": "none"},\n  "flatpaks": []\n}\n' \
 	"${DISK}" "${FILESYSTEM}" "${PAYLOAD_IMAGE}" "${BOOTLOADER}")
 
-install_qemu_run_fisherman "${RECIPE_TMP}" "plain-recipe.json" "${COMPOSEFS_JSON}" "${BOOTCDIRECT_JSON}"
+install_qemu_run_fisherman "${RECIPE_TMP}" "plain-recipe.json" "${COMPOSEFS_JSON}"
 
 echo "Patching BLS entries to enable dual serial+VT console..."
 $SSH 'sudo bash -c "

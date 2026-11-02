@@ -1,8 +1,8 @@
 #!/bin/sh
 # Locate an tromso live ISO file on Ventoy/USB partitions and expose it as
-# /dev/disk/by-label/XFCE_LINUX_LIVE so the standard dmsquash-live CDLABEL path works.
+# /dev/disk/by-label/TROMSO_LIVE so the standard dmsquash-live CDLABEL path works.
 
-LABEL="XFCE_LINUX_LIVE"
+LABEL="TROMSO_LIVE"
 RUN_DIR="/run/initramfs/tromso-isofile"
 FOUND_MARKER="${RUN_DIR}/found"
 

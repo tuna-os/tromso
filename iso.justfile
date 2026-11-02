@@ -40,32 +40,19 @@ build-bg target:
     echo "Build PID $! — tailing log (Ctrl-C is safe, build continues)"
     tail -f "${LOG}"
 
-container target:
+container target base_image="":
     #!/usr/bin/bash
     set -euo pipefail
-    # Pre-squash base image to avoid disk explosion during multi-layer pulls
-    BASE_IMAGE=$(grep '^ARG BASE_IMAGE=' ./{{target}}/Containerfile | cut -d= -f2)
-    # Pre-flight: the payload base image must exist in its registry. A
-    # missing payload (e.g. nightly 'Build Tromso' failing) used to surface
-    # deep inside the pull as a generic 'manifest unknown' that read like an
-    # install failure — tromso#208. Fail loudly and clearly instead.
-    if command -v skopeo >/dev/null 2>&1; then
-        if ! sudo skopeo inspect "docker://${BASE_IMAGE}" >/dev/null 2>&1; then
-            echo "::error::Payload image ${BASE_IMAGE} is missing or not pullable."
-            echo "::error::It is published by the nightly 'Build Tromso (Multi-Runner)' workflow — if that has been failing, the payload must be republished before ISO builds can run (see tromso#208)."
-            exit 1
-        fi
-        echo "Payload image ${BASE_IMAGE} verified"
+    PAYLOAD_REF=$(tr -d '[:space:]' < "{{target}}/payload_ref")
+    BASE_IMAGE="{{base_image}}"
+    if [[ -z "$BASE_IMAGE" ]]; then
+        PAYLOAD_PINNED=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Name + "@" + .Digest')
+        BASE_IMAGE=$(sudo bash scripts/prepare-payload.sh "$PAYLOAD_PINNED" "{{target}}")
     fi
-    echo "Squashing base image: ${BASE_IMAGE}"
-    SQUASH_CTR=$(sudo buildah from --pull-never "${BASE_IMAGE}" 2>/dev/null || sudo buildah from "${BASE_IMAGE}")
-    sudo buildah commit --squash "${SQUASH_CTR}" oci-archive:/tmp/squashed-base.oci:"${BASE_IMAGE}"
-    sudo podman load -i /tmp/squashed-base.oci
-    rm -f /tmp/squashed-base.oci
 
     sudo podman build --cap-add sys_admin --security-opt label=disable \
         --layers \
-        --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+        --build-arg BASE_IMAGE="$BASE_IMAGE" \
         --build-arg DEBUG={{debug}} \
         --build-arg INSTALLER_CHANNEL={{installer_channel}} \
         -t {{target}}-installer ./{{target}}
@@ -86,10 +73,10 @@ iso-sd-boot target:
     #!/usr/bin/bash
     set -euo pipefail
 
-    # Read payload ref from file (defaults to localhost/<target>:latest if missing)
-    PAYLOAD_REF="$(cat '{{target}}/payload_ref' 2>/dev/null | tr -d '[:space:]' || echo "localhost/{{target}}:latest")"
-
-    just debug={{debug}} installer_channel={{installer_channel}} container {{target}}
+    PAYLOAD_REF=$(tr -d '[:space:]' < "{{target}}/payload_ref")
+    PAYLOAD_PINNED=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Name + "@" + .Digest')
+    PAYLOAD_PREPARED=$(sudo bash scripts/prepare-payload.sh "$PAYLOAD_PINNED" "{{target}}")
+    just debug={{debug}} installer_channel={{installer_channel}} container {{target}} "$PAYLOAD_PREPARED"
     mkdir -p {{output_dir}}
     OUTPUT_DIR=$(realpath "{{output_dir}}")
 
@@ -103,54 +90,32 @@ iso-sd-boot target:
 
     SQUASHFS="${OUTPUT_DIR}/{{target}}-rootfs.sfs"
     BOOT_TAR="${OUTPUT_DIR}/{{target}}-boot-files.tar"
-    CS_STAGING="${OUTPUT_DIR}/{{target}}-cs-staging"
     SQUASHFS_ROOT="${OUTPUT_DIR}/{{target}}-sfs-root"
-    trap "rm -f '${SQUASHFS}' '${BOOT_TAR}' '${OUTPUT_DIR}/{{target}}-payload.oci.tar'; _ns_rm '${CS_STAGING}' '${SQUASHFS_ROOT}' 2>/dev/null || true" EXIT
+    trap "rm -f '${SQUASHFS}' '${BOOT_TAR}'; _ns_rm '${SQUASHFS_ROOT}' 2>/dev/null || true" EXIT
     echo "Building squashfs and boot tar from localhost/{{target}}-installer..."
     _ns "
         set -euo pipefail
         MOUNT=\$(podman image mount localhost/{{target}}-installer)
         PATH=/usr/sbin:/usr/bin:/home/linuxbrew/.linuxbrew/bin:\$PATH
 
-        PAYLOAD_OCI='${OUTPUT_DIR}/{{target}}-payload.oci.tar'
-        CS_STAGING='${CS_STAGING}'
         SQUASHFS_ROOT='${SQUASHFS_ROOT}'
-        SQUASHFS_STORAGE=\"\${CS_STAGING}/var/lib/containers/storage\"
-        STORAGE_CONF=\"\$(mktemp '${OUTPUT_DIR}'/live-storage-XXXXXX.conf)\"
-        mkdir -p \"\${SQUASHFS_STORAGE}\"
-        printf '[storage]\ndriver = \"vfs\"\nrunroot = \"/tmp/cs-runroot\"\ngraphroot = \"/vfs-storage\"\n' \
-            > \"\${STORAGE_CONF}\"
-
-        echo 'Squashing tromso image layers to reduce disk footprint...'
-        SQUASH_CTR=\$(buildah from --pull-never \"${PAYLOAD_REF}\")
-        buildah commit --squash \"\${SQUASH_CTR}\" oci-archive:\${PAYLOAD_OCI}:${PAYLOAD_REF}
-
-        echo 'Importing tromso OCI image into squashfs containers-storage...'
-        podman run --rm \
-            --privileged \
-            -v \"\${PAYLOAD_OCI}:/payload.oci.tar:ro\" \
-            -v \"\${SQUASHFS_STORAGE}:/vfs-storage\" \
-            -v \"\${STORAGE_CONF}:/tmp/st.conf:ro\" \
-            localhost/{{target}}-installer \
-            sh -c 'mkdir -p /tmp/cs-runroot /var/tmp && CONTAINERS_STORAGE_CONF=/tmp/st.conf skopeo copy oci-archive:/payload.oci.tar:${PAYLOAD_REF} containers-storage:${PAYLOAD_REF}'
-
-        rm -f \"\${PAYLOAD_OCI}\" \"\${STORAGE_CONF}\"
-
         echo 'Building unified squashfs source tree...'
         mkdir -p \"\${SQUASHFS_ROOT}\"
         cp -a --reflink=auto \"\${MOUNT}/.\" \"\${SQUASHFS_ROOT}/\" 2>/dev/null || \
             cp -a \"\${MOUNT}/.\" \"\${SQUASHFS_ROOT}/\"
-        mkdir -p \"\${SQUASHFS_ROOT}/var/lib/containers/storage\"
-        cp -a \"\${CS_STAGING}/var/lib/containers/storage/.\" \
-            \"\${SQUASHFS_ROOT}/var/lib/containers/storage/\"
-        rm -rf \"\${CS_STAGING}\"
+        # Reuse the source-only flattened base prepared above. Composefs
+        # payloads must be squashed (Dakota payload-oci.sh); exporting the
+        # original layer stack bypasses that required preparation.
+        # Never also embed a VFS graphroot: media-input names this OCI layout.
+        bash scripts/embed-oci-payload.sh 'containers-storage:${PAYLOAD_PREPARED}' '${PAYLOAD_REF}' \"\${SQUASHFS_ROOT}\"
+        mkdir -p \"\${SQUASHFS_ROOT}/proc\" \"\${SQUASHFS_ROOT}/sys\" \"\${SQUASHFS_ROOT}/dev\"
 
         SFS_LEVEL=3; SFS_BLOCK=131072
         [[ '{{compression}}' == 'release' ]] && { SFS_LEVEL=15; SFS_BLOCK=1048576; }
         mksquashfs \"\${SQUASHFS_ROOT}\" '${SQUASHFS}' \
             -noappend -comp zstd -Xcompression-level \${SFS_LEVEL} -b \${SFS_BLOCK} \
             -processors 4 \
-            -e proc -e sys -e dev -e run -e tmp
+            -wildcards -e 'proc/*' -e 'sys/*' -e 'dev/*' -e 'run/*' -e 'tmp/*'
 
         rm -rf \"\${SQUASHFS_ROOT}\"
 
@@ -222,6 +187,7 @@ boot-iso-serial target:
         -device scsi-cd,drive=live-disk \
         -net nic,model=virtio -net user,hostfwd=tcp::2222-:22 \
         -serial mon:stdio \
+        -device virtio-vga \
         -display none \
         -no-reboot
 
@@ -281,10 +247,6 @@ boot-iso-vnc target:
 #   just luks-install-qemu tromso         # SSH fisherman install
 #   just luks-boot-qemu-installed tromso  # reboot QEMU into installed disk
 #   just luks-unlock-qemu tromso          # send passphrase via QEMU monitor
-
-# Path to a local fisherman checkout for bootcDirect (ostree) installs; unused
-# on the default composefs path.
-fisher_repo := ""
 
 # QEMU memory (MiB) / vCPUs for the e2e test VMs.
 qemu-mem := "8192"
@@ -399,6 +361,7 @@ luks-boot-qemu-live target:
         -device virtio-net-pci,netdev=net0 \
         -monitor "unix:{{luks-qemu-monitor-live}},server,nowait" \
         -serial "file:{{luks-qemu-serial-live}}" \
+        -device virtio-vga \
         -display none \
         -daemonize
     echo "Live QEMU started (monitor: {{luks-qemu-monitor-live}})"
@@ -422,11 +385,11 @@ luks-boot-qemu-live target:
     # Wait for the live boot GUI to render and stabilize before screenshotting
     sudo python3 "{{target}}/src/luks-unlock.py" wait-live \
         "{{luks-qemu-monitor-live}}" \
-        "/tmp/luks-screenshot-live.ppm" || true
+        "/tmp/luks-screenshot-live.ppm"
 
 # Run fisherman LUKS install via SSH into the live QEMU VM.
 luks-install-qemu target:
-    ./scripts/luks-install-qemu.sh "{{target}}" "{{luks-passphrase}}" "{{luks-qemu-ssh-port}}" "{{luks-qemu-monitor-live}}" "{{fisher_repo}}"
+    ./scripts/luks-install-qemu.sh "{{target}}" "{{luks-passphrase}}" "{{luks-qemu-ssh-port}}" "{{luks-qemu-monitor-live}}"
 
 # Boot the installed disk in QEMU (no ISO). Called after luks-install-qemu.
 luks-boot-qemu-installed target:
@@ -484,6 +447,7 @@ luks-boot-qemu-installed target:
         -device virtio-net-pci,netdev=net0 \
         -monitor "unix:{{luks-qemu-monitor-installed}},server,nowait" \
         -serial "file:{{luks-qemu-serial-installed}}" \
+        -device virtio-vga \
         -display none \
         -daemonize
     echo "Installed QEMU started (monitor: {{luks-qemu-monitor-installed}})"
@@ -548,43 +512,13 @@ plain-test-qemu target installer_channel="stable":
 
 # Run fisherman plain (no-encryption) install via SSH into the live QEMU VM.
 plain-install-qemu target:
-    ./scripts/plain-install-qemu.sh "{{target}}" "{{luks-qemu-ssh-port}}" "{{luks-qemu-monitor-live}}" "{{fisher_repo}}"
+    ./scripts/plain-install-qemu.sh "{{target}}" "{{luks-qemu-ssh-port}}" "{{luks-qemu-monitor-live}}"
 
-# Wait for the installed disk to boot to a ready state. No passphrase to
-# handle here (that's the whole point of the plain path) — just watch serial
-# for the same success/failure markers tromso/src/luks-unlock.py's qemu mode
-# checks for, so a regression here surfaces the same way a LUKS one does.
+# Require an installed-OS boot signal and a stable GUI, with no passphrase.
 plain-wait-boot target:
     #!/usr/bin/bash
     set -euo pipefail
-    # The installed-VM serial log is written by a QEMU launched under sudo, so
-    # it is root-owned and unreadable by the CI user: a plain grep/tail would
-    # silently never match (and `tail` would fail on the error path).
-    SERIAL="{{plain-qemu-serial-installed}}"
-    # Read into a variable: `grep -q` closing a pipe early would trip pipefail.
-    serial() { sudo cat "$SERIAL" 2>/dev/null || true; }
-    echo "Waiting for installed system to boot..."
-    for i in $(seq 1 60); do
-        LOG="$(serial)"
-        # Strip ANSI codes and collapse whitespace: systemd status lines can be
-        # split across lines by the serial console (as luks-unlock.py handles).
-        FLAT="$(sed 's/\x1b\[[0-9;]*[A-Za-z]//g' <<<"$LOG" | tr -s '[:space:]' ' ')"
-        if grep -qiE "emergency mode|emergency shell" <<<"$LOG"; then
-            echo "ERROR: installed system dropped to emergency shell"
-            tail -50 <<<"$LOG"
-            exit 1
-        fi
-        # Tromso is a KDE image (SDDM); the GDM/g-i-s markers are kept only
-        # for parity with luks-unlock.py's qemu_check_serial.
-        if grep -qE "Started sddm\.service|Started Simple Desktop Display Manager|Started gdm\.service|Started GNOME Display Manager|Started gnome-initial-setup" <<<"$FLAT"; then
-            echo "Installed system booted successfully"
-            sudo python3 "{{target}}/src/luks-unlock.py" wait-live \
-                "{{plain-qemu-monitor-installed}}" "/tmp/plain-screenshot-final.ppm" || true
-            bash "{{target}}/src/show-screenshot.sh" /tmp/plain-screenshot-final.ppm "Installed boot (plain)" || true
-            exit 0
-        fi
-        sleep 5
-    done
-    echo "ERROR: installed system did not reach a ready state after 5m"
-    serial | tail -50 || true
-    exit 1
+    sudo python3 "{{target}}/src/luks-unlock.py" wait-boot \
+        "{{plain-qemu-monitor-installed}}" "/tmp/plain-screenshot-final.ppm" \
+        "{{plain-qemu-serial-installed}}"
+    bash "{{target}}/src/show-screenshot.sh" /tmp/plain-screenshot-final.ppm "Installed boot (plain)" || true

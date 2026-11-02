@@ -165,14 +165,34 @@ WantedBy=local-fs.target
 UNITEOF
 systemctl enable var-tmp.mount
 
+# The writable live overlay hides the squashfs ST_RDONLY flag. Bind the OCI
+# layout read-only so fisherman's immutable-media preflight sees a real
+# read-only mount, not just root-owned files on an overlay.
+mkdir -p /usr/lib/tunaos/payload
+cat > /usr/lib/systemd/system/usr-lib-tunaos-payload.mount << 'UNITEOF'
+[Unit]
+Description=Immutable offline OCI payload
+Before=display-manager.service live-ready.service
+
+[Mount]
+What=/usr/lib/tunaos/payload
+Where=/usr/lib/tunaos/payload
+Type=none
+Options=bind,ro
+
+[Install]
+RequiredBy=local-fs.target
+UNITEOF
+systemctl enable usr-lib-tunaos-payload.mount
+
 # ── Live-ready marker service ─────────────────────────────────────────────────
 # Prints TROMSO_LIVE_READY to the serial console after display-manager.service
 # (SDDM) starts.  CI boot verification greps for this token in the serial log.
 cat > /usr/lib/systemd/system/live-ready.service << 'LREOF'
 [Unit]
 Description=Live environment ready marker
-After=display-manager.service
-Requires=display-manager.service
+After=display-manager.service usr-lib-tunaos-payload.mount
+Requires=display-manager.service usr-lib-tunaos-payload.mount
 
 [Service]
 Type=oneshot
@@ -194,11 +214,10 @@ cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/bootc-installer/images.jso
 cp "$SCRIPT_DIR/etc/bootc-installer/recipe.json" /etc/bootc-installer/recipe.json
 touch /etc/bootc-installer/live-iso-mode
 
-# tuna-installer frontends read /etc/tuna-installer/ (INSTALLER-FRONTENDS.md):
-# images.json catalog override + offline-stores listing embedded OCI store roots.
+# The frontend catalog is separate from fisherman's host media-input contract.
+# The OCI layout is not a containers-storage additional image store.
 mkdir -p /etc/tuna-installer
 cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/tuna-installer/images.json
-echo '/var/lib/containers/storage' > /etc/tuna-installer/offline-stores
 
 # ── Installer autostart ───────────────────────────────────────────────────────
 # org.tunaos.InstallerKde is installed from the tuna-os remote by
@@ -208,7 +227,7 @@ INSTALLER_APP_ID="org.tunaos.InstallerKde"
 mkdir -p /etc/xdg/autostart
 cat > /etc/xdg/autostart/tuna-installer.desktop << DTEOF
 [Desktop Entry]
-Name=Tromso Installer
+Name=TunaOS Tromsø Installer
 Exec=flatpak run ${INSTALLER_APP_ID}
 Icon=system-software-install
 Type=Application
@@ -219,8 +238,8 @@ DTEOF
 mkdir -p /usr/share/applications
 cat > /usr/share/applications/tromso-installer.desktop << DTEOF
 [Desktop Entry]
-Name=Tromso Installer
-Comment=Install Tromso KDE Linux to your computer
+Name=TunaOS Tromsø Installer
+Comment=Install TunaOS Tromsø to your computer
 Exec=flatpak run ${INSTALLER_APP_ID}
 Icon=system-software-install
 Type=Application
@@ -274,13 +293,6 @@ polkit.addRule(function(action, subject) {
 });
 EOF
 
-# ── VFS containers-storage ────────────────────────────────────────────────────
-cat > /etc/containers/storage.conf << 'STOREOF'
-[storage]
-driver = "vfs"
-runroot = "/run/containers/storage"
-graphroot = "/var/lib/containers/storage"
-STOREOF
 
 # ── Live network defaults ─────────────────────────────────────────────────────
 mkdir -p /usr/lib/tmpfiles.d

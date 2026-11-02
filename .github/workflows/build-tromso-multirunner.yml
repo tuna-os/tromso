@@ -21,6 +21,10 @@ on:
         description: 'Push OCI image to GHCR'
         type: boolean
         default: true
+      publish_candidate:
+        description: 'Publish only the immutable commit tag for branch qualification'
+        type: boolean
+        default: false
       num_chunks:
         description: 'Number of parallel dependency chunks'
         type: string
@@ -42,18 +46,16 @@ env:
   BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # This build regularly takes multiple hours; main gets pushed to several
-  # times a day. cancel-in-progress:true meant every push evicted whatever
-  # build was in flight, so the pipeline effectively never completed (#122).
-  # Queue instead: the next run just picks up the latest HEAD when its turn
-  # comes, rather than restarting from scratch on every intervening push.
+  # All refs write the same rolling CAS packages. Serialize cache writers
+  # across branches so an older snapshot cannot overwrite newer progress.
+  # Never cancel a build that can still save useful artifacts.
+  group: ${{ github.workflow }}-shared-cas
   cancel-in-progress: false
 
 jobs:
   # ── Phase 1-3: Plan, core, parallel dependency chunks ────────────────
   multirunner:
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@3fdfd925dd5b60c0734c56541d5d5181457c11aa # main
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@200ad7cbc96ee0d456ed76a31211cb39681edde3 # source/CAS cache fixes
     permissions:
       contents: read
       packages: write
@@ -156,6 +158,14 @@ jobs:
           path: chunkah
 
       - run: podman pull "$BST2_IMAGE"
+
+      - name: Cache BuildStream sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/buildstream/sources
+          key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('elements/**/*.bst', 'project.conf', 'include/**', 'patches/**') }}
+          restore-keys: |
+            bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Setup Just
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
@@ -260,7 +270,7 @@ jobs:
           du -sh .build-out
           # Removed inside the bst container: its root owns the cache tree.
           podman run --rm -v "${HOME}/.cache/buildstream:/cache:rw" "$BST2_IMAGE" \
-            sh -c 'rm -rf /cache/cas /cache/artifacts /cache/sources'
+            sh -c 'rm -rf /cache/cas /cache/artifacts'
           df -h /
 
       - name: Capture build timestamp
@@ -319,7 +329,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Login to GHCR (podman)
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         run: |
           echo "$GITHUB_TOKEN" | \
             sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
@@ -328,11 +338,13 @@ jobs:
 
       - name: Push to GHCR
         id: push
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         run: |
           DATE_TAG=$(date -u +%Y%m%d)
           # Channels: main = nightly trunk (also owns :latest); stable = release bookmark
-          if [ "${{ github.ref }}" = "refs/heads/stable" ]; then
+          if [ "${{ inputs.publish_candidate }}" = "true" ]; then
+            TAGS="${{ github.sha }}"
+          elif [ "${{ github.ref }}" = "refs/heads/stable" ]; then
             TAGS="stable stable-${DATE_TAG} ${{ github.sha }}"
           else
             TAGS="latest nightly nightly-${DATE_TAG} ${{ github.sha }}"
@@ -340,11 +352,8 @@ jobs:
           for tag in $TAGS; do
             sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
               "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
-            for i in 1 2 3; do
-              sudo podman push --digestfile "/tmp/digest-${tag}" \
-                "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
-              echo "Retry $i..."; sleep 5
-            done
+            sudo podman push --digestfile "/tmp/digest-${tag}" \
+              "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
           done
           # The digest of the manifest as pushed. `podman inspect .Digest` on
           # the local image is the digest it was imported with, which push
@@ -354,18 +363,17 @@ jobs:
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Sign image (cosign keyless)
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         run: |
           cosign sign --yes \
             "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
 
       - name: Trivy image scan
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
-        continue-on-error: true
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
@@ -374,8 +382,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Upload Trivy scan results
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
-        continue-on-error: true
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           sarif_file: trivy-results.sarif
@@ -385,7 +392,7 @@ jobs:
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Target**: \`${BST_TARGET}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image**: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Candidate**: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ github.sha }}\` (published only if Push to GHCR succeeded)" >> $GITHUB_STEP_SUMMARY
 
   # ── Experimental aarch64 path (tuna-os/tromso#88) ─────────────────────
   # Manual-dispatch only (build_aarch64 input, default false) — never runs
@@ -399,7 +406,7 @@ jobs:
   # regress the x86_64 image consumers actually run.
   multirunner_aarch64:
     if: github.event_name == 'workflow_dispatch' && inputs.build_aarch64 == true
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@3fdfd925dd5b60c0734c56541d5d5181457c11aa # main
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@200ad7cbc96ee0d456ed76a31211cb39681edde3 # source/CAS cache fixes
     permissions:
       contents: read
       packages: write
@@ -623,7 +630,6 @@ jobs:
 
       - name: Trivy image scan
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
-        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
@@ -633,7 +639,6 @@ jobs:
 
       - name: Upload Trivy scan results
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
-        continue-on-error: true
         uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           sarif_file: trivy-results.sarif

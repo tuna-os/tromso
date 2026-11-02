@@ -96,28 +96,6 @@ def test_no_quiet_karg_in_elements():
             assert '"quiet"' not in text, f"{bst} adds quiet karg"
 
 
-def test_high_frequency_workflows_cancel_superseded_runs():
-    """Push bursts once left stale checks and image/ISO builds queued for
-    hours. Newer work on the same ref must replace those obsolete runs."""
-    workflows = REPO / ".github" / "workflows"
-    names = (
-        "test.yml",
-        "build-iso.yml",
-        "build-tromso-multirunner.yml",
-    )
-    for name in names:
-        text = (workflows / name).read_text()
-        assert "concurrency:" in text, f"{name} lacks a concurrency group"
-        assert re.search(
-            r"cancel-in-progress:\s*true", text
-        ), f"{name} queues superseded same-ref runs"
-
-    iso = (workflows / "build-iso.yml").read_text()
-    assert "github.event.workflow_run.head_branch || github.ref_name" in iso, (
-        "push and workflow_run ISO triggers must normalize to the same branch key"
-    )
-
-
 def test_multi_runner_is_the_only_buildstream_image_builder():
     """Prevent a second, non-convergent image builder from returning."""
     workflows = REPO / ".github" / "workflows"
@@ -148,3 +126,107 @@ def test_workflows_declare_top_level_permissions():
     """Job overrides must not leave other jobs with repository defaults (#321)."""
     for workflow in sorted((REPO / ".github/workflows").glob("*.y*ml")):
         assert re.search(r"^permissions:", workflow.read_text(), re.MULTILINE), workflow.name
+
+
+def test_iso_upload_failures_stop_publication(tmp_path):
+    """Exercise the actual upload commands with every R2 request failing in turn."""
+    import subprocess
+
+    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
+    steps = re.split(r"^      - name: ", workflow, flags=re.MULTILINE)
+    scripts = [step.split("        run: |\n", 1)[1] for step in steps if "rclone copyto" in step]
+    script = re.sub(r"\$\{\{.*?\}\}", "candidate", "\n".join(scripts))
+    log = tmp_path / "uploads"
+    mock = '''
+    rclone() {
+        count=$((count + 1))
+        echo "$*" >> "$UPLOAD_LOG"
+        [ "$count" -ne "$FAIL_AT" ]
+    }
+    count=0
+    '''
+    for fail_at in range(1, 8):
+        log.write_text("")
+        result = subprocess.run(
+            ["bash", "-e", "-c", mock + script],
+            env={**os.environ, "UPLOAD_LOG": str(log), "FAIL_AT": str(fail_at), "R2_BUCKET": "test"},
+            capture_output=True, text=True,
+        )
+        assert (result.returncode == 0) == (fail_at == 7), result.stderr
+        assert len(log.read_text().splitlines()) == min(fail_at, 6)
+
+
+def test_media_producer_copies_and_binds_a_real_oci_layout(tmp_path):
+    """Exercise skopeo conversion and verify the bytes fisherman will consume."""
+    import gzip
+    import hashlib
+    import io
+    import json
+    import subprocess
+    import tarfile
+
+    source = tmp_path / "source"
+    blobs = source / "blobs/sha256"
+    blobs.mkdir(parents=True)
+
+    def blob(data, media_type):
+        digest = hashlib.sha256(data).hexdigest()
+        (blobs / digest).write_bytes(data)
+        return {"mediaType": media_type, "digest": f"sha256:{digest}", "size": len(data)}
+
+    archive = io.BytesIO()
+    with tarfile.open(fileobj=archive, mode="w") as tar:
+        entry = tarfile.TarInfo("proof")
+        entry.size = 5
+        tar.addfile(entry, io.BytesIO(b"media"))
+    layer = archive.getvalue()
+    config = blob(json.dumps({
+        "os": "linux", "architecture": "amd64",
+        "rootfs": {"type": "layers", "diff_ids": ["sha256:" + hashlib.sha256(layer).hexdigest()]},
+    }).encode(), "application/vnd.oci.image.config.v1+json")
+    manifest = blob(json.dumps({
+        "schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": config, "layers": [blob(layer, "application/vnd.oci.image.layer.v1.tar")],
+    }).encode(), "application/vnd.oci.image.manifest.v1+json")
+    (source / "oci-layout").write_text('{"imageLayoutVersion":"1.0.0"}')
+    (source / "index.json").write_text(json.dumps({"schemaVersion": 2, "manifests": [manifest]}))
+    root = tmp_path / "root"
+    (root / "etc/bootc-installer").mkdir(parents=True)
+    for name in ("recipe.json", "images.json"):
+        (root / "etc/bootc-installer" / name).write_bytes(
+            (SRC / "etc/bootc-installer" / name).read_bytes()
+        )
+    update = "ghcr.io/tuna-os/tromso:qualification"
+    subprocess.run(
+        ["bash", str(REPO / "scripts/embed-oci-payload.sh"), f"oci:{source}", update, str(root)],
+        check=True, capture_output=True, text=True,
+    )
+    media = json.loads((root / "etc/bootc-installer/media-input.json").read_text())
+    assert media["image"] == media["targetImgref"] == update
+    assert media["platform"] == "linux/amd64"
+    layout = root / media["ociLayoutPath"].lstrip("/")
+    selected = json.loads((layout / "index.json").read_text())["manifests"][0]
+    assert media["platformManifestDigest"] == selected["digest"]
+    output_manifest = json.loads((layout / "blobs/sha256" / selected["digest"][7:]).read_text())
+    for descriptor in [selected, output_manifest["config"], *output_manifest["layers"]]:
+        data = (layout / "blobs/sha256" / descriptor["digest"][7:]).read_bytes()
+        assert len(data) == descriptor["size"]
+        assert "sha256:" + hashlib.sha256(data).hexdigest() == descriptor["digest"]
+    compressed = layout / "blobs/sha256" / output_manifest["layers"][0]["digest"][7:]
+    assert gzip.decompress(compressed.read_bytes()) == layer
+    assert json.loads((root / "etc/bootc-installer/recipe.json").read_text())["imgref"] == update
+    catalog = json.loads((root / "etc/tuna-installer/images.json").read_text())
+    assert catalog["default_image"] == catalog["images"][0]["imgref"] == update
+
+
+def test_media_producer_refuses_missing_local_source(tmp_path):
+    import subprocess
+
+    root = tmp_path / "root"
+    result = subprocess.run(
+        ["bash", str(REPO / "scripts/embed-oci-payload.sh"), f"oci:{tmp_path}/absent",
+         "ghcr.io/tuna-os/tromso:qualification", str(root)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert not (root / "etc/bootc-installer/media-input.json").exists()

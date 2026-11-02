@@ -14,11 +14,12 @@ config:
   install-commands:
   - mkdir -p "%{install-root}%{indep-libdir}/bootc/install"
   - |
-    cat <<BOOT_EOF > 00-tromso.conf
+    cat <<BOOT_EOF > 00-tromso.toml
     [install]
-    root-fs-type = btrfs
+    root-fs-type = "btrfs"
+    root-mount-spec = "LABEL=root"
     BOOT_EOF
-    install -Dm644 00-tromso.conf "%{install-root}%{indep-libdir}/bootc/install/00-tromso.conf"
+    install -Dm644 00-tromso.toml "%{install-root}%{indep-libdir}/bootc/install/00-tromso.toml"
   - |
     mkdir -p "%{install-root}%{indep-libdir}/ostree"
     cat <<'OSTREE_EOF' > prepare-root.conf

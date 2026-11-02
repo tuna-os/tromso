@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Tromso logo</title>
+  <desc id="desc">A mountain ridge under an aurora, in midnight blue and ice green.</desc>
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#081d33"/><stop offset="1" stop-color="#163c52"/></linearGradient>
+    <linearGradient id="aurora" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#89f0cf"/><stop offset="1" stop-color="#59a9c4"/></linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="120" fill="url(#field)"/>
+  <circle cx="128" cy="128" r="107" fill="none" stroke="#dffcf5" stroke-opacity=".17" stroke-width="2"/>
+  <path d="M42 96c32-43 65-46 93-16 22 24 42 24 79-8" fill="none" stroke="url(#aurora)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M42 116c31-26 57-28 81-9 24 20 51 22 91-2" fill="none" stroke="#c5ffe6" stroke-opacity=".58" stroke-width="5" stroke-linecap="round"/>
+  <path d="m35 191 66-81 28 35 27-32 66 78z" fill="#b9dce5"/>
+  <path d="m35 191 66-81 14 19-17 5-18 24-18-7-27 40z" fill="#f2f7f4" fill-opacity=".9"/>
+  <path d="m129 145 27-32 66 78h-46l-11-22-20 2z" fill="#7699ac"/>
+  <path d="M35 196h187" stroke="#74d7c3" stroke-width="7" stroke-linecap="round"/>
+</svg>

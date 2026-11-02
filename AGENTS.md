@@ -220,12 +220,12 @@ former separate repo for this and is now archived/retired. It was modeled on
 
 **Always use `composeFsBackend: true` in the fisherman recipe.**
 
-When `composeFsBackend: true`:
-- fisherman exports the OCI image to an OCI layout on the TARGET DISK scratch (`/var/tmp`) before calling bootc
-- bootc receives `--composefs-backend --source-imgref oci:/var/tmp/oci-cache`  
-- The `-v /var/lib/containers:/var/lib/containers` bind-mount is **NOT** passed to the container
-- bootc does **NOT** check for `bootupd` in this code path
-- The install works without `bootupd` being present in the image (same as dakota)
+When `composeFsBackend: true` on current live media:
+- `scripts/embed-oci-payload.sh` writes the immutable OCI layout and media-input.
+- fisherman verifies its manifest and blobs before partitioning.
+- bootc receives `--composefs-backend --source-imgref oci:/usr/lib/tunaos/payload`.
+- The layout is not a containers-storage additional image store.
+- The install does not require `bootupd` (same as dakota's composefs backend).
 
 **Do NOT use `composeFsBackend: false`.**  That path requires `bootupd` (specifically `bootupctl`) which is not shipped in the tromso image.
 
@@ -234,11 +234,22 @@ When `composeFsBackend: true`:
 The tromso OCI image must have gzip-compressed layers for composefs to work:
 - Set `gzip: gzip` in `elements/oci/tromso.bst` (NOT `gzip: disabled`)
 - `gzip: disabled` produces uncompressed layers that cause bootc's composefs splitstream to deadlock
-- In the ISO build, force gzip re-compression when exporting: `skopeo copy --dest-compress-format gzip --dest-force-compress-format`
+- For ISO output, request gzip compression: `skopeo copy --dest-compress-format gzip`
 
-### VFS Containers-Storage in Squashfs
+### Immutable OCI media in Squashfs
 
-The squashfs embeds the tromso OCI image as VFS containers-storage.  The skopeo import into VFS **must run from inside the installer container** (not the build host) so the tar-split metadata is written in the format the live ISO can read.  See dakota-iso's justfile comment for details.
+The squashfs embeds exactly one OCI layout at `/usr/lib/tunaos/payload`.
+`/etc/bootc-installer/media-input.json` records the actual manifest/config
+digests and the day-2 ref. Resolve the registry digest once, then use
+`scripts/prepare-payload.sh` before both live customization and payload export.
+Its source-only squash must record the actual `ostree.final-diffid` as label
+and annotation. Never export the original layer stack in place of that prepared
+source, or retain stale metadata after a squash.
+Never recreate the former VFS-only media:
+fisherman refuses it before disk writes. Do not add a registry fallback to E2E.
+The live overlay reports writable to `statfs`. Keep the required read-only
+self-bind mount `usr-lib-tunaos-payload.mount`; permissions alone do not
+satisfy fisherman's immutable-media preflight.
 
 ### Key Reference: `/var/home/james/reference-repos/dakota-iso/`
 

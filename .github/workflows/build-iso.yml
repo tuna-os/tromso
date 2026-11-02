@@ -20,6 +20,10 @@ on:
         required: false
         default: false
         type: boolean
+      payload_ref:
+        description: 'Exact candidate OCI ref (requires skip_upload for branch builds)'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -60,7 +64,15 @@ jobs:
           fi
 
       - name: Point ISO payload at channel image
-        run: echo "ghcr.io/tuna-os/tromso:${{ steps.channel.outputs.payload_tag }}" > tromso/payload_ref
+        env:
+          PAYLOAD_REF: ${{ inputs.payload_ref }}
+          DEFAULT_REF: ghcr.io/tuna-os/tromso:${{ steps.channel.outputs.payload_tag }}
+        run: |
+          if [ "${{ github.ref_name }}" != main ] && [ "${{ github.ref_name }}" != stable ] && [ "${{ inputs.skip_upload }}" != true ]; then
+            echo "::error::Branch ISO builds require skip_upload=true"
+            exit 1
+          fi
+          printf '%s\n' "${PAYLOAD_REF:-$DEFAULT_REF}" > tromso/payload_ref
 
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
@@ -78,7 +90,7 @@ jobs:
         run: sudo ln -sf "$(command -v just)" /usr/local/bin/just
 
       - name: Install dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y podman buildah rclone mtools xorriso skopeo
+        run: sudo apt-get update -qq && sudo apt-get install -y podman rclone mtools xorriso skopeo squashfs-tools jq
 
       - name: Log in to GHCR
         run: echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -91,7 +103,7 @@ jobs:
           sudo mkdir -p /var/iso-build
           sudo "$(command -v just)" installer_channel=stable output_dir=/var/iso-build iso-sd-boot tromso
           mkdir -p output
-          sudo cp /var/iso-build/*.iso output/ 2>/dev/null || true
+          sudo cp /var/iso-build/tromso-live.iso output/
           sudo chown -R "$USER:$(id -gn)" output/
 
       - name: Compute ISO name
@@ -99,7 +111,7 @@ jobs:
         run: |
           DATE=$(date -u +%Y%m%d)
           SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "dated=tromso-live-${DATE}-${SHA}.iso" >> "$GITHUB_OUTPUT"
+          echo "dated=tromso-live-${DATE}-${SHA}-${{ github.run_id }}-${{ github.run_attempt }}.iso" >> "$GITHUB_OUTPUT"
           echo "path=output/tromso-live.iso" >> "$GITHUB_OUTPUT"
 
       - name: Generate SHA256 checksum
@@ -121,47 +133,12 @@ jobs:
         if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
         run: |
           ISO="${{ steps.iso.outputs.path }}"
-          cosign sign-blob --yes \
-            --output-signature "${ISO}.sig" \
-            --output-certificate "${ISO}.cert" \
-            "$ISO"
-          echo "sig_path=${ISO}.sig" >> "$GITHUB_OUTPUT"
-          echo "cert_path=${ISO}.cert" >> "$GITHUB_OUTPUT"
-
-      - name: Upload ISO to Cloudflare R2
-        if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
-        env:
-          RCLONE_CONFIG_R2_TYPE: s3
-          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
-          RCLONE_CONFIG_R2_REGION: auto
-          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        run: |
-          ISO="${{ steps.iso.outputs.path }}"
-          DATED="${{ steps.iso.outputs.dated }}"
-          rclone copyto --log-level INFO --checksum --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}"
-          rclone copyto --log-level INFO --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.sig"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.cert"
-          # Same bytes as the dated ISO, so the same signature verifies it —
-          # publish under the "latest" name too so consumers of the stable
-          # download URL (validate-iso-kanpur.yml included) have something
-          # to verify against without needing to know today's dated filename.
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.sig"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.cert"
-          echo "https://download.tunaos.org/tromso/tromso-live-latest.iso"
-        continue-on-error: true
+          cosign sign-blob --yes --bundle "${ISO}.bundle" "$ISO"
+          echo "bundle_path=${ISO}.bundle" >> "$GITHUB_OUTPUT"
 
       - name: Boot verification (UEFI + serial)
-        timeout-minutes: 10
+        id: boot_verify
+        timeout-minutes: 15
         run: |
           ISO="${{ steps.iso.outputs.path }}"
           sudo apt-get install -y qemu-system-x86 ovmf socat imagemagick -qq
@@ -180,20 +157,60 @@ jobs:
             -machine type=q35,accel=kvm -cpu host -m 4G -smp 2 \
             "${PFLASH[@]}" -cdrom "$ISO" -boot d \
             -monitor unix:/tmp/qemu-monitor.sock,server,nowait \
+            -device virtio-vga \
             -serial file:/tmp/serial.log -display none -daemonize
           for i in $(seq 1 30); do [ -S /tmp/qemu-monitor.sock ] && break; sleep 2; done
           for i in $(seq 1 60); do
             sudo grep -q "TROMSO_LIVE_READY" /tmp/serial.log 2>/dev/null && { echo "==> Ready after $((i*5))s"; break; }
-            [ "$i" -eq 60 ] && echo "WARNING: ready token not seen after 5m" || true
+            if [ "$i" -eq 60 ]; then echo "WARNING: ready token not seen after 5m"; fi
             sleep 5
           done
-          echo "screendump /tmp/screenshot.ppm" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
-          sleep 2
-          sudo test -f /tmp/screenshot.ppm && \
-            { sudo convert /tmp/screenshot.ppm screenshot.png 2>/dev/null || sudo cp /tmp/screenshot.ppm screenshot.png; }
+          sudo python3 tromso/src/luks-unlock.py wait-live /tmp/qemu-monitor.sock /tmp/screenshot.ppm
+          sudo convert /tmp/screenshot.ppm screenshot.png
           echo "quit" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
           sudo grep -qE "TROMSO_LIVE_READY|Finished live-ready\.service" /tmp/serial.log || \
             { echo "ERROR: Live environment did not reach ready state"; sudo tail -50 /tmp/serial.log; exit 1; }
+
+      # Publication is authorized only by a successful local candidate boot.
+      - name: Publish dated ISO objects
+        id: publish_dated
+        if: ${{ success() && steps.boot_verify.outcome == 'success' && inputs.skip_upload != true && github.event_name != 'pull_request' }}
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_REGION: auto
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
+            "${{ steps.iso.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.iso.outputs.dated }}"
+          rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
+            "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
+          rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.bundle_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.iso.outputs.dated }}.bundle"
+
+      - name: Promote latest ISO aliases
+        if: >-
+          ${{ steps.publish_dated.outcome == 'success' &&
+              success() && steps.boot_verify.outcome == 'success' &&
+              inputs.skip_upload != true && github.event_name != 'pull_request' }}
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_REGION: auto
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
+            "${{ steps.sign.outputs.bundle_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.bundle"
+          rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
+            "output/tromso-live-latest.iso-CHECKSUM" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso-CHECKSUM"
+          rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
+            "${{ steps.iso.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso"
 
       - name: Upload ISO as artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

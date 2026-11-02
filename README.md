@@ -1,15 +1,26 @@
-# Tromso — KDE Linux OCI/bootc Image
+# TunaOS Tromsø — KDE Linux OCI/bootc Image
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/tuna-os/tromso/blob/main/LICENSE)
 
-**Tromso** is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's
+**TunaOS Tromsø** is a BuildStream-based KDE Linux OCI/bootc image, modeled on Project Bluefin's
 [`projectbluefin/dakota`](https://github.com/projectbluefin/dakota). It builds KDE Plasma 6 on top
 of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso`.
 
-**Status: Alpha — release readiness has not yet been verified.** See the
+**Status: Alpha — maintainers have not qualified a release.** See the
 [roadmap release gates](ROADMAP.md#alpha--beta) and
 [Release readiness](ROADMAP.md#release-readiness) for dated CI evidence and
 remaining blockers.
+
+![Tromso wordmark](branding/tromso/tromso-wordmark.svg)
+
+Tromsø's icon and wallpaper are original TunaOS artwork, separate from KDE
+and Aurora. The configuration selects Tromsø's wallpaper and About-page identity.
+KDE Breeze supplies the controls and splash. These defaults still need visual
+verification in a candidate VM.
+
+![Tromso desktop wallpaper preview](branding/tromso/tromso-wallpaper.png)
+
+Icon: [Tromso application mark](branding/tromso/tromso-logo.svg).
 
 > **Attribution.** Tromso reuses configuration and helper scripts derived from
 > [`ublue-os/aurora`](https://github.com/ublue-os/aurora) and the former
@@ -51,8 +62,8 @@ tuna-os/tromso
 └── Justfile
 ```
 
-For detailed technical documentation on the BuildStream build graph, sandboxing policies,
-and OCI image composition, see [Tromso Architecture](docs/ARCHITECTURE.md).
+For details on the BuildStream graph, sandbox policy, and OCI image composition,
+see [Tromso Architecture](docs/ARCHITECTURE.md).
 
 ## Quick Start
 
@@ -142,32 +153,30 @@ cosign verify ghcr.io/tuna-os/tromso:latest \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-**Live ISOs** (the workflow publishes `.sig` and `.cert` beside each dated ISO,
-for example `tromso-live-<date>-<sha>.iso.sig`):
+**Live ISOs** (cosign publishes a Sigstore `.bundle` beside each dated ISO):
 
 ```bash
-cosign verify-blob tromso-live-<date>-<sha>.iso \
-  --certificate tromso-live-<date>-<sha>.iso.cert \
-  --signature tromso-live-<date>-<sha>.iso.sig \
+cosign verify-blob tromso-live-<date>-<sha>-<run>-<attempt>.iso \
+  --bundle tromso-live-<date>-<sha>-<run>-<attempt>.iso.bundle \
   --certificate-identity-regexp 'https://github.com/tuna-os/tromso/\.github/workflows/build-iso\.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 ## Community outreach
 
-The [KDE community announcement kit](docs/outreach/kde-community-announcement.md)
-contains reviewable announcement drafts, source evidence, and the publication
-checklist. External publication is tracked in [#365](https://github.com/tuna-os/tromso/issues/365).
+The [announcement kit for KDE](docs/outreach/kde-community-announcement.md)
+contains draft announcements, source evidence, and a checklist for publication.
+Use [#365](https://github.com/tuna-os/tromso/issues/365) to track publication.
 
-The [KDE community co-marketing partnership kit](docs/outreach/kde-community-partnership.md)
-contains reviewable outreach proposals, co-marketing article drafts, Akademy and
-FOSDEM conference abstracts, and a KDE VDG collaboration framework. External
-outreach and partnership execution are tracked in [#372](https://github.com/tuna-os/tromso/issues/372).
+The [partnership kit for KDE](docs/outreach/kde-community-partnership.md)
+contains outreach proposals and draft articles.
+It also includes abstracts for Akademy and FOSDEM and a plan for work with KDE VDG.
+Use [#372](https://github.com/tuna-os/tromso/issues/372) to track outreach and partnership work.
 
-The [BuildStream reference case study kit](docs/outreach/buildstream-community-reference.md)
-contains technical case study drafts, architecture documentation, freedesktop-sdk
-alignment notes, and upstream coordination checklists. Upstream visibility and
-coordination are tracked in [#374](https://github.com/tuna-os/tromso/issues/374).
+The [case study for BuildStream](docs/outreach/buildstream-community-reference.md)
+contains technical drafts and architecture notes.
+It also includes notes on freedesktop-sdk and a checklist for upstream contacts.
+Use [#374](https://github.com/tuna-os/tromso/issues/374) to track upstream coordination.
 
 ## References
 

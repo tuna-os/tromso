@@ -1,36 +1,35 @@
 {
   "log_file": "/var/log/bootc-installer.log",
-  "distro_name": "Tromso KDE Linux",
-  "distro_logo": "resource:///org/bootcinstaller/Installer/images/tromso.png",
+  "distro_name": "TunaOS Tromsø",
+  "distro_logo": "/run/host/usr/share/icons/hicolor/scalable/apps/tromso-logo.svg",
   "imgref": "ghcr.io/tuna-os/tromso:latest",
-  "local_imgref": "containers-storage:ghcr.io/tuna-os/tromso:latest",
   "bootloader": "systemd",
   "composeFsBackend": true,
   "tour": {
     "welcome": {
-      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
-      "title": "Welcome to Tromso",
-      "description": "Tromso KDE Linux — a KDE Plasma desktop built on freedesktop-sdk with bootc-powered atomic updates."
+      "image": "/run/host/usr/share/backgrounds/TunaOS/Tromso/tromso-wallpaper.png",
+      "title": "Welcome to TunaOS Tromsø",
+      "description": "TunaOS Tromsø — a KDE Plasma desktop built on freedesktop-sdk with bootc-powered atomic updates."
     },
     "features": {
-      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
+      "image": "/run/host/usr/share/backgrounds/TunaOS/Tromso/tromso-wallpaper.png",
       "title": "KDE Plasma 6",
       "description": "A complete KDE Plasma 6 desktop with Qt6, KDE Frameworks, and KDE applications."
     },
     "community": {
-      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
+      "image": "/run/host/usr/share/backgrounds/TunaOS/Tromso/tromso-wallpaper.png",
       "title": "Atomic Updates",
       "description": "Tromso uses bootc for image-based atomic updates. Your system stays consistent and is easy to roll back."
     },
     "developer": {
-      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
+      "image": "/run/host/usr/share/backgrounds/TunaOS/Tromso/tromso-wallpaper.png",
       "title": "Getting Started",
       "description": "Visit the TunaOS project page for documentation and to file issues. We fix them."
     },
     "completed": {
-      "image": "/run/host/usr/share/bootc-installer/images/tromso-welcome.png",
+      "image": "/run/host/usr/share/backgrounds/TunaOS/Tromso/tromso-wallpaper.png",
       "title": "Ready to Install",
-      "description": "Select your disk and install Tromso KDE Linux. Welcome to the new world!"
+      "description": "Select your disk and install TunaOS Tromsø."
     }
   },
   "steps": {
