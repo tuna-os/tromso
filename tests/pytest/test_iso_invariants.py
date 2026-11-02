@@ -143,3 +143,21 @@ def test_pytest_feeds_codecov():
     assert "codecov/codecov-action@" in job
     assert f"files: {report.group(1)}" in job
     assert "fail_ci_if_error: true" in job
+
+
+def test_github_actions_use_immutable_references():
+    """Remote actions and reusable workflows must not execute mutable tags."""
+    for path in (REPO / ".github").rglob("*.y*ml"):
+        for ref in re.findall(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", path.read_text(), re.M):
+            if ref.startswith("./"):
+                continue
+            if ref.startswith("docker://"):
+                assert re.fullmatch(r"docker://[^@]+@sha256:[0-9a-f]{64}", ref), (path, ref)
+            else:
+                assert re.fullmatch(r"[^@]+@[0-9a-f]{40}", ref), (path, ref)
+
+
+def test_workflows_declare_top_level_permissions():
+    """Job overrides must not leave other jobs with repository defaults (#321)."""
+    for workflow in sorted((REPO / ".github/workflows").glob("*.y*ml")):
+        assert re.search(r"^permissions:", workflow.read_text(), re.MULTILINE), workflow.name

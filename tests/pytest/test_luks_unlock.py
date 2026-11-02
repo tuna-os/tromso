@@ -58,6 +58,17 @@ class TestLuksUnlock(unittest.TestCase):
         result = luks_unlock.qemu_check_serial("dummy.log")
         self.assertEqual(result, "gnome-initial-setup")
 
+    @patch("builtins.open", new_callable=mock_open, read_data="[  OK  ] Started sddm.service - Simple Desktop Display Manager.")
+    def test_qemu_check_serial_sddm_started(self, mock_file):
+        # Tromso is a KDE image — SDDM is its display manager
+        result = luks_unlock.qemu_check_serial("dummy.log")
+        self.assertEqual(result, "sddm")
+
+    @patch("builtins.open", new_callable=mock_open, read_data="\x1b[0;32m  OK  \x1b[0m] Started \x1b[0;1;39msddm.service\x1b[0m\n- Simple Desktop Display Manager.")
+    def test_qemu_check_serial_sddm_with_ansi_escapes(self, mock_file):
+        result = luks_unlock.qemu_check_serial("dummy.log")
+        self.assertEqual(result, "sddm")
+
     @patch("builtins.open", new_callable=mock_open, read_data="Entering emergency mode. Exit shell to continue.")
     def test_qemu_check_serial_emergency_mode(self, mock_file):
         # Check that it identifies "emergency"
