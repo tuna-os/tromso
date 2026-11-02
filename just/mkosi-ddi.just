@@ -2,4 +2,4 @@
 # bootable until Tromso provides a non-OCI root/initrd contract; see docs/mkosi-ddi.md.
 [group('build')]
 build-mkosi-ddi:
-    mkosi --directory mkosi/ddi build
+    mkosi --include mkosi/ddi build
