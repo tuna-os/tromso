@@ -116,6 +116,9 @@ recover after they refresh the GHCR caches.
    `/etc/bootc-installer/media-input.json` from its actual manifest and config.
    Fisherman verifies it before disk writes; no VFS graphroot or network
    fallback is used. The catalog and day-2 update ref match the chosen payload.
+   `usr-lib-tunaos-payload.mount` self-binds the layout read-only. The live
+   overlay alone is writable to `statfs`, even with squashfs beneath it.
+   The ready marker requires this mount, so a failed mount blocks publication.
 3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
@@ -200,6 +203,9 @@ real skopeo conversion from a valid OCI fixture, verify the gzip layer and all
 digests, and reject an absent source. These checks do not prove a Tromsø image
 boot, installed desktop, or GitHub OIDC signing. Full build and
 KVM install evidence must come from the candidate workflows.
+The read-only self-bind was exercised in a private mount namespace: reads
+succeeded and writes failed with EROFS. `systemd-analyze verify` accepted the
+actual mount unit. This is host mount evidence, not a guest boot claim.
 
 ## Channels: nightly (main) and stable
 

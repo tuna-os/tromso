@@ -165,14 +165,34 @@ WantedBy=local-fs.target
 UNITEOF
 systemctl enable var-tmp.mount
 
+# The writable live overlay hides the squashfs ST_RDONLY flag. Bind the OCI
+# layout read-only so fisherman's immutable-media preflight sees a real
+# read-only mount, not just root-owned files on an overlay.
+mkdir -p /usr/lib/tunaos/payload
+cat > /usr/lib/systemd/system/usr-lib-tunaos-payload.mount << 'UNITEOF'
+[Unit]
+Description=Immutable offline OCI payload
+Before=display-manager.service live-ready.service
+
+[Mount]
+What=/usr/lib/tunaos/payload
+Where=/usr/lib/tunaos/payload
+Type=none
+Options=bind,ro
+
+[Install]
+RequiredBy=local-fs.target
+UNITEOF
+systemctl enable usr-lib-tunaos-payload.mount
+
 # ── Live-ready marker service ─────────────────────────────────────────────────
 # Prints TROMSO_LIVE_READY to the serial console after display-manager.service
 # (SDDM) starts.  CI boot verification greps for this token in the serial log.
 cat > /usr/lib/systemd/system/live-ready.service << 'LREOF'
 [Unit]
 Description=Live environment ready marker
-After=display-manager.service
-Requires=display-manager.service
+After=display-manager.service usr-lib-tunaos-payload.mount
+Requires=display-manager.service usr-lib-tunaos-payload.mount
 
 [Service]
 Type=oneshot

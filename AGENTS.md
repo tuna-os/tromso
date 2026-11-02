@@ -243,6 +243,9 @@ The squashfs embeds exactly one OCI layout at `/usr/lib/tunaos/payload`.
 digests and the day-2 ref. Live base and embedded payload must use the same
 resolved registry digest. Never recreate the former VFS-only media: current
 fisherman refuses it before disk writes. Do not add a registry fallback to E2E.
+The live overlay reports writable to `statfs`. Keep the required read-only
+self-bind mount `usr-lib-tunaos-payload.mount`; permissions alone do not
+satisfy fisherman's immutable-media preflight.
 
 ### Key Reference: `/var/home/james/reference-repos/dakota-iso/`
 
