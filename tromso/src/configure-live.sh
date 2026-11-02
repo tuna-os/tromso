@@ -194,11 +194,10 @@ cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/bootc-installer/images.jso
 cp "$SCRIPT_DIR/etc/bootc-installer/recipe.json" /etc/bootc-installer/recipe.json
 touch /etc/bootc-installer/live-iso-mode
 
-# tuna-installer frontends read /etc/tuna-installer/ (INSTALLER-FRONTENDS.md):
-# images.json catalog override + offline-stores listing embedded OCI store roots.
+# The frontend catalog is separate from fisherman's host media-input contract.
+# The OCI layout is not a containers-storage additional image store.
 mkdir -p /etc/tuna-installer
 cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/tuna-installer/images.json
-echo '/var/lib/containers/storage' > /etc/tuna-installer/offline-stores
 
 # ── Installer autostart ───────────────────────────────────────────────────────
 # org.tunaos.InstallerKde is installed from the tuna-os remote by
@@ -208,7 +207,7 @@ INSTALLER_APP_ID="org.tunaos.InstallerKde"
 mkdir -p /etc/xdg/autostart
 cat > /etc/xdg/autostart/tuna-installer.desktop << DTEOF
 [Desktop Entry]
-Name=Tromso Installer
+Name=TunaOS Tromsø Installer
 Exec=flatpak run ${INSTALLER_APP_ID}
 Icon=system-software-install
 Type=Application
@@ -219,8 +218,8 @@ DTEOF
 mkdir -p /usr/share/applications
 cat > /usr/share/applications/tromso-installer.desktop << DTEOF
 [Desktop Entry]
-Name=Tromso Installer
-Comment=Install Tromso KDE Linux to your computer
+Name=TunaOS Tromsø Installer
+Comment=Install TunaOS Tromsø to your computer
 Exec=flatpak run ${INSTALLER_APP_ID}
 Icon=system-software-install
 Type=Application
@@ -274,13 +273,6 @@ polkit.addRule(function(action, subject) {
 });
 EOF
 
-# ── VFS containers-storage ────────────────────────────────────────────────────
-cat > /etc/containers/storage.conf << 'STOREOF'
-[storage]
-driver = "vfs"
-runroot = "/run/containers/storage"
-graphroot = "/var/lib/containers/storage"
-STOREOF
 
 # ── Live network defaults ─────────────────────────────────────────────────────
 mkdir -p /usr/lib/tmpfiles.d

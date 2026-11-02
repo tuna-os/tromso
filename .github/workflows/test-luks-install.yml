@@ -15,6 +15,11 @@ on:
   # change can affect it (round-robin with the plain test; see test.yml).
   workflow_call:
   workflow_dispatch:
+    inputs:
+      payload_ref:
+        description: 'Exact candidate OCI ref (empty uses the committed payload_ref)'
+        type: string
+        default: ''
   schedule:
     # Weekly on Monday 04:00 UTC
     - cron: '0 4 * * 1'
@@ -45,6 +50,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Select candidate payload
+        if: inputs.payload_ref != ''
+        env:
+          PAYLOAD_REF: ${{ inputs.payload_ref }}
+        run: printf '%s\n' "$PAYLOAD_REF" > tromso/payload_ref
 
       - name: Ensure screenshots branch exists
         continue-on-error: true
@@ -83,7 +94,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y \
             podman buildah skopeo mtools xorriso squashfs-tools \
-            qemu-system-x86 qemu-utils ovmf socat sshpass imagemagick -qq
+            qemu-system-x86 qemu-utils ovmf socat sshpass imagemagick jq -qq
 
       - name: Log in to GHCR
         run: |

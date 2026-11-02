@@ -20,6 +20,10 @@ on:
         required: false
         default: false
         type: boolean
+      payload_ref:
+        description: 'Exact candidate OCI ref (requires skip_upload for branch builds)'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -60,7 +64,15 @@ jobs:
           fi
 
       - name: Point ISO payload at channel image
-        run: echo "ghcr.io/tuna-os/tromso:${{ steps.channel.outputs.payload_tag }}" > tromso/payload_ref
+        env:
+          PAYLOAD_REF: ${{ inputs.payload_ref }}
+          DEFAULT_REF: ghcr.io/tuna-os/tromso:${{ steps.channel.outputs.payload_tag }}
+        run: |
+          if [ "${{ github.ref_name }}" != main ] && [ "${{ github.ref_name }}" != stable ] && [ "${{ inputs.skip_upload }}" != true ]; then
+            echo "::error::Branch ISO builds require skip_upload=true"
+            exit 1
+          fi
+          printf '%s\n' "${PAYLOAD_REF:-$DEFAULT_REF}" > tromso/payload_ref
 
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
@@ -78,7 +90,7 @@ jobs:
         run: sudo ln -sf "$(command -v just)" /usr/local/bin/just
 
       - name: Install dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y podman buildah rclone mtools xorriso skopeo
+        run: sudo apt-get update -qq && sudo apt-get install -y podman buildah rclone mtools xorriso skopeo squashfs-tools jq
 
       - name: Log in to GHCR
         run: echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -91,7 +103,7 @@ jobs:
           sudo mkdir -p /var/iso-build
           sudo "$(command -v just)" installer_channel=stable output_dir=/var/iso-build iso-sd-boot tromso
           mkdir -p output
-          sudo cp /var/iso-build/*.iso output/ 2>/dev/null || true
+          sudo cp /var/iso-build/tromso-live.iso output/
           sudo chown -R "$USER:$(id -gn)" output/
 
       - name: Compute ISO name
@@ -121,12 +133,8 @@ jobs:
         if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
         run: |
           ISO="${{ steps.iso.outputs.path }}"
-          cosign sign-blob --yes \
-            --output-signature "${ISO}.sig" \
-            --output-certificate "${ISO}.cert" \
-            "$ISO"
-          echo "sig_path=${ISO}.sig" >> "$GITHUB_OUTPUT"
-          echo "cert_path=${ISO}.cert" >> "$GITHUB_OUTPUT"
+          cosign sign-blob --yes --bundle "${ISO}.bundle" "$ISO"
+          echo "bundle_path=${ISO}.bundle" >> "$GITHUB_OUTPUT"
 
       - name: Boot verification (UEFI + serial)
         id: boot_verify
@@ -182,9 +190,7 @@ jobs:
           rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
             "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
           rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.iso.outputs.dated }}.sig"
-          rclone copyto --checksum --immutable --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.iso.outputs.dated }}.cert"
+            "${{ steps.sign.outputs.bundle_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.iso.outputs.dated }}.bundle"
 
       - name: Promote latest ISO aliases
         if: >-
@@ -201,9 +207,7 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: |
           rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.sig"
-          rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.cert"
+            "${{ steps.sign.outputs.bundle_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.bundle"
           rclone copyto --checksum --log-level INFO --s3-no-check-bucket \
             "output/tromso-live-latest.iso-CHECKSUM" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso-CHECKSUM"
           rclone copyto --checksum --log-level INFO --s3-no-check-bucket \

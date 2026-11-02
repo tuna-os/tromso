@@ -21,6 +21,10 @@ on:
         description: 'Push OCI image to GHCR'
         type: boolean
         default: true
+      publish_candidate:
+        description: 'Publish only the immutable commit tag for branch qualification'
+        type: boolean
+        default: false
       num_chunks:
         description: 'Number of parallel dependency chunks'
         type: string
@@ -53,7 +57,7 @@ concurrency:
 jobs:
   # ── Phase 1-3: Plan, core, parallel dependency chunks ────────────────
   multirunner:
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@85bba371f0cbbc116e46eea6faf5a16c25838e47 # main
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@c525253f6d146e33e8d7dd80cfe5a9cd32741929 # source/CAS cache fixes
     permissions:
       contents: read
       packages: write
@@ -156,6 +160,14 @@ jobs:
           path: chunkah
 
       - run: podman pull "$BST2_IMAGE"
+
+      - name: Cache BuildStream sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/buildstream/sources
+          key: bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('elements/**/*.bst', 'project.conf', 'include/**', 'patches/**') }}
+          restore-keys: |
+            bst-sources-${{ env.IMAGE_NAME }}-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Setup Just
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
@@ -260,7 +272,7 @@ jobs:
           du -sh .build-out
           # Removed inside the bst container: its root owns the cache tree.
           podman run --rm -v "${HOME}/.cache/buildstream:/cache:rw" "$BST2_IMAGE" \
-            sh -c 'rm -rf /cache/cas /cache/artifacts /cache/sources'
+            sh -c 'rm -rf /cache/cas /cache/artifacts'
           df -h /
 
       - name: Capture build timestamp
@@ -319,7 +331,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Login to GHCR (podman)
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         run: |
           echo "$GITHUB_TOKEN" | \
             sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
@@ -328,11 +340,13 @@ jobs:
 
       - name: Push to GHCR
         id: push
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         run: |
           DATE_TAG=$(date -u +%Y%m%d)
           # Channels: main = nightly trunk (also owns :latest); stable = release bookmark
-          if [ "${{ github.ref }}" = "refs/heads/stable" ]; then
+          if [ "${{ inputs.publish_candidate }}" = "true" ]; then
+            TAGS="${{ github.sha }}"
+          elif [ "${{ github.ref }}" = "refs/heads/stable" ]; then
             TAGS="stable stable-${DATE_TAG} ${{ github.sha }}"
           else
             TAGS="latest nightly nightly-${DATE_TAG} ${{ github.sha }}"
@@ -340,11 +354,8 @@ jobs:
           for tag in $TAGS; do
             sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
               "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
-            for i in 1 2 3; do
-              sudo podman push --digestfile "/tmp/digest-${tag}" \
-                "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
-              echo "Retry $i..."; sleep 5
-            done
+            sudo podman push --digestfile "/tmp/digest-${tag}" \
+              "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
           done
           # The digest of the manifest as pushed. `podman inspect .Digest` on
           # the local image is the digest it was imported with, which push
@@ -354,11 +365,11 @@ jobs:
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Sign image (cosign keyless)
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        if: ${{ ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false)) || (github.event_name == 'workflow_dispatch' && inputs.publish_candidate) }}
         run: |
           cosign sign --yes \
             "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
@@ -385,7 +396,7 @@ jobs:
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Target**: \`${BST_TARGET}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image**: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Candidate**: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ github.sha }}\` (published only if Push to GHCR succeeded)" >> $GITHUB_STEP_SUMMARY
 
   # ── Experimental aarch64 path (tuna-os/tromso#88) ─────────────────────
   # Manual-dispatch only (build_aarch64 input, default false) — never runs
@@ -399,7 +410,7 @@ jobs:
   # regress the x86_64 image consumers actually run.
   multirunner_aarch64:
     if: github.event_name == 'workflow_dispatch' && inputs.build_aarch64 == true
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@85bba371f0cbbc116e46eea6faf5a16c25838e47 # main
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@c525253f6d146e33e8d7dd80cfe5a9cd32741929 # source/CAS cache fixes
     permissions:
       contents: read
       packages: write

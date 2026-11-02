@@ -2,5 +2,5 @@
 WallpaperPlugin=org.kde.image
 
 [Greeter][Wallpaper][org.kde.image][General]
-Image=file:///usr/share/wallpapers/Aurora/
-PreviewImage=file:///usr/share/wallpapers/Aurora/
+Image=file:///usr/share/backgrounds/TunaOS/Tromso/tromso-wallpaper.png
+PreviewImage=file:///usr/share/backgrounds/TunaOS/Tromso/tromso-wallpaper.png

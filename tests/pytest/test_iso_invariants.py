@@ -148,6 +148,8 @@ def test_workflows_declare_top_level_permissions():
     """Job overrides must not leave other jobs with repository defaults (#321)."""
     for workflow in sorted((REPO / ".github/workflows").glob("*.y*ml")):
         assert re.search(r"^permissions:", workflow.read_text(), re.MULTILINE), workflow.name
+
+
 def test_webkit_framework_condition_handles_unset_link_target():
     """WebKit 2.53.1's empty variable expansion stopped main in CMake (#392)."""
     sources = (REPO / "elements/sdk/webkitgtk.inc").read_text()
@@ -158,6 +160,8 @@ def test_webkit_framework_condition_handles_unset_link_target():
         "+        if ((NOT _linked_into) OR (framework STREQUAL _linked_into) "
         "OR (NOT _linked_into IN_LIST ${_target}_FRAMEWORKS))"
     ) in correction
+
+
 def test_iso_publication_requires_verified_candidate():
     """Neither failed boots nor partial dated uploads may promote latest."""
     workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
@@ -174,11 +178,11 @@ def test_iso_publication_requires_verified_candidate():
         assert "success() && steps.boot_verify.outcome == 'success'" in step
         assert "inputs.skip_upload != true" in step
         assert "github.event_name != 'pull_request'" in step
-        assert step.count("rclone copyto") == 4
+        assert step.count("rclone copyto") == 3
     assert "steps.publish_dated.outcome == 'success'" in steps[latest]
     assert "tromso-live-latest" not in steps[dated]
-    assert steps[dated].count("--immutable") == 4
-    for suffix in ('iso"', 'iso-CHECKSUM"', 'iso.sig"', 'iso.cert"'):
+    assert steps[dated].count("--immutable") == 3
+    for suffix in ('iso"', 'iso-CHECKSUM"', 'iso.bundle"'):
         assert f'tromso-live-latest.{suffix}' in steps[latest]
 
 
@@ -199,12 +203,12 @@ def test_iso_upload_failures_stop_publication(tmp_path):
     }
     count=0
     '''
-    for fail_at in range(1, 10):
+    for fail_at in range(1, 8):
         log.write_text("")
         result = subprocess.run(
             ["bash", "-e", "-c", mock + script],
             env={**os.environ, "UPLOAD_LOG": str(log), "FAIL_AT": str(fail_at), "R2_BUCKET": "test"},
             capture_output=True, text=True,
         )
-        assert (result.returncode == 0) == (fail_at == 9), result.stderr
-        assert len(log.read_text().splitlines()) == min(fail_at, 8)
+        assert (result.returncode == 0) == (fail_at == 7), result.stderr
+        assert len(log.read_text().splitlines()) == min(fail_at, 6)

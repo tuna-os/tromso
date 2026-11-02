@@ -340,6 +340,8 @@ config:
     smallestReadableFont=Noto Sans,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
     toolBarFont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
     menuFont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+    [KDE]
+    LookAndFeelPackage=org.tunaos.tromso.desktop
     EOF
 
   # Ship a system-wide default kscreenlockerrc that disables the auto-lock

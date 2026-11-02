@@ -1,4 +1,4 @@
 [General]
-LogoPath=/usr/share/pixmaps/system-logo.png
-Name=Aurora
-Website=https://getaurora.dev
+LogoPath=/usr/share/icons/hicolor/scalable/apps/tromso-logo.svg
+Name=TunaOS Tromsø
+Website=https://tunaos.org

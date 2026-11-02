@@ -9,13 +9,13 @@ variables:
 
 environment:
   IMAGE_NAME: "tromso"
-  IMAGE_VENDOR: "tuna-os"
+  IMAGE_VENDOR: "TunaOS"
   IMAGE_REF: "ostree-image-signed:docker://ghcr.io/tuna-os/tromso"
   IMAGE_FLAVOR: "main"
   IMAGE_TAG: "latest"
   VERSION_ID: "%{image-version}"
   IMAGE_VERSION: "%{image-version}"
-  IMAGE_PRETTY_NAME: "Tromso"
+  IMAGE_PRETTY_NAME: "TunaOS Tromsø"
   HOME_URL: "https://github.com/tuna-os/tromso"
   DOCUMENTATION_URL: "https://github.com/tuna-os/tromso"
   SUPPORT_URL: "https://github.com/tuna-os/tromso/issues"
@@ -29,7 +29,6 @@ config:
       cat >"%{install-root}%{indep-libdir}/os-release" <<EOF
       NAME="${IMAGE_PRETTY_NAME}"
       ID="${ID}"
-      ID_LIKE="fedora"
       VERSION="${IMAGE_TAG}"
       PRETTY_NAME="${IMAGE_PRETTY_NAME}"
       BUG_REPORT_URL="${BUG_SUPPORT_URL}"

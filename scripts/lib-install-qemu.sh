@@ -21,18 +21,11 @@ install_qemu_init() {
 	SSH="sshpass -p live ssh $ssh_opts liveuser@127.0.0.1 -p ${SSH_PORT}"
 	SCP="sshpass -p live scp $ssh_opts -P ${SSH_PORT}"
 
-	# Use local containers-storage if the image is cached there (offline install);
-	# otherwise fall back to a network pull via docker://.
-	if $SSH "sudo podman image exists '${PAYLOAD_IMAGE}' 2>/dev/null"; then
-		INSTALL_IMAGE="containers-storage:${PAYLOAD_IMAGE}"
-		echo "Image found in local containers-storage — using offline install."
-	else
-		INSTALL_IMAGE="docker://${PAYLOAD_IMAGE}"
-		echo "Image not in local store — fisherman will pull from network."
-	fi
+	# The ISO's media-input binds the immutable OCI source before disk writes.
+	# Missing media is a build error, never a reason to pull a mutable tag.
+	$SSH 'sudo test -s /etc/bootc-installer/media-input.json'
+	INSTALL_IMAGE=""
 
-	# Single-variant repo: optional <target>/composefs and <target>/bootloader
-	# files override the defaults (composefs-backed, systemd-boot — dakota style).
 	COMPOSEFS_BACKEND=$(cat "${TARGET}/composefs" 2>/dev/null | tr -d '[:space:]' || echo "true")
 	BOOTLOADER=$(cat "${TARGET}/bootloader" 2>/dev/null | tr -d '[:space:]' || echo "systemd")
 
@@ -62,7 +55,7 @@ install_qemu_run_fisherman() {
 	local bootcdirect_json="$4"
 
 	if [[ "${COMPOSEFS_BACKEND}" == "true" ]]; then
-		# Composefs path (dakota): podman-based install with VFS containers-storage.
+		# Empty image binds fisherman's verified OCI media input.
 		printf '%s\n' "${composefs_json}" >"${recipe_tmp}"
 		$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/${remote_recipe_name}"
 		echo "Uploaded recipe — running fisherman (takes several minutes)..."
