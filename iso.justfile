@@ -187,6 +187,7 @@ boot-iso-serial target:
         -device scsi-cd,drive=live-disk \
         -net nic,model=virtio -net user,hostfwd=tcp::2222-:22 \
         -serial mon:stdio \
+        -device virtio-vga \
         -display none \
         -no-reboot
 
@@ -360,6 +361,7 @@ luks-boot-qemu-live target:
         -device virtio-net-pci,netdev=net0 \
         -monitor "unix:{{luks-qemu-monitor-live}},server,nowait" \
         -serial "file:{{luks-qemu-serial-live}}" \
+        -device virtio-vga \
         -display none \
         -daemonize
     echo "Live QEMU started (monitor: {{luks-qemu-monitor-live}})"
@@ -445,6 +447,7 @@ luks-boot-qemu-installed target:
         -device virtio-net-pci,netdev=net0 \
         -monitor "unix:{{luks-qemu-monitor-installed}},server,nowait" \
         -serial "file:{{luks-qemu-serial-installed}}" \
+        -device virtio-vga \
         -display none \
         -daemonize
     echo "Installed QEMU started (monitor: {{luks-qemu-monitor-installed}})"

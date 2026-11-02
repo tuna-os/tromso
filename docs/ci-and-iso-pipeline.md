@@ -142,6 +142,10 @@ replacement. The workflow publishes the latest checksum and updates the ISO
 alias last. R2 has no transaction across these aliases. A promotion failure can
 leave mixed sidecars, but the workflow fails. The dated objects remain consistent.
 
+The headless checks use `virtio-vga`, as the VNC recipes do. This selects the
+same GPU for live and installed boots. We do not override the renderer or hide
+graphics errors. Fonts still need evidence from the actual candidate.
+
 ### LUKS end-to-end test (`test-luks-install.yml`)
 
 Local equivalent:
@@ -208,7 +212,8 @@ prompt, and installed desktop.
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
 
-Local checks: 269 pytest tests passed, with one pre-existing expected failure.
+Local checks: 278 pytest tests passed, with one pre-existing expected failure.
+Seven subtests also passed.
 All 19 BATS tests passed. `actionlint` and `just --summary` passed.
 ShellCheck passed at the error severity that CI uses. YAML checks reported only
 warnings about line length.
@@ -252,7 +257,14 @@ shows boxes in place of letters and the old theme, not the new identity.
 
 Plain reached a login prompt, but its gate waited for a display-manager message
 absent from serial output. The new gate recognizes getty but still needs a stable
-frame. A real plain rerun remains necessary.
+frame. The [rerun](https://github.com/tuna-os/tromso/actions/runs/41454608790)
+succeeded in every job of the Test workflow.
+
+Its [plain frame](https://raw.githubusercontent.com/tuna-os/tromso/ci-screenshots/plain-e2e/41454608790/stable/final-boot.png)
+and [encrypted frame](https://raw.githubusercontent.com/tuna-os/tromso/ci-screenshots/luks-e2e/41454608790/stable/final-boot.png)
+show the installed login screen. The text has boxes in place of letters.
+Both frames use the old theme. These are from the old published payload,
+not the current candidate.
 
 The [corrected ISO](https://github.com/tuna-os/tromso/actions/runs/41447164858)
 booted through UEFI and waited for a stable GUI. Its actual
@@ -291,7 +303,7 @@ branch. Do not set `track:` to one exact tag, because the tracker cannot move it
 ## Guard rails (what stops a bad commit)
 
 Branch protection on main needs pre-merge checks. These checks include
-shellcheck, yamllint, actionlint, BATS, pytest, the 52-test luks-unlock suite,
+shellcheck, yamllint, actionlint, BATS, pytest, the luks-unlock suite,
 and `test_iso_invariants.py`. Each invariant represents a class of defect that
 reached a release. The BuildStream graph gate runs `bst show --deps all` on the
 release target with resolved junctions.

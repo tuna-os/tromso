@@ -157,6 +157,7 @@ jobs:
             -machine type=q35,accel=kvm -cpu host -m 4G -smp 2 \
             "${PFLASH[@]}" -cdrom "$ISO" -boot d \
             -monitor unix:/tmp/qemu-monitor.sock,server,nowait \
+            -device virtio-vga \
             -serial file:/tmp/serial.log -display none -daemonize
           for i in $(seq 1 30); do [ -S /tmp/qemu-monitor.sock ] && break; sleep 2; done
           for i in $(seq 1 60); do
