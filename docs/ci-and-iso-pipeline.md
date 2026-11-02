@@ -25,6 +25,7 @@ targets, and chunk counts. Final assembly delegates to the repository-owned
 `build-final.yml` workflow. Separate jobs sign the image in
 `build-tromso-multirunner.yml`, which keeps the existing Fulcio identity.
 README verifiers therefore need no new trusted workflow or wider regex.
+
 The experimental aarch64 path stays manual-only, with remote execution off.
 Only x86_64 receives the existing capability and whiteout gates.
 
