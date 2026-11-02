@@ -182,3 +182,48 @@ def test_iso_upload_failures_stop_publication(tmp_path):
         )
         assert (result.returncode == 0) == (fail_at == 9), result.stderr
         assert len(log.read_text().splitlines()) == min(fail_at, 8)
+
+
+def test_github_actions_use_immutable_references():
+    """Remote actions and reusable workflows must not execute mutable tags."""
+    for path in (REPO / ".github").rglob("*.y*ml"):
+        for ref in re.findall(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", path.read_text(), re.M):
+            if ref.startswith("./"):
+                continue
+            if ref.startswith("docker://"):
+                assert re.fullmatch(r"docker://[^@]+@sha256:[0-9a-f]{64}", ref), (path, ref)
+            else:
+                assert re.fullmatch(r"[^@]+@[0-9a-f]{40}", ref), (path, ref)
+
+
+def test_workflows_declare_top_level_permissions():
+    """Job overrides must not leave other jobs with repository defaults (#321)."""
+    for workflow in sorted((REPO / ".github/workflows").glob("*.y*ml")):
+        assert re.search(r"^permissions:", workflow.read_text(), re.MULTILINE), workflow.name
+
+
+def test_iso_publication_event_gates_fail_closed():
+    """Evaluate actual publisher conditions for failed boots and unsupported events."""
+    from itertools import product
+
+    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
+    steps = re.split(r"^      - name: ", workflow, flags=re.MULTILINE)
+    publishers = [step for step in steps if "rclone copyto" in step]
+    for step in publishers:
+        condition = re.search(r"if:\s*(?:>-\s*)?\$\{\{(.*?)\}\}", step, re.S)[1]
+        condition = " ".join(condition.split())
+        alias = step.startswith("Promote latest ISO aliases")
+        for boot, status, skip, event, dated in product(
+            ("success", "failure", "cancelled", "skipped"), (True, False),
+            (True, False), ("pull_request", "workflow_run", "workflow_dispatch"),
+            ("success", "failure", "cancelled", "skipped"),
+        ):
+            evaluated = condition.replace("success()", repr(status))
+            evaluated = evaluated.replace("steps.boot_verify.outcome", repr(boot))
+            evaluated = evaluated.replace("steps.publish_dated.outcome", repr(dated))
+            evaluated = evaluated.replace("inputs.skip_upload", repr(skip))
+            evaluated = evaluated.replace("github.event_name", repr(event))
+            admitted = eval(evaluated.replace("true", "True").replace("&&", " and "),
+                            {"__builtins__": {}})
+            expected = status and boot == "success" and not skip and event != "pull_request"
+            assert admitted == (expected and (not alias or dated == "success"))

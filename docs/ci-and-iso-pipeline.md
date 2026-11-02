@@ -108,7 +108,9 @@ organization workspace.
 Publication fails closed: the local candidate must pass the UEFI ready-token
 assertion before any R2 upload. All four dated objects (ISO, checksum, signature,
 certificate) must upload before latest aliases are updated. Dated names include
-the workflow run ID and attempt, and `rclone --immutable` rejects replacement.
+the checked-out source SHA, workflow run ID and attempt; `rclone --immutable`
+rejects replacement. Checkout uses an immutable action pin and does not
+persist credentials. Existing signing identity and R2 secret names are unchanged.
 The latest checksum is published too, with the ISO alias updated last. R2 has
 no transaction across these aliases: a failed promotion can leave mixed sidecars,
 but fails the workflow; dated objects remain the consistent download set.
@@ -145,6 +147,8 @@ prompt, and installed desktop.
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
 | 2026-10-24 | Unverified ISO could replace public latest (#334) | Upload preceded boot verification and ignored R2 failures | Boot gate precedes publication; immutable dated set completes before latest aliases; upload failures fail the job |
+| 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
+| 2026-10-24 | Four workflows inherited repository token defaults (#321) | Job-level permissions did not constrain other jobs | Add top-level `contents: read`; retain job overrides and require explicit workflow permissions in the invariant tests |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |
 | 2026-07-19 | `just iso-sd-boot tromso` in build-iso.yml never worked | recipe + `tromso/Containerfile` + dracut module never existed in this repo | ported from xfce-linux/dakota-iso (PR #74) |
 | 2026-07-19 | `tromso/Containerfile` missing from git after commit | `.gitignore` had unanchored `Containerfile` rule | anchored to `/Containerfile` |
