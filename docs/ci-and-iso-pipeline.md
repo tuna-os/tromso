@@ -273,6 +273,18 @@ shows a readable installer. KDE titles and the panel use boxes in place of
 letters. The desktop is black, with a red error icon. This frame uses the older
 published payload, not the new candidate.
 
+The [`virtio-vga` ISO run](https://github.com/tuna-os/tromso/actions/runs/41462038652)
+also booted through UEFI. It reached the ready token after 30 seconds and then
+waited for a stable frame. We downloaded and read its
+[actual screenshot](https://github.com/tuna-os/tromso/actions/runs/41462038652/artifacts/13153670942).
+The same KDE text and desktop defects remain.
+
+The [Test run](https://github.com/tuna-os/tromso/actions/runs/41462097232) passed
+every job, with real plain and LUKS installs. We also read both installed frames.
+They still show the old login screen and boxes in place of letters.
+Both runs use the older payload at digest `2b89f634`, not the current
+candidate. The GPU change does not prove a fix for fonts or the new identity.
+
 The shared prose tool at `7c070815` now reports zero findings in its full scan.
 We corrected the 494 inherited findings across eight files. We did not add
 opt-outs or increase the budget, which remains zero.
