@@ -140,10 +140,11 @@ jobs:
               printf -v "$cell" true
             done
           fi
-          # The E2E tests gate pull requests into main only.
-          if [ "$EVENT" != pull_request ] || [ "$BASE_REF" != main ]; then
-            plain=false luks=false
-          fi
+          # Manual qualification runs both modes; PR gates apply to main.
+          case "$EVENT:$BASE_REF" in
+            workflow_dispatch:*|pull_request:main) ;;
+            *) plain=false luks=false ;;
+          esac
 
           {
             echo "shell=$shell"
@@ -367,7 +368,7 @@ jobs:
   plain-e2e:
     name: Plain E2E
     needs: changes
-    if: needs.changes.outputs.e2e-plain == 'true'
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.e2e-plain == 'true') }}
     permissions:
       issues: write
       pull-requests: write
@@ -378,7 +379,7 @@ jobs:
   luks-e2e:
     name: LUKS E2E
     needs: changes
-    if: needs.changes.outputs.e2e-luks == 'true'
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.e2e-luks == 'true') }}
     permissions:
       issues: write
       pull-requests: write

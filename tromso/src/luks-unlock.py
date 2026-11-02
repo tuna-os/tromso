@@ -334,108 +334,14 @@ def run_qemu(monitor_sock: str, passphrase: str, serial_log: str):
         print("[luks-unlock] ERROR: Plymouth takeover never detected", file=sys.stderr)
         sys.exit(1)
 
-    # After passphrase: watch for the screen to change from Plymouth (passphrase
-    # accepted → Plymouth clears → boot continues) and check serial for emergency
-    # shell (still useful for catching issue #270 even without ttyS0).
-    deadline = time.time() + BOOT_DEADLINE
-    passphrase_hash = prev_hash  # Plymouth hash at time of passphrase send
-    screen_changed = False
-    gnome_stable_count = 0
-
-    while time.time() < deadline:
-        result = qemu_check_serial(serial_log)
-        if result == "emergency":
-            print("[luks-unlock] RESULT: emergency shell — issue #270 reproduced", flush=True)
-            sys.exit(2)
-
-        brightness, md5 = qemu_screendump(monitor_sock, snap)
-        print(f"[luks-unlock] post-passphrase brightness={brightness:.2f} hash={md5[:8]}",
-              flush=True)
-
-        if md5 != passphrase_hash and not screen_changed:
-            screen_changed = True
-            print(
-                "[luks-unlock] Screen changed after passphrase"
-                " — LUKS accepted, boot proceeding",
-                flush=True,
-            )
-
-        # Primary success path: serial log confirms gnome-initial-setup or GDM.
-        # gnome-initial-setup fires after GDM — screenshot taken immediately.
-        # If only GDM is seen, wait 30s as a fallback in case g-i-s is slow.
-        if result == "gnome-initial-setup":
-            print("[luks-unlock] gnome-initial-setup started (serial confirmed) — taking screenshot", flush=True)
-            brightness, md5 = qemu_screendump(monitor_sock, snap)
-            print(f"[luks-unlock] RESULT: boot succeeded (g-i-s confirmed via serial, brightness={brightness:.2f})", flush=True)
-        elif result == "gdm":
-            print(
-                "[luks-unlock] GDM started — waiting 30s for gnome-initial-setup...",
-                flush=True,
-            )
-            time.sleep(30)
-            brightness, md5 = qemu_screendump(monitor_sock, snap)
-            print(
-                f"[luks-unlock] RESULT: boot succeeded"
-                f" (GDM confirmed via serial, brightness={brightness:.2f})",
-                flush=True,
-            )
-        elif result == "sddm":
-            print("[luks-unlock] SDDM started — waiting 30s for the greeter to render...", flush=True)
-            time.sleep(30)
-            brightness, md5 = qemu_screendump(monitor_sock, snap)
-            print(
-                f"[luks-unlock] RESULT: boot succeeded"
-                f" (SDDM confirmed via serial, brightness={brightness:.2f})",
-                flush=True,
-            )
-        if result in ("gnome-initial-setup", "gdm", "sddm"):
-            try:
-                import shutil
-                shutil.copy2(snap, "/tmp/luks-screenshot-final.ppm")
-            except OSError:
-                pass
-            sys.exit(0)
-
-        # Fallback: no serial console (console=ttyS0 absent).  Use framebuffer
-        # brightness to distinguish GDM (~2.4) from emergency shell (~1.0).
-        # Only trigger once the screen has re-stabilised after the initial
-        # post-passphrase animation.  GDM re-renders continuously (cursor
-        # blink, animations), so we cannot require many consecutive identical
-        # frames — 1 stable poll is sufficient to confirm the screen settled.
-        GNOME_THRESHOLD    = 1.8
-        GNOME_STABLE_POLLS = 1   # 1 stable poll is enough; GDM keeps rendering
-        if md5 == prev_hash:
-            gnome_stable_count += 1
-        else:
-            gnome_stable_count = 0
-
-        if screen_changed and gnome_stable_count >= GNOME_STABLE_POLLS:
-            if brightness > GNOME_THRESHOLD:
-                print(
-                    f"[luks-unlock] RESULT: boot succeeded"
-                    f" (framebuffer stable {gnome_stable_count} polls,"
-                    f" brightness={brightness:.2f})",
-                    flush=True,
-                )
-            else:
-                print(
-                    f"[luks-unlock] RESULT: emergency shell suspected"
-                    f" (framebuffer stable but dark, brightness={brightness:.2f})",
-                    flush=True,
-                )
-            try:
-                import shutil
-                shutil.copy2(snap, "/tmp/luks-screenshot-final.ppm")
-            except OSError:
-                pass
-            sys.exit(0 if brightness > GNOME_THRESHOLD else 2)
-
-        prev_hash = md5
-        time.sleep(5)
-
-    print("[luks-unlock] WARNING: passphrase sent but boot did not complete within timeout",
-          file=sys.stderr)
-    sys.exit(2)
+    # Do not photograph secret entry or an unconfirmed post-secret screen.
+    # An installed-OS serial marker establishes that the initramfs prompt
+    # is gone; only then may the existing stable-GUI capture resume.
+    try:
+        run_wait_boot(monitor_sock, "/tmp/luks-screenshot-final.ppm", serial_log)
+    except SystemExit:
+        sys.exit(2)
+    sys.exit(0)
 
 
 def run_wait_live(monitor_sock: str, screenshot_path: str):

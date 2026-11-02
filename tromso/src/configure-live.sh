@@ -212,6 +212,7 @@ mkdir -p /var/fisherman-tmp
 mkdir -p /etc/bootc-installer
 cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/bootc-installer/images.json
 cp "$SCRIPT_DIR/etc/bootc-installer/recipe.json" /etc/bootc-installer/recipe.json
+cp "$SCRIPT_DIR/etc/bootc-installer/branding.json" /etc/bootc-installer/branding.json
 touch /etc/bootc-installer/live-iso-mode
 
 # The frontend catalog is separate from fisherman's host media-input contract.

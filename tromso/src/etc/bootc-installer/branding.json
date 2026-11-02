@@ -1,0 +1,16 @@
+{
+  "name": "TunaOS Tromsø",
+  "id": "tromso",
+  "vendor": "TunaOS",
+  "home_url": "https://tunaos.org",
+  "docs_url": "https://github.com/tuna-os/tromso#readme",
+  "support_url": "https://github.com/tuna-os/tromso/issues",
+  "logo": "/usr/share/icons/hicolor/scalable/apps/tromso-logo.svg",
+  "default_hostname": "tromso",
+  "copy": {
+    "welcome_title": "Welcome to {name}",
+    "welcome_subtitle": "An experimental KDE Plasma desktop by TunaOS.",
+    "confirm_title": "Install {name}",
+    "done_title": "{name} is installed"
+  }
+}

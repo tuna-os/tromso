@@ -794,10 +794,7 @@ class TestRunLibvirt(unittest.TestCase):
 
 
 class TestRunQemu(unittest.TestCase):
-    """run_qemu()'s main polling loops (framebuffer-stability fallback path and
-    post-passphrase boot-detection path) are exercised by CI end-to-end but have
-    zero unit coverage — this class adds the fallback-path (no serial console)
-    branches, which qemu_check_serial-based tests above cannot reach."""
+    """Do not resume capture after a secret until the installed OS is ready."""
 
     def _run(self, serial_results, screendumps, expect_exit):
         import itertools
@@ -814,10 +811,9 @@ class TestRunQemu(unittest.TestCase):
         self.assertEqual(cm.exception.code, expect_exit)
         return mock_send
 
-    def test_run_qemu_framebuffer_stable_fallback(self):
-        # No serial console output at all ("" forever): must fall back to
-        # framebuffer brightness/hash-stability detection to find Plymouth,
-        # then to brightness-based GDM/emergency detection post-passphrase.
+    def test_run_qemu_bright_frame_does_not_prove_safe_post_secret_state(self):
+        # A framebuffer change alone cannot authorize capture after input.
+        # The installed OS must produce a fresh serial boot marker.
         serials = [""] * 200
         screendumps = (
             [(0.2, "h0")]                              # not yet rendering
@@ -826,7 +822,7 @@ class TestRunQemu(unittest.TestCase):
             + [(2.5, "h3"), (2.5, "h4"), (2.5, "h4")]   # screen changes then re-stabilises -> success
             + [(2.5, "h4")] * 10
         )
-        mock_send = self._run(serials, screendumps, expect_exit=0)
+        mock_send = self._run(serials, screendumps, expect_exit=2)
         mock_send.assert_called_once_with("/tmp/mon.sock", "hunter2")
 
     def test_run_qemu_framebuffer_emergency_dark(self):
@@ -839,6 +835,38 @@ class TestRunQemu(unittest.TestCase):
             + [(0.9, "h4")] * 10
         )
         self._run(serials, screendumps, expect_exit=2)
+
+    def test_run_qemu_captures_only_before_secret_and_after_safe_boot(self):
+        import itertools
+        state = {"secret": False, "safe": False}
+        markers = itertools.chain(["plymouth", "", "sddm"], itertools.repeat("sddm"))
+        frames = []
+
+        def serial(_path):
+            marker = next(markers)
+            if marker == "sddm":
+                state["safe"] = True
+            return marker
+
+        def frame(_socket, _path):
+            self.assertTrue(not state["secret"] or state["safe"])
+            frames.append(dict(state))
+            return 5.0, "stable"
+
+        def secret(_socket, _passphrase):
+            state["secret"] = True
+
+        with patch("time.time", side_effect=range(100000)), \
+             patch("time.sleep"), \
+             patch.object(luks_unlock, "qemu_check_serial", side_effect=serial), \
+             patch.object(luks_unlock, "qemu_screendump", side_effect=frame), \
+             patch.object(luks_unlock, "qemu_send_passphrase", side_effect=secret), \
+             patch("shutil.copy2"):
+            with self.assertRaises(SystemExit) as result:
+                luks_unlock.run_qemu("/tmp/monitor", "private", "/tmp/serial")
+        self.assertEqual(result.exception.code, 0)
+        self.assertTrue(any(not entry["secret"] for entry in frames))
+        self.assertTrue(any(entry["secret"] and entry["safe"] for entry in frames))
 
     def test_run_qemu_plymouth_never_detected(self):
         # Screendump errors forever (-1, ""): never gets stable content, never
