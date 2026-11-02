@@ -10,7 +10,7 @@ The `Python Tests` job in `.github/workflows/test.yml` runs pytest with
 pytest-cov and uploads `coverage.xml` to Codecov. `.coveragerc` excludes the
 test suite itself from coverage. Upload errors fail the job; `codecov.yml`
 sets the project target to 45% with a 2% threshold and the informational
-patch target to 70%. Public fork pull requests use Codecov tokenless uploads.
+patch target to 70%. Pull requests from public forks use Codecov tokenless uploads.
 
 To generate the same report locally, install `pytest` and `pytest-cov`, then run:
 
