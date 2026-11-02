@@ -1,14 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 180" role="img" aria-labelledby="title desc">
-  <rect width="820" height="180" rx="18" fill="#f5f1e8"/>
-  <title id="title">Tromso wordmark</title>
-  <desc id="desc">Tromso, an independent KDE desktop project by TunaOS.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 240" role="img" aria-labelledby="title desc">
+  <title id="title">TunaOS Tromsø — KDE Plasma desktop</title>
+  <desc id="desc">Original Tromsø Bridge and aurora city mark beside the Tromsø name. KDE Plasma names the desktop software, not an official affiliation.</desc>
+  <rect width="960" height="240" rx="28" fill="#f3efe4"/>
   <defs>
-    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#081d33"/><stop offset="1" stop-color="#163c52"/></linearGradient>
-    <linearGradient id="aurora" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#89f0cf"/><stop offset="1" stop-color="#59a9c4"/></linearGradient>
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071c32"/><stop offset="1" stop-color="#17485b"/></linearGradient>
+    <linearGradient id="aurora" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8ef0c5"/><stop offset="1" stop-color="#58bfd0"/></linearGradient>
   </defs>
-  <circle cx="92" cy="90" r="77" fill="url(#field)"/>
-  <path d="M50 75c24-29 47-31 69-10 15 15 30 16 47-1" fill="none" stroke="url(#aurora)" stroke-width="7" stroke-linecap="round"/>
-  <path d="m43 130 42-51 18 22 18-20 44 49z" fill="#c9e1e6"/>
-  <text x="202" y="105" fill="#102b40" font-family="sans-serif" font-size="72" font-weight="700" letter-spacing="1">TROMSO</text>
-  <text x="207" y="145" fill="#52788a" font-family="sans-serif" font-size="21" letter-spacing="4">KDE DESKTOP · TUNAOS</text>
+  <g transform="translate(16 8) scale(.875)">
+  <g id="tromso-bridge-and-aurora">
+    <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#field)"/>
+    <path d="M34 76C70 33 104 44 135 65S190 86 224 41" fill="none" stroke="url(#aurora)" stroke-width="10" stroke-linecap="round"/>
+    <path d="M40 99C80 68 108 76 139 92S191 107 219 83" fill="none" stroke="#b8f8e0" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/>
+    <g fill="#c4dfe1">
+      <path d="M45 159h7v42h-7zM77 141h7v61h-7zM106 127h10l4 75h-18zM141 127h10l5 75h-19zM174 143h8v59h-8zM205 158h7v43h-7z"/>
+    </g>
+    <path d="M21 165C58 164 83 126 125 122S194 160 235 163" fill="none" stroke="#f3efe4" stroke-width="8" stroke-linecap="round"/>
+    <path d="M21 156C58 155 83 117 125 113S194 151 235 154" fill="none" stroke="#b8d6dc" stroke-width="2.5"/>
+    <path d="M40 157v-8M65 145v-8M90 129v-8M115 123v-9M140 125v-9M165 135v-9M190 151v-9M215 161v-8" stroke="#b8d6dc" stroke-width="2.5"/>
+    <path d="M27 211h61m18 0h54m18 0h51M42 227h46m21 0h73m19 0h15" fill="none" stroke="#70cfbf" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  </g>
+  <text x="282" y="134" fill="#102d42" font-family="sans-serif" font-size="102" font-weight="700">Tromsø</text>
+  <text x="288" y="184" fill="#365e71" font-family="sans-serif" font-size="29">TunaOS · KDE Plasma desktop</text>
 </svg>

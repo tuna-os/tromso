@@ -11,22 +11,30 @@ of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso
 [Release readiness](ROADMAP.md#release-readiness) for dated CI evidence and
 remaining blockers.
 
-![Tromso wordmark](branding/tromso/tromso-wordmark.svg)
+![Tromsø wordmark](branding/tromso/tromso-wordmark.svg)
 
-Tromsø's icon and wallpaper are original TunaOS artwork, separate from KDE
-and Aurora. The configuration selects Tromsø's wallpaper and About-page identity.
-KDE Breeze supplies the controls and splash. These defaults still need visual
-verification in a candidate VM.
+KDE Plasma provides the desktop. The original TunaOS artwork shows Tromsø Bridge
+under an aurora. The icon, wordmark and wallpaper use the same bridge and colors.
+These are not official KDE or city logos. The default wallpaper, login screen
+and About page select this identity. A new candidate still needs visual checks
+in a VM.
 
-![Tromso desktop wallpaper preview](branding/tromso/tromso-wallpaper.png)
+![Tromsø desktop wallpaper preview](branding/tromso/tromso-wallpaper.png)
 
-Icon: [Tromso application mark](branding/tromso/tromso-logo.svg).
+Icon: [Tromsø Bridge city mark](branding/tromso/tromso-logo.svg).
+
+To make the PNG files from their SVG sources:
+
+```bash
+rsvg-convert --width=480 --height=120 --output=branding/tromso/tromso-wordmark.png branding/tromso/tromso-wordmark.svg
+rsvg-convert --width=1920 --height=1080 --output=branding/tromso/tromso-wallpaper.png branding/tromso/tromso-wallpaper.svg
+```
 
 > **Attribution.** Tromso reuses configuration and helper scripts derived from
 > [`ublue-os/aurora`](https://github.com/ublue-os/aurora) and the former
 > `get-aurora-dev` org, under their original licenses. Tromso is **not affiliated
 > with Aurora**, and Aurora does not endorse it. The image ships none of Aurora's
-> artwork, logos, wallpapers or trademarks. The desktop uses stock KDE Breeze.
+> artwork, logos, wallpapers or trademarks. KDE Breeze supplies the desktop controls.
 
 <!-- hive-contribute-plea: donated-compute appeal, keep in sync across repos -->
 ## Contribute compute — no code needed

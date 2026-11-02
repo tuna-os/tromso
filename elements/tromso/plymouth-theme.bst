@@ -16,6 +16,7 @@ sources:
 
 build-depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+- tromso/branding.bst
 
 variables:
   strip-binaries: ""
@@ -27,6 +28,8 @@ config:
     install -d "%{install-root}%{datadir}/plymouth/themes"
     cp -a "${themes_src}/themes/breeze-bgrt" "%{install-root}%{datadir}/plymouth/themes/"
     install -m 0644 "${themes_src}/plymouthd.defaults" "%{install-root}%{datadir}/plymouth/plymouthd.defaults"
+    install -m 0644 /usr/share/tunaos/branding/tromso-wordmark.png \
+      "%{install-root}%{datadir}/plymouth/themes/breeze-bgrt/watermark.png"
   - |
     # bootc-installed systems: boot with `splash` so plymouth shows the
     # graphical splash and LUKS passphrase prompt. Deliberately no `quiet` —

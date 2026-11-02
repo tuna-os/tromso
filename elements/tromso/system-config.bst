@@ -148,6 +148,9 @@ config:
     DisplayServer=wayland
     GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell,QT_QUICK_BACKEND=software
 
+    [Theme]
+    Current=maldives
+
     [Wayland]
     CompositorCommand=kwin_wayland --no-lockscreen --no-global-shortcuts --locale1
     EOF
@@ -322,26 +325,7 @@ config:
     install -Dm644 /dev/stdin \
       "%{install-root}/etc/xdg/plasma-workspace/env/kde-settings.sh" <<'EOF'
     # Activate system-wide KDE defaults profile (mirrors Fedora kde-settings RPM)
-    export XDG_CONFIG_DIRS=/usr/share/kde-settings/kde-profile/default/xdg${XDG_CONFIG_DIRS:+:$XDG_CONFIG_DIRS}
-    EOF
-
-  # ── KDE default fonts via kde-settings profile ──────────────────────
-  # Without a kdeglobals font entry, Qt6/Plasma picks a platform default that
-  # may not have glyphs for all panel widget symbols → tofu squares.
-  # We set Noto Sans (guaranteed present) for all font roles.
-  # The file goes into the kde-settings XDG profile dir activated by
-  # kde-settings.sh above.  Format: Qt6 font description string.
-  - |
-    install -Dm644 /dev/stdin \
-      "%{install-root}/usr/share/kde-settings/kde-profile/default/xdg/kdeglobals" <<'EOF'
-    [General]
-    font=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-    fixed=Noto Sans Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-    smallestReadableFont=Noto Sans,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-    toolBarFont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-    menuFont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-    [KDE]
-    LookAndFeelPackage=org.tunaos.tromso.desktop
+    export XDG_CONFIG_DIRS="/usr/share/kde-settings/kde-profile/default/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}"
     EOF
 
   # Ship a system-wide default kscreenlockerrc that disables the auto-lock
@@ -466,4 +450,3 @@ public:
         - '%{sysconfdir}/pam.d/kde-smartcard'
         - '%{sysconfdir}/xdg/kscreenlockerrc'
         - '%{sysconfdir}/xdg/plasma-workspace/env/kde-settings.sh'
-        - '%{datadir}/kde-settings/kde-profile/default/xdg/kdeglobals'
