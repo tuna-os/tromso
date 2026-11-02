@@ -15,9 +15,10 @@ Usage:
   libvirt mode:   luks-unlock.py libvirt   <vm-name> <passphrase> <mac-address>
   qemu mode:      luks-unlock.py qemu      <monitor-sock> <passphrase> <serial-log>
   wait-live mode: luks-unlock.py wait-live <monitor-sock> <screenshot-path>
+  wait-boot mode: luks-unlock.py wait-boot <monitor-sock> <screenshot-path> <serial-log>
 
 Exit codes:
-  0 — passphrase sent and boot succeeded (display re-stabilised after unlock)
+  0 — boot succeeded and the required display check completed
   1 — error (timed out, passphrase prompt never appeared, etc.)
   2 — passphrase sent but boot resulted in emergency shell (issue #270 reproduced)
 """
@@ -157,7 +158,7 @@ def qemu_send_passphrase(sock: str, passphrase: str):
 
 
 def qemu_check_serial(serial_log: str) -> str:
-    """Return 'plymouth', 'gdm', 'sddm', 'emergency', or '' if no marker yet.
+    """Return a display-manager, login, Plymouth, or emergency marker; else ''.
 
     Checks for systemd unit messages that appear on the serial console when the
     installed system has console=ttyS0 in its kernel cmdline.
@@ -185,6 +186,9 @@ def qemu_check_serial(serial_log: str) -> str:
     #   "OK ] Started sddm.service - Simple Desktop Display Manager."
     if "Started sddm.service" in content_flat or "Started Simple Desktop Display Manager" in content_flat:
         return "sddm"
+    # Plymouth can hide display-manager status messages even after getty starts.
+    if re.search(r'(?m)^\s*\S+ login:\s*$', content):
+        return "login"
     # Plymouth passphrase prompt — no ANSI codes, plain text on serial.
     if "Please enter passphrase for disk" in raw:
         return "plymouth"
@@ -495,6 +499,26 @@ def run_wait_live(monitor_sock: str, screenshot_path: str):
     sys.exit(1)
 
 
+def run_wait_boot(monitor_sock: str, screenshot_path: str, serial_log: str):
+    """Require an installed-OS boot marker followed by a stable rendered GUI."""
+    deadline = time.time() + BOOT_DEADLINE
+    print(f"[luks-unlock] Waiting for installed boot via {serial_log}...", flush=True)
+    while time.time() < deadline:
+        state = qemu_check_serial(serial_log)
+        if state == "emergency":
+            print("[luks-unlock] ERROR: installed system entered emergency mode", file=sys.stderr)
+            sys.exit(1)
+        if state in ("gdm", "sddm", "gnome-initial-setup", "login"):
+            print(f"[luks-unlock] Boot marker {state!r}; requiring a stable GUI...", flush=True)
+            run_wait_live(monitor_sock, screenshot_path)
+            print("[luks-unlock] Installed system booted successfully", flush=True)
+            return
+        time.sleep(POLL_INTERVAL)
+    print(f"[luks-unlock] ERROR: no installed boot marker after {BOOT_DEADLINE}s; see {serial_log}",
+          file=sys.stderr)
+    sys.exit(1)
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
@@ -522,8 +546,14 @@ def main():
             sys.exit(1)
         run_wait_live(sys.argv[2], sys.argv[3])
 
+    elif mode == "wait-boot":
+        if len(sys.argv) < 5:
+            print("Usage: luks-unlock.py wait-boot <monitor-sock> <screenshot-path> <serial-log>", file=sys.stderr)
+            sys.exit(1)
+        run_wait_boot(sys.argv[2], sys.argv[3], sys.argv[4])
+
     else:
-        print(f"Unknown mode: {mode!r}. Use 'libvirt', 'qemu', or 'wait-live'.", file=sys.stderr)
+        print(f"Unknown mode: {mode!r}. Use 'libvirt', 'qemu', 'wait-live', or 'wait-boot'.", file=sys.stderr)
         sys.exit(1)
 
 

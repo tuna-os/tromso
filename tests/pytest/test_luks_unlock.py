@@ -81,6 +81,19 @@ class TestLuksUnlock(unittest.TestCase):
         result = luks_unlock.qemu_check_serial("dummy.log")
         self.assertEqual(result, "")
 
+    def test_qemu_check_serial_login(self):
+        for prompt in ("node login:", "other-host login: \r", "\x1b[32mnøde\x1b[0m login:"):
+            with self.subTest(prompt=prompt), patch("builtins.open", mock_open(read_data=prompt)):
+                self.assertEqual(luks_unlock.qemu_check_serial("serial.log"), "login")
+
+    @patch("builtins.open", new_callable=mock_open, read_data="Service log mentions node login:")
+    def test_qemu_check_serial_login_not_embedded_in_log(self, mock_file):
+        self.assertEqual(luks_unlock.qemu_check_serial("serial.log"), "")
+
+    @patch("builtins.open", new_callable=mock_open, read_data="Entering emergency mode\nnode login:")
+    def test_qemu_check_serial_emergency_before_login(self, mock_file):
+        self.assertEqual(luks_unlock.qemu_check_serial("serial.log"), "emergency")
+
     # ── virsh_dhcp_ip Tests ────────────────────────────────────────────────────
 
     @patch("subprocess.run")
@@ -284,6 +297,53 @@ class TestLuksUnlock(unittest.TestCase):
             luks_unlock.main()
             mock_run_wait_live.assert_called_once_with("/tmp/sock", "/tmp/screenshot.ppm")
             mock_exit.assert_not_called()
+
+    def test_main_wait_boot_insufficient_args(self):
+        with patch("sys.argv", ["luks-unlock.py", "wait-boot", "/tmp/sock"]):
+            with self.assertRaises(SystemExit) as failure:
+                luks_unlock.main()
+        self.assertEqual(failure.exception.code, 1)
+
+    @patch("luks_unlock.run_wait_boot")
+    def test_main_wait_boot_success(self, mock_wait_boot):
+        with patch("sys.argv", ["luks-unlock.py", "wait-boot", "/tmp/sock", "/tmp/frame.ppm", "/tmp/serial.log"]):
+            luks_unlock.main()
+        mock_wait_boot.assert_called_once_with("/tmp/sock", "/tmp/frame.ppm", "/tmp/serial.log")
+
+    def test_run_wait_boot_requires_graphical_readiness(self):
+        for marker in ("login", "gdm", "sddm", "gnome-initial-setup"):
+            with self.subTest(marker=marker), \
+                 patch("luks_unlock.qemu_check_serial", side_effect=["", marker]) as serial, \
+                 patch("luks_unlock.run_wait_live") as wait_live, \
+                 patch("time.sleep"):
+                luks_unlock.run_wait_boot("/tmp/sock", "/tmp/frame.ppm", "/tmp/serial.log")
+                self.assertEqual(serial.call_count, 2)
+                wait_live.assert_called_once_with("/tmp/sock", "/tmp/frame.ppm")
+
+    @patch("luks_unlock.run_wait_live")
+    @patch("luks_unlock.qemu_check_serial", return_value="emergency")
+    def test_run_wait_boot_rejects_emergency(self, mock_serial, mock_wait_live):
+        with self.assertRaises(SystemExit) as failure:
+            luks_unlock.run_wait_boot("/tmp/sock", "/tmp/frame.ppm", "/tmp/serial.log")
+        self.assertEqual(failure.exception.code, 1)
+        mock_wait_live.assert_not_called()
+
+    @patch("luks_unlock.run_wait_live")
+    @patch("luks_unlock.qemu_check_serial", return_value="")
+    @patch("time.sleep")
+    def test_run_wait_boot_rejects_timeout(self, mock_sleep, mock_serial, mock_wait_live):
+        with patch("time.time", side_effect=[0, 1, luks_unlock.BOOT_DEADLINE + 1]):
+            with self.assertRaises(SystemExit) as failure:
+                luks_unlock.run_wait_boot("/tmp/sock", "/tmp/frame.ppm", "/tmp/serial.log")
+        self.assertEqual(failure.exception.code, 1)
+        mock_wait_live.assert_not_called()
+
+    @patch("luks_unlock.run_wait_live", side_effect=SystemExit(1))
+    @patch("luks_unlock.qemu_check_serial", return_value="login")
+    def test_run_wait_boot_propagates_graphical_failure(self, mock_serial, mock_wait_live):
+        with self.assertRaises(SystemExit) as failure:
+            luks_unlock.run_wait_boot("/tmp/sock", "/tmp/frame.ppm", "/tmp/serial.log")
+        self.assertEqual(failure.exception.code, 1)
 
     @patch("luks_unlock.qemu_screendump")
     @patch("time.sleep")

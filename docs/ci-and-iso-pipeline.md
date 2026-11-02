@@ -173,9 +173,10 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-02 | Plain in 41447171165 completes installation but fails its five-minute boot wait | The VM reaches a getty prompt; serial output contains no display-manager start message, which the plain predicate required | Reuse the boot parser with a generic getty marker and require the strict graphical wait; emergency, timeout, or graphical failure must still fail |
 | 2026-11-02 | Five chunks in candidate 41390175592 lose their archives after the soft budget; final assembly is skipped | The host `just` process exits but BuildStream still writes to CAS, so `tar` reports `file changed as we read it` and exits 1 | Pin bst-ci `200ad7c`, which stops the builders before archive creation; preserve `pipefail` rather than suppress the archive failure |
 | 2026-11-02 | Candidate 41390175592 cannot fetch `pam-wrapper.bst` from `git.samba.org` | The runner reports an unreachable network after 120 seconds; `--on-error continue` then spends its remaining budget elsewhere | Use cwrap's GitLab repository with the same `pam_wrapper-1.1.8` commit; actual pinned-container source fetch succeeds with one processed source and zero failures, preserving the artifact key |
-| 2026-11-02 | Both installs in 41395843658 fail with `Unexpected EOF in splitstream` after media verification | [INFERENCE] Dropped source-only composefs preparation left the original layers; the precise EOF mechanism is not yet proven | Restore Dakota's squash, root policy and final-diffid contract before both live customization and OCI export; actual install rerun is still needed |
+| 2026-11-02 | Both installs in 41395843658 fail with `Unexpected EOF in splitstream` after media verification | [INFERENCE] Dropped source-only composefs preparation left the original layers; the precise EOF mechanism is not yet proven | Restore Dakota's squash, root policy and final-diffid contract before both live customization and OCI export; rerun 41447171165 completes both installs and LUKS unlocks to the installed login screen |
 | 2026-11-02 | ISO 41395837392 reports ready after 25 seconds but its screenshot is black | The serial marker precedes a rendered session; the capture occurred immediately | Use the existing graphical wait before capture; fail on dark/unstable timeout or screenshot-copy error instead of returning success |
 | 2026-11-02 | Shipped bootc installation policy has no effect | `00-tromso.conf` is not the `.toml` file bootc reads; its bare `btrfs` value is invalid TOML | Ship `00-tromso.toml` with quoted filesystem and explicit root mount policy; actual element commands emitted a parseable policy |
 | 2026-11-02 | Python producer test and both debug ISO jobs fail in 41392502489 | Ubuntu 24.04 supplies skopeo 1.13.3, without `--dest-force-compress-format`; initial host smoke used a newer binary | Use OCI destination `--dest-compress-format gzip` only; all 269 tests pass with Ubuntu's binary, final 15 ISO tests pass, and actual Fedora copy verifies gzip bytes and all descriptors without warnings |
@@ -242,13 +243,27 @@ It uses the older published payload, not the new candidate.
 
 [Both install tests](https://github.com/tuna-os/tromso/actions/runs/41395843658)
 accepted the immutable media and reached bootc, then failed with a splitstream
-EOF. The other jobs in that Test run passed. The preparation correction and
-strict visual gate still need a complete runtime rerun.
+EOF. The other jobs in that Test run passed.
 
-The shared prose tool at `7c070815` reports no new findings in these changes.
-Its full scan still reports 494 findings across eight files, against a budget
-of zero. Most are in existing outreach and architecture documents. This
-remains a separate gate failure; the budget has not increased.
+The [prepared-payload rerun](https://github.com/tuna-os/tromso/actions/runs/41447171165)
+completed both installs. LUKS accepted the passphrase and reached a login screen.
+Its [actual frame](https://raw.githubusercontent.com/tuna-os/tromso/ci-screenshots/luks-e2e/41447171165/stable/final-boot.png)
+shows boxes in place of letters and the old theme, not the new identity.
+
+Plain reached a login prompt, but its gate waited for a display-manager message
+absent from serial output. The new gate recognizes getty but still needs a stable
+frame. A real plain rerun remains necessary.
+
+The [corrected ISO](https://github.com/tuna-os/tromso/actions/runs/41447164858)
+booted through UEFI and waited for a stable GUI. Its actual
+[screenshot](https://github.com/tuna-os/tromso/actions/runs/41447164858/artifacts/13144831230)
+shows a readable installer. KDE titles and the panel use boxes in place of
+letters. The desktop is black, with a red error icon. This frame uses the older
+published payload, not the new candidate.
+
+The shared prose tool at `7c070815` now reports zero findings in its full scan.
+We corrected the 494 inherited findings across eight files. We did not add
+opt-outs or increase the budget, which remains zero.
 
 ## Channels: nightly (main) and stable
 
