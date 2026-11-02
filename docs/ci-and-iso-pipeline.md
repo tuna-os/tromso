@@ -233,11 +233,11 @@ workflow of one test always runs that test. The two tests run fully on their
 weekly schedules and on manual dispatch.
 
 Both install tests run PR-supplied recipes with read-only repository tokens
-(tromso#270), with checkout credential persistence disabled. They do not log
+(tromso#270). Checkout does not persist credentials. They do not log
 in to GHCR: the payload image is public. Screenshots, serial logs, and job
-summaries remain available in Actions. There is no privileged reporting job
-and no untrusted-artifact-to-repository write boundary. A future reporting
-change needs its own review and behavioral security tests.
+summaries remain available in Actions. No privileged job reports results,
+and no write boundary connects untrusted artifacts to the repository.
+Any future change to reports needs its own review and behavioral security tests.
 
 ## Rollback
 
