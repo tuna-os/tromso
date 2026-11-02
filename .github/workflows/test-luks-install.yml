@@ -95,6 +95,14 @@ jobs:
           just output_dir=output luks-test-qemu "$TARGET" ${{ matrix.installer_channel }}
           echo "duration=$(( $(date +%s) - START ))" >> "$GITHUB_OUTPUT"
         continue-on-error: true
+      - name: Make screenshots readable for artifact upload
+        if: always()
+        run: |
+          for screenshot in /tmp/luks-screenshot-*.ppm; do
+            [ -f "$screenshot" ] || continue
+            sudo chown "$USER:$(id -gn)" "$screenshot"
+          done
+
 
       - name: Upload screenshots
         if: always()
