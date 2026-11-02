@@ -108,21 +108,23 @@ recover after they refresh the GHCR caches.
 
 `just iso-sd-boot tromso` (see `iso.justfile`, imported from `Justfile`):
 
-1. `just container tromso` — 3-stage `tromso/Containerfile`:
-   ghcr payload (kernel modules) → Debian stage builds a dmsquash-live
-   initramfs (incl. the `95tromso-isofile` Ventoy dracut module) → final
-   stage installs flatpaks (`src/install-flatpaks.sh`) and configures the
-   live env (`src/configure-live.sh`).
-2. Resolve the payload once to a registry digest. The live base and embedded
-   image use that same digest. `scripts/embed-oci-payload.sh` copies the gzip
-   OCI layout to `/usr/lib/tunaos/payload` inside the squashfs and writes
-   `/etc/bootc-installer/media-input.json` from its actual manifest and config.
-   Fisherman verifies it before disk writes; no VFS graphroot or network
-   fallback is used. The catalog and ref for day-2 updates match the payload.
-   `usr-lib-tunaos-payload.mount` self-binds the layout read-only. The live
-   overlay alone is writable to `statfs`, even with squashfs beneath it.
+1. Resolve the source to a registry digest. `scripts/prepare-payload.sh`
+   follows Dakota's composefs preparation: add the root mount policy, squash
+   to one layer, and set `ostree.final-diffid` in both label and annotation.
+   The helper checks this metadata before it publishes a local cache tag.
+   The tag includes the source digest and preparation version.
+2. `just container tromso` uses this prepared image for the live base.
+   The Debian stage builds a dmsquash-live initramfs. The final stage adds
+   Flatpaks and the configuration for the live session.
+3. `scripts/embed-oci-payload.sh` exports that same prepared image to the
+   gzip OCI layout at `/usr/lib/tunaos/payload`. It writes
+   `/etc/bootc-installer/media-input.json` from the actual manifest and config.
+   Fisherman verifies the layout before disk writes. No VFS graphroot or
+   network fallback is used. The catalog and ref for updates match the payload.
+4. `usr-lib-tunaos-payload.mount` binds the layout read-only. The live overlay
+   alone is writable to `statfs`, even with squashfs beneath it.
    The ready marker needs this mount. If the mount fails, publication stops.
-3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
+5. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
 `org.tunaos.InstallerKde` from the OCI flatpak remote for tuna-os. A symbolic
@@ -131,8 +133,9 @@ link at `/usr/local/bin/fisherman` points to fisherman. It uses the shared
 organization workspace.
 
 Publication fails closed. The candidate must pass the UEFI ready-token assertion
-before any upload to R2. The workflow uploads an ISO, a checksum and a Sigstore
-bundle under dated names. Only then does it update the latest aliases.
+and capture a stable, non-dark frame before any upload to R2. The workflow
+uploads an ISO, checksum and Sigstore bundle under dated names. Only then
+does it update the latest aliases.
 
 Dated names include the run ID and `run_attempt`. `rclone --immutable` rejects
 replacement. The workflow publishes the latest checksum and updates the ISO
@@ -170,6 +173,9 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-02 | Both installs in 41395843658 fail with `Unexpected EOF in splitstream` after media verification | [INFERENCE] Dropped source-only composefs preparation left the original layers; the precise EOF mechanism is not yet proven | Restore Dakota's squash, root policy and final-diffid contract before both live customization and OCI export; actual install rerun is still needed |
+| 2026-11-02 | ISO 41395837392 reports ready after 25 seconds but its screenshot is black | The serial marker precedes a rendered session; the capture occurred immediately | Use the existing graphical wait before capture; fail on dark/unstable timeout or screenshot-copy error instead of returning success |
+| 2026-11-02 | Shipped bootc installation policy has no effect | `00-tromso.conf` is not the `.toml` file bootc reads; its bare `btrfs` value is invalid TOML | Ship `00-tromso.toml` with quoted filesystem and explicit root mount policy; actual element commands emitted a parseable policy |
 | 2026-11-02 | Python producer test and both debug ISO jobs fail in 41392502489 | Ubuntu 24.04 supplies skopeo 1.13.3, without `--dest-force-compress-format`; initial host smoke used a newer binary | Use OCI destination `--dest-compress-format gzip` only; all 269 tests pass with Ubuntu's binary, final 15 ISO tests pass, and actual Fedora copy verifies gzip bytes and all descriptors without warnings |
 | 2026-11-02 | ISO 41390885095 fails payload preflight | Digest pin retained the tag (`:latest@sha256:…`), which skopeo rejects | Construct the canonical ref from inspect `.Name + "@" + .Digest`; real GHCR tag and digest inspection both succeed with identical digest |
 | 2026-11-02 | Main build 41281483906 fails in WebKit CMake | Unset link target expands into malformed condition | Integrate existing #427 backport rather than bypass WebKit |
@@ -208,6 +214,14 @@ We used the actual producer for OCI media to copy `fedora-minimal:44`.
 It verified every blob digest and size. We executed the install commands for
 the identity assets. We also signed and verified a Sigstore bundle with a local key.
 
+We also prepared the actual published Tromsø image with native Podman.
+We combined six layers into one. Both the label and annotation matched its diff ID.
+A second call reused the cache without build output.
+
+Native Skopeo exported it as one gzip layer. We verified every blob digest and size,
+preserved metadata, and the root policy inside the archive. This does not
+prove that bootc can install or boot it.
+
 Permanent tests use `skopeo` with a valid OCI fixture. They verify the gzip
 layer and all digests, and reject an absent source. These checks do not prove a
 Tromsø boot or installed desktop. They do not verify signatures from GitHub OIDC.
@@ -216,6 +230,18 @@ The candidate workflows must supply the full build and KVM install evidence.
 We exercised the read-only self-bind in a private mount namespace.
 Reads succeeded and writes failed with EROFS. `systemd-analyze verify` accepted
 the actual mount unit. This is host mount evidence, not a guest boot claim.
+
+Runtime evidence from `4e30385`: [production ISO run](https://github.com/tuna-os/tromso/actions/runs/41395837392)
+passed its UEFI serial gate. That is not proof of a healthy desktop.
+The downloaded production screenshot is black. The
+[debug live screenshot](https://raw.githubusercontent.com/tuna-os/tromso/ci-screenshots/luks-e2e/41395843658/stable/live-boot.png)
+shows the installer, but also missing glyphs and a black desktop.
+It uses the older published payload, not the new candidate.
+
+[Both install tests](https://github.com/tuna-os/tromso/actions/runs/41395843658)
+accepted the immutable media and reached bootc, then failed with a splitstream
+EOF. The other jobs in that Test run passed. The preparation correction and
+strict visual gate still need a complete runtime rerun.
 
 The shared prose tool at `7c070815` reports no new findings in these changes.
 Its full scan still reports 494 findings across eight files, against a budget
@@ -291,7 +317,8 @@ skipped job reports success, so each required check always reports. If the
 
 The plain and LUKS install tests build the same ISO and use different install
 paths. A change to their shared inputs (`tromso/`, the justfiles,
-`scripts/lib-install-qemu.sh`, `scripts/embed-oci-payload.sh`) runs one of
+`scripts/lib-install-qemu.sh`, `scripts/embed-oci-payload.sh`,
+`scripts/prepare-payload.sh`) runs one of
 the two tests. The run number selects the test. Set the repository variable
 `E2E_ROUND_ROBIN_SIZE` to 2 to run both. A change to the install script or
 workflow of one test always runs that test. The two tests run fully on their

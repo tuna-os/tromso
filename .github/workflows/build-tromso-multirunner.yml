@@ -55,7 +55,7 @@ concurrency:
 jobs:
   # ── Phase 1-3: Plan, core, parallel dependency chunks ────────────────
   multirunner:
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@c525253f6d146e33e8d7dd80cfe5a9cd32741929 # source/CAS cache fixes
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@200ad7cbc96ee0d456ed76a31211cb39681edde3 # source/CAS cache fixes
     permissions:
       contents: read
       packages: write
@@ -408,7 +408,7 @@ jobs:
   # regress the x86_64 image consumers actually run.
   multirunner_aarch64:
     if: github.event_name == 'workflow_dispatch' && inputs.build_aarch64 == true
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@c525253f6d146e33e8d7dd80cfe5a9cd32741929 # source/CAS cache fixes
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@200ad7cbc96ee0d456ed76a31211cb39681edde3 # source/CAS cache fixes
     permissions:
       contents: read
       packages: write

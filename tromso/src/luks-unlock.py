@@ -473,12 +473,10 @@ def run_wait_live(monitor_sock: str, screenshot_path: str):
                 stable_count = 0
             prev_hash = md5
 
-            # Keep a backup of the latest bright screenshot in case we time out
-            try:
-                import shutil
-                shutil.copy2(snap, screenshot_path)
-            except OSError:
-                pass
+            # Preserve the latest bright frame for diagnostics, even if
+            # stability times out. A failed capture must not pass the gate.
+            import shutil
+            shutil.copy2(snap, screenshot_path)
 
             if stable_count >= STABLE_POLLS:
                 print(f"[luks-unlock] Live boot GUI stable (brightness={brightness:.2f}, {stable_count} identical polls)", flush=True)
@@ -491,9 +489,10 @@ def run_wait_live(monitor_sock: str, screenshot_path: str):
         time.sleep(POLL_INTERVAL)
 
     if prev_hash:
-        print("[luks-unlock] WARNING: wait-live timed out — screen never stabilized. Using last captured bright frame.", file=sys.stderr)
+        print("[luks-unlock] ERROR: wait-live timed out — screen never stabilized. Latest bright frame retained for diagnostics.", file=sys.stderr)
     else:
-        print("[luks-unlock] WARNING: wait-live timed out — screen never reached brightness threshold. No screenshot captured.", file=sys.stderr)
+        print("[luks-unlock] ERROR: wait-live timed out — screen never reached brightness threshold.", file=sys.stderr)
+    sys.exit(1)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

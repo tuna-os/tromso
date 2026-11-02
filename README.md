@@ -14,8 +14,9 @@ remaining blockers.
 ![Tromso wordmark](branding/tromso/tromso-wordmark.svg)
 
 Tromsø's icon and wallpaper are original TunaOS artwork, separate from KDE
-and Aurora. Installed and live sessions select the Tromsø wallpaper and About
-page identity. KDE Breeze supplies the controls and splash.
+and Aurora. The configuration selects Tromsø's wallpaper and About-page identity.
+KDE Breeze supplies the controls and splash. These defaults still need visual
+verification in a candidate VM.
 
 ![Tromso desktop wallpaper preview](branding/tromso/tromso-wallpaper.png)
 

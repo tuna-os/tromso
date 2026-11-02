@@ -240,8 +240,12 @@ The tromso OCI image must have gzip-compressed layers for composefs to work:
 
 The squashfs embeds exactly one OCI layout at `/usr/lib/tunaos/payload`.
 `/etc/bootc-installer/media-input.json` records the actual manifest/config
-digests and the day-2 ref. Live base and embedded payload must use the same
-resolved registry digest. Never recreate the former VFS-only media: current
+digests and the day-2 ref. Resolve the registry digest once, then use
+`scripts/prepare-payload.sh` before both live customization and payload export.
+Its source-only squash must record the actual `ostree.final-diffid` as label
+and annotation. Never export the original layer stack in place of that prepared
+source, or retain stale metadata after a squash.
+Never recreate the former VFS-only media:
 fisherman refuses it before disk writes. Do not add a registry fallback to E2E.
 The live overlay reports writable to `statfs`. Keep the required read-only
 self-bind mount `usr-lib-tunaos-payload.mount`; permissions alone do not

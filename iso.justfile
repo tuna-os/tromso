@@ -46,28 +46,13 @@ container target base_image="":
     PAYLOAD_REF=$(tr -d '[:space:]' < "{{target}}/payload_ref")
     BASE_IMAGE="{{base_image}}"
     if [[ -z "$BASE_IMAGE" ]]; then
-        BASE_IMAGE=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Name + "@" + .Digest')
+        PAYLOAD_PINNED=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Name + "@" + .Digest')
+        BASE_IMAGE=$(sudo bash scripts/prepare-payload.sh "$PAYLOAD_PINNED" "{{target}}")
     fi
-    # Pre-flight: the payload base image must exist in its registry. A
-    # missing payload (e.g. nightly 'Build Tromso' failing) used to surface
-    # deep inside the pull as a generic 'manifest unknown' that read like an
-    # install failure — tromso#208. Fail loudly and clearly instead.
-    if command -v skopeo >/dev/null 2>&1; then
-        if ! sudo skopeo inspect "docker://${BASE_IMAGE}" >/dev/null 2>&1; then
-            echo "::error::Payload image ${BASE_IMAGE} is missing or not pullable."
-            echo "::error::It is published by the nightly 'Build Tromso (Multi-Runner)' workflow — if that has been failing, the payload must be republished before ISO builds can run (see tromso#208)."
-            exit 1
-        fi
-        echo "Payload image ${BASE_IMAGE} verified"
-    fi
-    echo "Squashing pinned base image: ${BASE_IMAGE}"
-    SQUASH_CTR=$(sudo buildah from "${BASE_IMAGE}")
-    trap 'sudo buildah rm "$SQUASH_CTR"' EXIT
-    sudo buildah commit --squash "${SQUASH_CTR}" "localhost/{{target}}-live-base"
 
     sudo podman build --cap-add sys_admin --security-opt label=disable \
         --layers \
-        --build-arg BASE_IMAGE="localhost/{{target}}-live-base" \
+        --build-arg BASE_IMAGE="$BASE_IMAGE" \
         --build-arg DEBUG={{debug}} \
         --build-arg INSTALLER_CHANNEL={{installer_channel}} \
         -t {{target}}-installer ./{{target}}
@@ -90,7 +75,8 @@ iso-sd-boot target:
 
     PAYLOAD_REF=$(tr -d '[:space:]' < "{{target}}/payload_ref")
     PAYLOAD_PINNED=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Name + "@" + .Digest')
-    just debug={{debug}} installer_channel={{installer_channel}} container {{target}} "$PAYLOAD_PINNED"
+    PAYLOAD_PREPARED=$(sudo bash scripts/prepare-payload.sh "$PAYLOAD_PINNED" "{{target}}")
+    just debug={{debug}} installer_channel={{installer_channel}} container {{target}} "$PAYLOAD_PREPARED"
     mkdir -p {{output_dir}}
     OUTPUT_DIR=$(realpath "{{output_dir}}")
 
@@ -117,10 +103,11 @@ iso-sd-boot target:
         mkdir -p \"\${SQUASHFS_ROOT}\"
         cp -a --reflink=auto \"\${MOUNT}/.\" \"\${SQUASHFS_ROOT}/\" 2>/dev/null || \
             cp -a \"\${MOUNT}/.\" \"\${SQUASHFS_ROOT}/\"
-        # OCI layouts are consumed directly by fisherman/bootc. Do not also
-        # embed a VFS graphroot: that doubles the payload and is not the
-        # immutable media-input contract required by the installer.
-        bash scripts/embed-oci-payload.sh 'docker://${PAYLOAD_PINNED}' '${PAYLOAD_REF}' \"\${SQUASHFS_ROOT}\"
+        # Reuse the source-only flattened base prepared above. Composefs
+        # payloads must be squashed (Dakota payload-oci.sh); exporting the
+        # original layer stack bypasses that required preparation.
+        # Never also embed a VFS graphroot: media-input names this OCI layout.
+        bash scripts/embed-oci-payload.sh 'containers-storage:${PAYLOAD_PREPARED}' '${PAYLOAD_REF}' \"\${SQUASHFS_ROOT}\"
         mkdir -p \"\${SQUASHFS_ROOT}/proc\" \"\${SQUASHFS_ROOT}/sys\" \"\${SQUASHFS_ROOT}/dev\"
 
         SFS_LEVEL=3; SFS_BLOCK=131072
@@ -396,7 +383,7 @@ luks-boot-qemu-live target:
     # Wait for the live boot GUI to render and stabilize before screenshotting
     sudo python3 "{{target}}/src/luks-unlock.py" wait-live \
         "{{luks-qemu-monitor-live}}" \
-        "/tmp/luks-screenshot-live.ppm" || true
+        "/tmp/luks-screenshot-live.ppm"
 
 # Run fisherman LUKS install via SSH into the live QEMU VM.
 luks-install-qemu target:

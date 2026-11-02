@@ -120,7 +120,7 @@ jobs:
               .yamllint.yml|.editorconfig|.gitignore|.ste-budget) ;;
               *) graph=true ;;
             esac
-            case "$f" in tromso/*|Justfile|iso.justfile|scripts/lib-install-qemu.sh|scripts/embed-oci-payload.sh) e2e_shared=true ;; esac
+            case "$f" in tromso/*|Justfile|iso.justfile|scripts/lib-install-qemu.sh|scripts/embed-oci-payload.sh|scripts/prepare-payload.sh) e2e_shared=true ;; esac
             case "$f" in scripts/plain-install-qemu.sh|.github/workflows/test-plain-install.yml) plain=true ;; esac
             case "$f" in scripts/luks-install-qemu.sh|.github/workflows/test-luks-install.yml) luks=true ;; esac
           done < "$CHANGED"

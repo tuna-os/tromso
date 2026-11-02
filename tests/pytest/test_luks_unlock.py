@@ -306,7 +306,9 @@ class TestLuksUnlock(unittest.TestCase):
         # Always dark, or never stable
         mock_screendump.return_value = (0.1, 'a')
         with patch("time.time", side_effect=[0, 100, 200, 301]):
-            luks_unlock.run_wait_live("/tmp/sock", "/tmp/screenshot.ppm")
+            with self.assertRaises(SystemExit) as failure:
+                luks_unlock.run_wait_live("/tmp/sock", "/tmp/screenshot.ppm")
+            self.assertEqual(failure.exception.code, 1)
         # Should not copy since brightness < threshold
         mock_copy.assert_not_called()
 
@@ -321,7 +323,9 @@ class TestLuksUnlock(unittest.TestCase):
             (2.0, 'd')
         ]
         with patch("time.time", side_effect=[0, 100, 200, 301]):
-            luks_unlock.run_wait_live("/tmp/sock", "/tmp/screenshot.ppm")
+            with self.assertRaises(SystemExit) as failure:
+                luks_unlock.run_wait_live("/tmp/sock", "/tmp/screenshot.ppm")
+            self.assertEqual(failure.exception.code, 1)
         # Should copy the bright frames
         self.assertTrue(mock_copy.called)
 
