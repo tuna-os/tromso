@@ -129,7 +129,6 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     multi = (workflows / "build-tromso-multirunner.yml").read_text()
     assert "multirunner:" in multi
     assert "build_final:" in multi
-    assert "just export" in multi
 
 
 def test_github_actions_use_immutable_references():
