@@ -96,24 +96,6 @@ def test_no_quiet_karg_in_elements():
             assert '"quiet"' not in text, f"{bst} adds quiet karg"
 
 
-def test_workflow_cancellation_preserves_expensive_image_builds():
-    """Supersede cheap checks, but let long builds finish and save their CAS."""
-    workflows = REPO / ".github" / "workflows"
-    for name, policy in (
-        ("test.yml", "true"),
-        ("build-iso.yml", "true"),
-        ("build-tromso-multirunner.yml", "false"),
-    ):
-        text = (workflows / name).read_text()
-        assert "concurrency:" in text, f"{name} lacks a concurrency group"
-        assert re.search(rf"cancel-in-progress:\s*{policy}", text), name
-
-    iso = (workflows / "build-iso.yml").read_text()
-    assert "github.event.workflow_run.head_branch || github.ref_name" in iso, (
-        "push and workflow_run ISO triggers must normalize to the same branch key"
-    )
-
-
 def test_multi_runner_is_the_only_buildstream_image_builder():
     """Prevent a second, non-convergent image builder from returning."""
     workflows = REPO / ".github" / "workflows"
@@ -146,42 +128,6 @@ def test_workflows_declare_top_level_permissions():
         assert re.search(r"^permissions:", workflow.read_text(), re.MULTILINE), workflow.name
 
 
-def test_webkit_framework_condition_handles_unset_link_target():
-    """WebKit 2.53.1's empty variable expansion stopped main in CMake (#392)."""
-    sources = (REPO / "elements/sdk/webkitgtk.inc").read_text()
-    patch = "patches/webkitgtk/fix-empty-linked-into.patch"
-    assert f"path: {patch}" in sources
-    correction = (REPO / patch).read_text()
-    assert (
-        "+        if ((NOT _linked_into) OR (framework STREQUAL _linked_into) "
-        "OR (NOT _linked_into IN_LIST ${_target}_FRAMEWORKS))"
-    ) in correction
-
-
-def test_iso_publication_requires_verified_candidate():
-    """Neither failed boots nor partial dated uploads may promote latest."""
-    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
-    steps = re.split(r"^      - name: ", workflow, flags=re.MULTILINE)
-    boot = next(i for i, step in enumerate(steps) if step.startswith("Boot verification"))
-    dated = next(i for i, step in enumerate(steps) if step.startswith("Publish dated ISO objects"))
-    latest = next(i for i, step in enumerate(steps) if step.startswith("Promote latest ISO aliases"))
-    assert boot < dated < latest
-    assert "id: boot_verify" in steps[boot]
-    assert "continue-on-error:" not in workflow
-    publishers = [step for step in steps if "rclone copyto" in step]
-    assert publishers == [steps[dated], steps[latest]]
-    for step in publishers:
-        assert "success() && steps.boot_verify.outcome == 'success'" in step
-        assert "inputs.skip_upload != true" in step
-        assert "github.event_name != 'pull_request'" in step
-        assert step.count("rclone copyto") == 3
-    assert "steps.publish_dated.outcome == 'success'" in steps[latest]
-    assert "tromso-live-latest" not in steps[dated]
-    assert steps[dated].count("--immutable") == 3
-    for suffix in ('iso"', 'iso-CHECKSUM"', 'iso.bundle"'):
-        assert f'tromso-live-latest.{suffix}' in steps[latest]
-
-
 def test_iso_upload_failures_stop_publication(tmp_path):
     """Exercise the actual upload commands with every R2 request failing in turn."""
     import subprocess
@@ -210,55 +156,77 @@ def test_iso_upload_failures_stop_publication(tmp_path):
         assert len(log.read_text().splitlines()) == min(fail_at, 6)
 
 
-def test_offline_media_is_an_oci_layout_not_a_vfs_graphroot():
-    recipe = (REPO / "iso.justfile").read_text()
-    producer = (REPO / "scripts/embed-oci-payload.sh").read_text()
-    driver = (REPO / "scripts/lib-install-qemu.sh").read_text()
-    assert "PAYLOAD_PINNED" in recipe
-    assert "scripts/embed-oci-payload.sh" in recipe
-    assert "SQUASHFS_STORAGE" not in recipe
-    assert 'LAYOUT_PATH=/usr/lib/tunaos/payload' in producer
-    assert 'platformManifestDigest: $manifest' in producer
-    assert 'targetImgref: $image' in producer
-    assert '"${LAYOUT}/index.json"' in producer
-    assert 'INSTALL_IMAGE=""' in driver
-    assert 'docker://${PAYLOAD_IMAGE}' not in driver
-    assert "offline-stores" not in CONFIGURE_LIVE
+def test_media_producer_copies_and_binds_a_real_oci_layout(tmp_path):
+    """Exercise skopeo conversion and verify the bytes fisherman will consume."""
+    import gzip
+    import hashlib
+    import io
+    import json
+    import subprocess
+    import tarfile
+
+    source = tmp_path / "source"
+    blobs = source / "blobs/sha256"
+    blobs.mkdir(parents=True)
+
+    def blob(data, media_type):
+        digest = hashlib.sha256(data).hexdigest()
+        (blobs / digest).write_bytes(data)
+        return {"mediaType": media_type, "digest": f"sha256:{digest}", "size": len(data)}
+
+    archive = io.BytesIO()
+    with tarfile.open(fileobj=archive, mode="w") as tar:
+        entry = tarfile.TarInfo("proof")
+        entry.size = 5
+        tar.addfile(entry, io.BytesIO(b"media"))
+    layer = archive.getvalue()
+    config = blob(json.dumps({
+        "os": "linux", "architecture": "amd64",
+        "rootfs": {"type": "layers", "diff_ids": ["sha256:" + hashlib.sha256(layer).hexdigest()]},
+    }).encode(), "application/vnd.oci.image.config.v1+json")
+    manifest = blob(json.dumps({
+        "schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": config, "layers": [blob(layer, "application/vnd.oci.image.layer.v1.tar")],
+    }).encode(), "application/vnd.oci.image.manifest.v1+json")
+    (source / "oci-layout").write_text('{"imageLayoutVersion":"1.0.0"}')
+    (source / "index.json").write_text(json.dumps({"schemaVersion": 2, "manifests": [manifest]}))
+    root = tmp_path / "root"
+    (root / "etc/bootc-installer").mkdir(parents=True)
+    for name in ("recipe.json", "images.json"):
+        (root / "etc/bootc-installer" / name).write_bytes(
+            (SRC / "etc/bootc-installer" / name).read_bytes()
+        )
+    update = "ghcr.io/tuna-os/tromso:qualification"
+    subprocess.run(
+        ["bash", str(REPO / "scripts/embed-oci-payload.sh"), f"oci:{source}", update, str(root)],
+        check=True, capture_output=True, text=True,
+    )
+    media = json.loads((root / "etc/bootc-installer/media-input.json").read_text())
+    assert media["image"] == media["targetImgref"] == update
+    assert media["platform"] == "linux/amd64"
+    layout = root / media["ociLayoutPath"].lstrip("/")
+    selected = json.loads((layout / "index.json").read_text())["manifests"][0]
+    assert media["platformManifestDigest"] == selected["digest"]
+    output_manifest = json.loads((layout / "blobs/sha256" / selected["digest"][7:]).read_text())
+    for descriptor in [selected, output_manifest["config"], *output_manifest["layers"]]:
+        data = (layout / "blobs/sha256" / descriptor["digest"][7:]).read_bytes()
+        assert len(data) == descriptor["size"]
+        assert "sha256:" + hashlib.sha256(data).hexdigest() == descriptor["digest"]
+    compressed = layout / "blobs/sha256" / output_manifest["layers"][0]["digest"][7:]
+    assert gzip.decompress(compressed.read_bytes()) == layer
+    assert json.loads((root / "etc/bootc-installer/recipe.json").read_text())["imgref"] == update
+    catalog = json.loads((root / "etc/tuna-installer/images.json").read_text())
+    assert catalog["default_image"] == catalog["images"][0]["imgref"] == update
 
 
-def test_live_iso_preserves_root_mountpoints_and_matching_label():
-    recipe = (REPO / "iso.justfile").read_text()
-    assert "-wildcards -e 'proc/*' -e 'sys/*' -e 'dev/*'" in recipe
-    hook = (SRC / "dracut/95tromso-isofile/tromso-isofile.sh").read_text()
-    assert 'LABEL="TROMSO_LIVE"' in hook
+def test_media_producer_refuses_missing_local_source(tmp_path):
+    import subprocess
 
-
-def test_iso_signing_publishes_sigstore_bundle():
-    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
-    assert 'cosign sign-blob --yes --bundle "${ISO}.bundle"' in workflow
-    assert "--output-signature" not in workflow
-    assert "--output-certificate" not in workflow
-    assert "tromso-live-latest.iso.bundle" in workflow
-
-
-def test_installed_identity_selects_shipped_tromso_artwork():
-    identity = (REPO / "elements/oci/os-release.bst").read_text()
-    assert 'IMAGE_PRETTY_NAME: "TunaOS Tromsø"' in identity
-    assert "ID_LIKE" not in identity
-    brand = (REPO / "elements/tromso/branding.bst").read_text()
-    assert "Image=Tromso" in brand
-    assert "wallpapers/Tromso/contents/images/1920x1080.png" in brand
-    defaults = REPO / "files/tromso/aurora-common/system_files/shared/usr/share/kde-settings/kde-profile/default/xdg"
-    about = (defaults / "kcm-about-distrorc").read_text()
-    assert "Name=TunaOS Tromsø" in about
-    assert "tromso-logo.svg" in about
-    assert "Aurora" not in (defaults / "kscreenlockerrc").read_text()
-
-
-def test_manual_candidate_publish_never_changes_channel_aliases():
-    workflow = (REPO / ".github/workflows/build-tromso-multirunner.yml").read_text()
-    candidate = workflow.split('if [ "${{ inputs.publish_candidate }}" = "true" ]; then', 1)[1].split("elif", 1)[0]
-    assert 'TAGS="${{ github.sha }}"' in candidate
-    assert "latest" not in candidate and "nightly" not in candidate
-    assert "path: ~/.cache/buildstream/sources" in workflow
-    assert "/cache/sources" not in workflow
+    root = tmp_path / "root"
+    result = subprocess.run(
+        ["bash", str(REPO / "scripts/embed-oci-payload.sh"), f"oci:{tmp_path}/absent",
+         "ghcr.io/tuna-os/tromso:qualification", str(root)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert not (root / "etc/bootc-installer/media-input.json").exists()

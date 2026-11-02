@@ -49,6 +49,9 @@ element/configuration inputs; restore prefixes reuse content-addressed sources.
 The CAS archives exclude sources. `cache.quota: 60G` bounds the active CAS,
 leaving space for source downloads, build sandboxes and OCI export. Legacy
 archives can still exceed disk capacity before BuildStream starts pruning.
+All branches share one non-cancelling build concurrency group because they
+write the same rolling CAS tags. This prevents concurrent branch builds from
+overwriting newer cache progress with older snapshots.
 
 For branch qualification, dispatch the image workflow with `push_image=false`
 and `publish_candidate=true`. It publishes only `ghcr.io/tuna-os/tromso:<sha>`,
@@ -187,13 +190,15 @@ prompt, and installed desktop.
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
 
-Local checks for this cutover: 281 pytest tests passed, one pre-existing expected
+Local checks for this cutover: 269 pytest tests passed, one pre-existing expected
 failure; 31 BATS tests passed; actionlint and Just parsing passed; ShellCheck
 passed at the CI error severity. YAML checks reported only line-length warnings.
 Real smoke copied Fedora Minimal through the actual OCI-media producer and
 verified every emitted blob digest/size, executed the branding install commands,
-and signed/verified a local-key Sigstore bundle. These checks do not prove a
-Tromsø image boot, installed desktop, or GitHub OIDC signing. Full build and
+and signed/verified a local-key Sigstore bundle. Permanent media tests execute
+real skopeo conversion from a valid OCI fixture, verify the gzip layer and all
+digests, and reject an absent source. These checks do not prove a Tromsø image
+boot, installed desktop, or GitHub OIDC signing. Full build and
 KVM install evidence must come from the candidate workflows.
 
 ## Channels: nightly (main) and stable

@@ -335,6 +335,8 @@ jobs:
           python-version: '3.15'
       - name: Install dependencies
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends skopeo jq
           pip install pytest
       - name: Run pytest (tests/pytest)
         run: pytest tests/pytest/ -v --tb=short

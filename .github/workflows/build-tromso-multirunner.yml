@@ -46,12 +46,10 @@ env:
   BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # This build regularly takes multiple hours; main gets pushed to several
-  # times a day. cancel-in-progress:true meant every push evicted whatever
-  # build was in flight, so the pipeline effectively never completed (#122).
-  # Queue instead: the next run just picks up the latest HEAD when its turn
-  # comes, rather than restarting from scratch on every intervening push.
+  # All refs write the same rolling CAS packages. Serialize cache writers
+  # across branches so an older snapshot cannot overwrite newer progress.
+  # Never cancel a build that can still save useful artifacts.
+  group: ${{ github.workflow }}-shared-cas
   cancel-in-progress: false
 
 jobs:
