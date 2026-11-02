@@ -40,11 +40,18 @@ build-bg target:
     echo "Build PID $! — tailing log (Ctrl-C is safe, build continues)"
     tail -f "${LOG}"
 
-container target:
+container target payload_ref="":
     #!/usr/bin/bash
     set -euo pipefail
-    # Pre-squash base image to avoid disk explosion during multi-layer pulls
-    BASE_IMAGE=$(grep '^ARG BASE_IMAGE=' ./{{target}}/Containerfile | cut -d= -f2)
+    # Resolve one payload source for both the live filesystem and kernel.
+    BASE_IMAGE="{{payload_ref}}"
+    if [[ -z "$BASE_IMAGE" ]]; then
+        BASE_IMAGE="$(tr -d '[:space:]' < './{{target}}/payload_ref')"
+    fi
+    [[ -n "$BASE_IMAGE" ]] || { echo "ERROR: {{target}}/payload_ref is empty" >&2; exit 1; }
+    # The squashed image has a new digest; give it a local build-only name,
+    # never the original candidate's digest reference.
+    BUILD_BASE="localhost/{{target}}-iso-base:latest"
     # Pre-flight: the payload base image must exist in its registry. A
     # missing payload (e.g. nightly 'Build Tromso' failing) used to surface
     # deep inside the pull as a generic 'manifest unknown' that read like an
@@ -57,15 +64,17 @@ container target:
         fi
         echo "Payload image ${BASE_IMAGE} verified"
     fi
+    # Keep the fetched candidate available for the embedded install payload.
+    sudo podman pull --policy missing "${BASE_IMAGE}"
     echo "Squashing base image: ${BASE_IMAGE}"
-    SQUASH_CTR=$(sudo buildah from --pull-never "${BASE_IMAGE}" 2>/dev/null || sudo buildah from "${BASE_IMAGE}")
-    sudo buildah commit --squash "${SQUASH_CTR}" oci-archive:/tmp/squashed-base.oci:"${BASE_IMAGE}"
+    SQUASH_CTR=$(sudo buildah from --pull-never "${BASE_IMAGE}")
+    sudo buildah commit --squash "${SQUASH_CTR}" oci-archive:/tmp/squashed-base.oci:"${BUILD_BASE}"
     sudo podman load -i /tmp/squashed-base.oci
     rm -f /tmp/squashed-base.oci
 
     sudo podman build --cap-add sys_admin --security-opt label=disable \
         --layers \
-        --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+        --build-arg BASE_IMAGE="${BUILD_BASE}" \
         --build-arg DEBUG={{debug}} \
         --build-arg INSTALLER_CHANNEL={{installer_channel}} \
         -t {{target}}-installer ./{{target}}
@@ -86,10 +95,11 @@ iso-sd-boot target:
     #!/usr/bin/bash
     set -euo pipefail
 
-    # Read payload ref from file (defaults to localhost/<target>:latest if missing)
-    PAYLOAD_REF="$(cat '{{target}}/payload_ref' 2>/dev/null | tr -d '[:space:]' || echo "localhost/{{target}}:latest")"
+    # Capture once: the live image, kernel and embedded payload must agree.
+    PAYLOAD_REF="$(tr -d '[:space:]' < '{{target}}/payload_ref')"
+    [[ -n "$PAYLOAD_REF" ]] || { echo "ERROR: {{target}}/payload_ref is empty" >&2; exit 1; }
 
-    just debug={{debug}} installer_channel={{installer_channel}} container {{target}}
+    just debug={{debug}} installer_channel={{installer_channel}} container {{target}} "$PAYLOAD_REF"
     mkdir -p {{output_dir}}
     OUTPUT_DIR=$(realpath "{{output_dir}}")
 

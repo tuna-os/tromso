@@ -262,6 +262,11 @@ terminal job requires all three reusable workflow results to succeed in the
 same promotion run. Run dependencies and summaries record the candidate and
 results; unrelated scheduled E2E runs are no longer release evidence.
 
+The shared ISO recipe captures `payload_ref` once and explicitly fetches it.
+It uses that candidate for the live filesystem and kernel as well as the
+embedded installer payload. A local name holds the squashed live build input;
+the Containerfile has no independent mutable image default.
+
 Following Dakota's published-digest release pattern, promotion copies the
 verified digest to `:stable` with `skopeo --preserve-digests` and advances the
 stable bookmark without rebuilding the OCI image. It then publishes the

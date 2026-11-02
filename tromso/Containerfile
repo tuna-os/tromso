@@ -15,7 +15,8 @@
 # The ISO bootloader is systemd-boot (already in Tromsø at
 # /usr/lib/systemd/boot/efi/systemd-bootx64.efi) — no GRUB2 or shim required.
 
-ARG BASE_IMAGE=ghcr.io/tuna-os/tromso:latest
+# The shared recipe supplies the selected payload's local squashed image.
+ARG BASE_IMAGE
 
 # ── Stage 1: Tromsø reference (kernel modules source) ────────────────────────
 FROM ${BASE_IMAGE} AS tromso-ref
