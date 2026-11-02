@@ -46,8 +46,7 @@ container target base_image="":
     PAYLOAD_REF=$(tr -d '[:space:]' < "{{target}}/payload_ref")
     BASE_IMAGE="{{base_image}}"
     if [[ -z "$BASE_IMAGE" ]]; then
-        DIGEST=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Digest')
-        BASE_IMAGE="${PAYLOAD_REF%%@*}@${DIGEST}"
+        BASE_IMAGE=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Name + "@" + .Digest')
     fi
     # Pre-flight: the payload base image must exist in its registry. A
     # missing payload (e.g. nightly 'Build Tromso' failing) used to surface
@@ -90,8 +89,7 @@ iso-sd-boot target:
     set -euo pipefail
 
     PAYLOAD_REF=$(tr -d '[:space:]' < "{{target}}/payload_ref")
-    DIGEST=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Digest')
-    PAYLOAD_PINNED="${PAYLOAD_REF%%@*}@${DIGEST}"
+    PAYLOAD_PINNED=$(sudo skopeo inspect "docker://${PAYLOAD_REF}" | jq -er '.Name + "@" + .Digest')
     just debug={{debug}} installer_channel={{installer_channel}} container {{target}} "$PAYLOAD_PINNED"
     mkdir -p {{output_dir}}
     OUTPUT_DIR=$(realpath "{{output_dir}}")

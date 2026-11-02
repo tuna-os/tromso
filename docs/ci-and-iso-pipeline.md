@@ -170,6 +170,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-02 | ISO 41390885095 fails payload preflight | Digest pin retained the tag (`:latest@sha256:…`), which skopeo rejects | Construct the canonical ref from inspect `.Name + "@" + .Digest`; real GHCR tag and digest inspection both succeed with identical digest |
 | 2026-11-02 | Main build 41281483906 fails in WebKit CMake | Unset link target expands into malformed condition | Integrate existing #427 backport rather than bypass WebKit |
 | 2026-11-02 | ISO 41244306172 fails signing before boot check | cosign requires a bundle; detached signature/certificate flags no longer provide the output contract | Publish and document `.bundle`; retain the existing #411 boot-before-publication gate |
 | 2026-11-02 | Plain and LUKS in 41257942781 reach live Plasma, then refuse installation | New fisherman requires immutable `media-input.json`; legacy VFS-only media has none | Embed one OCI layout, generate metadata from actual output, bind empty-image E2E recipes to that source, and pin live/payload digests together |
