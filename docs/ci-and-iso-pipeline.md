@@ -198,6 +198,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-02 | Candidate 41448721132 fails chunk1 and skips final assembly | PPP 2.5.2 exhausts four fetch attempts with HTTP 503 from `download.samba.org`; the compile queue has zero failures | Change only `samba_pub` to the [official alternate path](https://www.samba.org/ftp/); native fresh fetch and patch application pass for PPP and Samba, preserving refs and cache keys `9659727e` and `a61c0f88` |
 | 2026-11-02 | Plain in 41447171165 completes installation but fails its five-minute boot wait | The VM reaches a getty prompt; serial output contains no display-manager start message, which the plain predicate required | Reuse the boot parser with a generic getty marker and require the strict graphical wait; emergency, timeout, or graphical failure must still fail |
 | 2026-11-02 | Five chunks in candidate 41390175592 lose their archives after the soft budget; final assembly is skipped | The host `just` process exits but BuildStream still writes to CAS, so `tar` reports `file changed as we read it` and exits 1 | Pin bst-ci `200ad7c`, which stops the builders before archive creation; preserve `pipefail` rather than suppress the archive failure |
 | 2026-11-02 | Candidate 41390175592 cannot fetch `pam-wrapper.bst` from `git.samba.org` | The runner reports an unreachable network after 120 seconds; `--on-error continue` then spends its remaining budget elsewhere | Use cwrap's GitLab repository with the same `pam_wrapper-1.1.8` commit; actual pinned-container source fetch succeeds with one processed source and zero failures, preserving the artifact key |
@@ -232,6 +233,23 @@ prompt, and installed desktop.
 
 Add rows to this table as you change CI. See the organization `ci-fix-loop`
 skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
+
+The [candidate run](https://github.com/tuna-os/tromso/actions/runs/41448721132)
+did not produce an image. The PPP fetch failed, so the workflow did not start final assembly.
+Core and nine chunk jobs show success, but that does not prove a complete OS build.
+Each of the nine chunks that needed to push CAS did so.
+The other chunk used its exact cache key and did not build.
+
+Four warnings mark a 200-minute limit and partial CAS.
+They do not mean that all targets built.
+These results show that CAS archives can retain work after a failure.
+New runs use bst-ci `95e71ae`, which also limits builder shutdown to its workspace.
+
+We changed only `samba_pub` to the official alternate path.
+Native `just bst source fetch --deps none` then downloaded PPP 2.5.2 and Samba 4.24.0.
+It checked both pinned hashes and applied the existing patches.
+The source fetch reported `processed 2, skipped 0, failed 0`.
+Their keys remain `9659727e` and `a61c0f88`. No version, ref or patch changed.
 
 Local checks: 297 pytest tests passed, with one pre-existing expected failure.
 Seven subtests also passed.

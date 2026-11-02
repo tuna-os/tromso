@@ -44,7 +44,7 @@ aliases:
   phosh: https://sources.phosh.mobi/releases/
   pypi: https://files.pythonhosted.org/packages/
   qemu: https://download.qemu.org/
-  samba_pub: https://download.samba.org/pub/
+  samba_pub: https://www.samba.org/ftp/
   snowballstem: https://snowballstem.org/dist/
   sourceforge: https://downloads.sourceforge.net/
   spice: https://www.spice-space.org/download/
