@@ -1,34 +1,50 @@
-# Observability Stack Audit & Telemetry Guidelines: Tromso
+# Observability audit and telemetry guidelines: TunaOS Tromsø
 
-This document provides the observability architecture, telemetry audit baseline, and monitoring recommendations for `tuna-os/tromso`.
+This document describes logs, metrics, privacy boundaries, and proposed diagnostics for `tuna-os/tromso`.
 
 ---
 
 ## 1. Executive Summary & Architecture Context
 
-`tuna-os/tromso` produces a bootable KDE Plasma 6 Linux OS image on top of `freedesktop-sdk` using BuildStream (`bst2`), packaged as a bootc-compatible OCI image (`ghcr.io/tuna-os/tromso`) and companion live installation ISOs.
+TunaOS Tromsø is an Alpha OS with KDE Plasma 6.
+BuildStream (`bst2`) builds it on `freedesktop-sdk` and packages an OCI image for `bootc` (`ghcr.io/tuna-os/tromso`).
+The project also produces live ISOs. These outputs do not establish installation or release readiness.
 
-Due to the size of the KDE Plasma stack (~180 KDE packages plus SDK dependencies), the image build pipeline relies on a distributed multi-runner architecture (`.github/workflows/build-tromso-multirunner.yml`) calling `tuna-os/bst-ci`. Uncached elements are partitioned into a core set (`CORE_SPLIT=200`, plus `extra_core_targets`) and parallel matrix chunks that publish intermediate Content Addressable Storage (CAS) caches to GHCR.
+The KDE stack has about 180 packages, plus SDK dependencies.
+The workflow, `.github/workflows/build-tromso-multirunner.yml`, uses `tuna-os/bst-ci` across multiple runners.
+It separates uncached elements into a core set (`CORE_SPLIT=200`, plus `extra_core_targets`) and parallel chunks.
+The chunks publish caches for content-addressable storage (CAS) to GHCR.
 
-This document audits the current observability facilities, establishes privacy and security boundaries, and provides actionable recommendations for build timing diagnostics, tracing, and metric collection.
+The audit below separates local tools from proposals that need approval.
 
 ---
 
 ## 2. Telemetry Stack Audit & Baseline Status
 
 ### 2.1 Remote Backend Configuration
-- **Status**: No external telemetry backend or remote collector is configured (Operator targets: open-source=none, kube-native=none, commercial=none).
-- **Data Flow Policy**: Strict compliance with the TunaOS zero off-box data export policy. No telemetry exporter, OTLP endpoint, external daemon, or network beacon is shipped in the OS image or active in CI runner jobs without explicit operator configuration.
+- **Status**: The audit found no external backend or remote collector. Operator targets were none for open-source, kube-native, and commercial services.
+- **Data policy**: Do not export telemetry off the host without explicit operator configuration.
+  This restriction covers exporters, OTLP endpoints, external daemons, and network beacons in OS images and CI jobs.
 
-### 2.2 Local Logging & Interactive Dashboards
-- **BuildStream Log Stream**: Detailed element builds write to `/tmp/tromso-build.log` (monitored in real time via `just log`). Element-specific build logs are archived under `~/.cache/buildstream/logs/<project>/<element-name>/<key>.log`.
-- **Local Web Dashboard**: `just dashboard` launches an interactive local web UI (`http://localhost:8765`) using `bst-dashboard.py` (cached at `~/.cache/bst-dashboard/`). It reads `/tmp/tromso-build.log` and the local project graph without exposing external endpoints.
-- **Systemd User Service**: `just dashboard-service` provisions a persistent systemd user unit (`~/.config/systemd/user/bst-dashboard.service`) with user lingering (`loginctl enable-linger $USER`) for background monitoring on dedicated build workstations.
-- **E2E Serial & QEMU Diagnostics**: The plain and LUKS install gates (`test-plain-install.yml`, `test-luks-install.yml`) stream serial console output to `/tmp/tromso-qemu-live-serial.log` and `/tmp/tromso-qemu-installed-serial.log`, archived as CI job artifacts.
+### 2.2 Local logs and dashboards
+- **BuildStream logs**: Builds write to `/tmp/tromso-build.log`; `just log` follows this file.
+  BuildStream stores logs for each element under `~/.cache/buildstream/logs/<project>/<element-name>/<key>.log`.
+- **Local dashboard**: `just dashboard` starts a web UI at `http://localhost:8765` through `bst-dashboard.py`.
+  The script uses `~/.cache/bst-dashboard/` as its cache.
+  It reads `/tmp/tromso-build.log` and the local graph without external endpoints.
+- **User service**: `just dashboard-service` creates `~/.config/systemd/user/bst-dashboard.service`.
+  It uses `loginctl enable-linger $USER` to keep the service active on dedicated build hosts.
+- **Serial diagnostics**: The plain and LUKS gates use `test-plain-install.yml` and `test-luks-install.yml`.
+  They write serial output to `/tmp/tromso-qemu-live-serial.log` and `/tmp/tromso-qemu-installed-serial.log`.
+  CI retains these logs as job artifacts. Logs are evidence, not proof that a gate passed.
 
-### 2.3 CI Timing & Code Coverage Infrastructure
-- **Matrix Timing Analysis**: `scripts/autotune-chunk-grouping.py` (invoked via `just autotune-chunks limit=N`) queries the GitHub Actions API via `gh api` to inspect recent runs of `build-tromso-multirunner.yml`. It calculates chunk wall-clock durations (min, max, average) and the duration imbalance ratio (`Max / Min`) to identify stragglers.
-- **Code Coverage**: `codecov.yml` defines repository test coverage thresholds (project target: 45%, patch target: 70% informational). No CI workflow uploads coverage reports to Codecov yet, so these targets receive no data; this gap is tracked in [#303](https://github.com/tuna-os/tromso/issues/303).
+### 2.3 CI durations and coverage
+- **Matrix analysis**: `scripts/autotune-chunk-grouping.py` queries recent runs of `build-tromso-multirunner.yml` through `gh api`.
+  Invoke it with `just autotune-chunks limit=N`.
+  It calculates minimum, maximum, and average durations for chunks, plus the imbalance ratio (`Max / Min`).
+- **Coverage**: `codecov.yml` sets targets for test coverage: 45% for the project and 70% for patches, informational.
+  The audit found no CI upload to Codecov. These targets have no data.
+  [#303](https://github.com/tuna-os/tromso/issues/303) tracks this gap.
 
 ---
 
@@ -61,7 +77,7 @@ tromso_ci_chunk_imbalance_ratio{repo="tuna-os/tromso",workflow="build-tromso-mul
 ```
 
 #### OpenTelemetry ResourceMetrics Schema
-When formatted as OpenTelemetry JSON (`--metrics-format otel`), the metrics conform to the OTLP ResourceMetrics specification, attaching service attributes:
+With `--metrics-format otel`, the tool exports JSON for OTLP `ResourceMetrics` with these service attributes:
 - `service.name`: `tromso-ci`
 - `vcs.repository.name`: `tuna-os/tromso`
 - `ci.workflow.name`: `build-tromso-multirunner.yml`
@@ -82,28 +98,35 @@ python3 scripts/autotune-chunk-grouping.py --limit 5 --output-metrics /tmp/metri
 
 ### 3.2 Recommendation 2: BuildStream Step Tracing & Cache Instrumentation
 
-To measure build cache efficiency and pinpoint bottleneck elements:
-1. **Cache Hit / Miss Ratio Tracking**: Instrument the matrix planning and build jobs to record element cache status (`cached`, `buildable`, `waiting`). A sudden drop in hit ratio indicates cache-key churn (e.g. changes to `project.conf` or upstream junction refs like `freedesktop-sdk.bst`).
-2. **Heavy-Element Duration Tracing**: Monitor build durations of heavyweight elements identified in `build-tromso-multirunner.yml`:
-   - `sdk/webkitgtk-6.0.bst` (~249 min)
-   - `freedesktop-sdk.bst:components/llvm.bst` (~126 min)
-   - `kde/qt6/qt6-qtdeclarative.bst` (~57 min)
-   - `kde/qt6/qt6-qtbase.bst` (~43 min)
-   - `freedesktop-sdk.bst:components/rust.bst` (~35 min)
-   Elements requiring > 30 minutes that appear in multiple chunk build paths should be promoted to `extra_core_targets` so they are built once in `build_core` and shared via CAS.
-3. **Remote Execution Telemetry**: When remote execution credentials (`CASD_CLIENT_CERT`, `CASD_CLIENT_KEY`) are configured (tromso#311), record build step execution offload vs. local fallback to ensure builds do not quietly fall back to slow local execution.
+To measure cache efficiency and find slow elements:
+1. **Cache hits and misses**: Add instrumentation to the plan and build jobs.
+   Record the cache status of elements (`cached`, `buildable`, `waiting`).
+   A lower hit ratio can show changes to cache keys.
+   Check `project.conf` and junction references such as `freedesktop-sdk.bst`.
+2. **Slow elements**: Measure durations for these elements from `build-tromso-multirunner.yml`.
+   The approximate durations below are historical observations, not current guarantees:
+   - `sdk/webkitgtk-6.0.bst`: 249 minutes.
+   - `freedesktop-sdk.bst:components/llvm.bst`: 126 minutes.
+   - `kde/qt6/qt6-qtdeclarative.bst`: 57 minutes.
+   - `kde/qt6/qt6-qtbase.bst`: 43 minutes.
+   - `freedesktop-sdk.bst:components/rust.bst`: 35 minutes.
+
+   Consider `extra_core_targets` for elements above 30 minutes that occur in multiple chunks.
+   Then `build_core` can build them once and share artifacts through CAS.
+3. **Remote execution**: If operators configure `CASD_CLIENT_CERT` and `CASD_CLIENT_KEY` (tromso#311), record remote execution and local fallback.
+   This makes unintended fallback visible.
 
 ---
 
 ### 3.3 Recommendation 3: Dashboard & Alert Definitions
 
-When an authorized Prometheus/Grafana or OpenTelemetry collector backend is designated by operators, apply the following dashboard layout and alert rules:
+Use these proposed panels and alerts only after operators approve a Prometheus/Grafana backend or an OpenTelemetry collector.
 
-#### Recommended Grafana Dashboard Panels
-1. **Matrix Chunk Duration Distribution**: Bar chart / heatmap tracking duration of each chunk (`chunk0` through `chunk9`) across workflow runs.
-2. **Chunk Imbalance Trend**: Line chart of `tromso_ci_chunk_imbalance_ratio` over time. Targets should remain below `2.0x`.
-3. **Build Success Rate**: Single-stat percentage gauge for `tromso_ci_build_status` over the trailing 14 days.
-4. **Straggler Element Identification**: Top 10 longest-running elements per build run.
+#### Proposed Grafana panels
+1. **Chunk durations**: Show each chunk (`chunk0` through `chunk9`) across runs in a bar chart or heatmap.
+2. **Imbalance trend**: Plot `tromso_ci_chunk_imbalance_ratio` over time. The proposed target is below `2.0x`.
+3. **Success rate**: Show the percentage from `tromso_ci_build_status` over the previous 14 days.
+4. **Slow elements**: Show the ten elements with the longest durations per run.
 
 #### Recommended Prometheus Alert Rules
 ```yaml
@@ -142,10 +165,13 @@ groups:
 
 ## 4. Governance, Privacy & Security Rules
 
-1. **Zero Credential Leakage**: Telemetry exports and structured log entries must never log or label secrets, including:
-   - `GITHUB_TOKEN` and repository write credentials
-   - Cosign signing certificates and ephemeral tokens
-   - Container registry authentication tokens (`ghcr.io`)
-   - CAS client keys and mTLS certificates
-2. **Label Cardinality Bounds**: All metric label keys (`repo`, `workflow`, `run_id`, `job`, `conclusion`) are strictly bounded. Dynamic unbounded parameters (such as raw commit messages, full diff payloads, or stack traces) must never be used as Prometheus label values.
-3. **PR & Change Control**: Any change introducing remote metric exporters or network endpoints requires explicit maintainer review and approval under standard PR hold gates.
+1. **Secrets**: Never put credentials in telemetry exports, structured logs, or metric labels. This includes:
+   - `GITHUB_TOKEN` and credentials for repository writes.
+   - Cosign certificates and ephemeral tokens.
+   - Authentication tokens for container registries (`ghcr.io`).
+   - CAS client keys and mTLS certificates.
+2. **Cardinality**: Use only approved label keys: `repo`, `workflow`, `run_id`, `job`, and `conclusion`.
+   Bound label values and retention; run IDs and job names can grow across runs.
+   Never use commit messages, full diffs, or stack traces as Prometheus labels.
+3. **Change control**: New remote exporters or network endpoints need explicit review and approval from maintainers.
+   Preserve the standard PR hold gates.

@@ -1,8 +1,10 @@
 # Branding audit for issue #373
 
 Source audit: 2026-10-24, upstream `main` at `33c6bea`.
-This inventories repository inputs; it does not certify published images,
-the website, third-party asset permissions, or community agreement.
+This inventory of historical inputs covers the repository, not current runtime behavior.
+It does not certify published images, the website, asset permissions, or community agreement.
+TunaOS Tromsø remains Alpha and unqualified for installation or release.
+The software comes from KDE upstream; this audit does not imply endorsement or a healthy current screenshot.
 
 ## Existing removal
 
@@ -11,13 +13,13 @@ the website, third-party asset permissions, or community agreement.
 Aurora logo directory, character artwork, look-and-feel packages, and the
 logo, wallpaper and Aurora guide elements. README records attribution and
 non-affiliation. The selected look-and-feel is stock Breeze Dark; fastfetch
-selects the builtin `kdelinux` logo. This is not a new Tromso logo.
+selects the builtin `kdelinux` logo. This is not a new Tromsø logo.
 
 `elements/tromso/image-overlay.bst` fetches Aurora configuration and deletes
-PNG, JPG, JPEG, JXL, SVG, SVGZ, WebP and GIF files before staging. That guard
-covers this overlay, not every image input or downloadable package.
+PNG, JPG, JPEG, JXL, SVG, SVGZ, WebP and GIF files before it stages the overlay.
+That guard covers this overlay, not every image input or downloadable package.
 
-## Remaining source findings
+## Source findings at the audit revision
 
 Paths below are relative to
 `files/tromso/aurora-common/system_files/shared/usr/share/`.
@@ -35,29 +37,26 @@ Paths below are relative to
 
 The only image-extension file found under `files/tromso` is
 `aurora-common/system_files/shared/usr/share/icons/hicolor/scalable/apps/framework.svg`.
-Its filename does not establish authorship or permission. Source URLs,
-licenses and provenance comments must remain attributable when configuration
-is adapted.
+Its filename does not establish authorship or permission.
+Keep source URLs, licenses, and provenance comments attributable when you adapt configuration.
 
 ## Follow-up and acceptance evidence
 
-- Correct stale desktop configuration and messaging in a focused follow-up;
-  verify the About page, welcome, splash, lock screen and favorites in a
-  booted image. Check the optional artwork installation path separately.
-- Inspect the actual published OCI image and live ISO for logo assets and
-  stale references. Record image digests and screenshots; this source audit
-  cannot establish what an older published artifact contains.
-- Audit website assets in their owning repository or publishing service.
+- Correct the stale configuration and text in a focused follow-up.
+  Verify the About page, welcome, splash, lock screen, and favorites in a booted image.
+  Check separately how optional artwork enters the image.
+- Inspect the published OCI image and live ISO for logos and stale references.
+  Record digests and screenshots.
+  This source audit cannot show what an older artifact contains.
+- Audit website assets in the repository or service that owns them.
   This checkout provides no evidence that the published website is clear.
 - A maintainer should respond to the designer in
-  [#305](https://github.com/tuna-os/tromso/issues/305), referencing #301 and
-  explaining any remaining remediation. Do not claim designer approval or
-  promise a deadline without an agreed owner.
-- Maintainers should choose the replacement identity and approve the design
-  collaboration brief before outreach to KDE VDG or community designers.
-  Record contributor names, consent to credit, asset provenance and usage
-  terms before publishing accepted artwork. No outreach or permission grant
-  is recorded by this audit.
+  [#305](https://github.com/tuna-os/tromso/issues/305).
+  Cite #301 and explain the work still necessary.
+  Do not claim designer approval or promise a deadline without an agreed owner.
+- Maintainers should choose the replacement identity and approve the design brief before outreach to KDE VDG or community designers.
+  Record contributor names, consent to credit, provenance, and usage terms before you publish artwork.
+  This audit records no outreach or permission grant.
 
 [#373](https://github.com/tuna-os/tromso/issues/373) remains open for those
 implementation, publication and community outcomes; #301 alone does not
