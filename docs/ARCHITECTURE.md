@@ -143,7 +143,7 @@ Tromso targets containers with standard OCI images that are bootable. It does no
 1. **`build-oci` Tooling**: The final element produces a layout for an OCI image with gzip-compressed layers (`gzip: gzip`).
 2. **Bootc Annotations**: The manifest for the OCI image includes `containers.bootc: '1'` and standard OCI annotations.
 3. **Composefs Backend**: Disk installation uses `bootc` with `--composefs-backend`. This enables dm-verity and composefs deduplication without local `bootupd` binaries in the image payload.
-4. **Live Media**: `iso.justfile` builds a live ISO for UEFI. It embeds the OCI image into VFS container storage inside squashfs. This enables reliable installation on bare metal offline via `tuna-installer`.
+4. **Live Media**: `iso.justfile` builds a live ISO for UEFI. It embeds an OCI layout and media receipt inside squashfs. The live system exposes the layout through a read-only mount. This enables reliable installation on bare metal offline via `tuna-installer`.
 
 ---
 

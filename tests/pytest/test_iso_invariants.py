@@ -175,3 +175,85 @@ def test_python_ci_installs_workflow_parser():
     steps = workflow['jobs']['pytest']['steps']
     install = next(step['run'] for step in steps if step.get('name') == 'Install dependencies')
     assert 'pyyaml' in shlex.split(install.lower())
+
+
+def _media_fixture(root, architecture="amd64"):
+    import hashlib
+    import json
+
+    layout = root / "usr/share/tromso/payload"
+    blobs = layout / "blobs/sha256"
+    blobs.mkdir(parents=True)
+
+    def blob(value):
+        data = json.dumps(value).encode()
+        digest = hashlib.sha256(data).hexdigest()
+        (blobs / digest).write_bytes(data)
+        return {"digest": "sha256:" + digest, "size": len(data)}
+
+    config = blob({"os": "linux", "architecture": architecture})
+    manifest = blob({"schemaVersion": 2, "config": config, "layers": []})
+    (layout / "index.json").write_text(json.dumps({
+        "schemaVersion": 2, "manifests": [manifest],
+    }))
+    return layout, manifest, config
+
+
+def test_iso_media_receipt_identifies_exported_payload(tmp_path):
+    """The installer binds the exported bytes, not the registry's moving tag."""
+    import json
+    import subprocess
+
+    for architecture in ("amd64", "arm64"):
+        root = tmp_path / architecture
+        _, manifest, config = _media_fixture(root, architecture)
+        image = "ghcr.io/tuna-os/tromso:latest"
+        subprocess.run([
+            "python3", str(REPO / "scripts/write-media-input.py"), str(root), image,
+        ], check=True)
+        receipt = json.loads((root / "etc/bootc-installer/media-input.json").read_text())
+        assert receipt["schemaVersion"] == 1
+        assert receipt["image"] == receipt["targetImgref"] == image
+        assert receipt["platformManifestDigest"] == manifest["digest"]
+        assert receipt["configDigest"] == config["digest"]
+        assert receipt["platform"] == "linux/" + architecture
+        assert receipt["ociLayoutPath"] == "/run/tromso/payload"
+
+
+def test_iso_media_receipt_rejects_corrupt_metadata(tmp_path):
+    import subprocess
+
+    layout, manifest, _ = _media_fixture(tmp_path)
+    # Same length, wrong hash: size checks alone must not authorize a receipt.
+    path = layout / "blobs/sha256" / manifest["digest"][7:]
+    path.write_bytes(b" " * manifest["size"])
+    result = subprocess.run([
+        "python3", str(REPO / "scripts/write-media-input.py"), str(tmp_path), "image:latest",
+    ], capture_output=True, text=True)
+    assert result.returncode != 0
+    assert "does not match descriptor" in result.stderr
+    assert not (tmp_path / "etc/bootc-installer/media-input.json").exists()
+
+
+def test_iso_binds_media_receipt_before_installer_starts():
+    """Live media requires both a receipt and an actually read-only OCI mount."""
+    import json
+
+    assembly = (REPO / "iso.justfile").read_text()
+    assert 'PAYLOAD_LAYOUT=' in assembly
+    assert 'usr/share/tromso/payload' in assembly
+    assert 'oci:/payload:payload' in assembly
+    assert '--dest-compress-format gzip --dest-force-compress-format' in assembly
+    assert assembly.index('python3 scripts/write-media-input.py') < assembly.index('        mksquashfs ')
+    assert 'What=/usr/share/tromso/payload' in CONFIGURE_LIVE
+    assert 'Where=/run/tromso/payload' in CONFIGURE_LIVE
+    assert 'Options=bind,ro' in CONFIGURE_LIVE
+    assert 'Before=display-manager.service' in CONFIGURE_LIVE
+    assert 'Requires=display-manager.service run-tromso-payload.mount' in CONFIGURE_LIVE
+    assert 'systemctl enable run-tromso-payload.mount' in CONFIGURE_LIVE
+    recipe = json.loads((SRC / "etc/bootc-installer/recipe.json").read_text())
+    assert recipe['local_imgref'] == 'oci:/run/tromso/payload'
+    qemu = (REPO / 'scripts/lib-install-qemu.sh').read_text()
+    assert 'INSTALL_IMAGE=""' in qemu
+    assert 'test -r /etc/bootc-installer/media-input.json' in qemu
+    assert 'INSTALL_IMAGE="docker://' not in qemu

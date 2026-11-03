@@ -171,8 +171,8 @@ systemctl enable var-tmp.mount
 cat > /usr/lib/systemd/system/live-ready.service << 'LREOF'
 [Unit]
 Description=Live environment ready marker
-After=display-manager.service
-Requires=display-manager.service
+After=display-manager.service run-tromso-payload.mount
+Requires=display-manager.service run-tromso-payload.mount
 
 [Service]
 Type=oneshot
@@ -195,10 +195,29 @@ cp "$SCRIPT_DIR/etc/bootc-installer/recipe.json" /etc/bootc-installer/recipe.jso
 touch /etc/bootc-installer/live-iso-mode
 
 # tuna-installer frontends read /etc/tuna-installer/ (INSTALLER-FRONTENDS.md):
-# images.json catalog override + offline-stores listing embedded OCI store roots.
+# images.json catalog override; the host media receipt selects the OCI layout.
 mkdir -p /etc/tuna-installer
 cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/tuna-installer/images.json
-echo '/var/lib/containers/storage' > /etc/tuna-installer/offline-stores
+rm -f /etc/tuna-installer/offline-stores
+
+# Fisherman verifies the bound layout on a read-only filesystem. The live
+# root is a writable overlay, so expose the payload through a read-only bind.
+mkdir -p /usr/share/tromso/payload
+cat > /usr/lib/systemd/system/run-tromso-payload.mount << 'PAYLOADEOF'
+[Unit]
+Description=Read-only embedded installation payload
+Before=display-manager.service
+
+[Mount]
+What=/usr/share/tromso/payload
+Where=/run/tromso/payload
+Type=none
+Options=bind,ro
+
+[Install]
+RequiredBy=local-fs.target
+PAYLOADEOF
+systemctl enable run-tromso-payload.mount
 
 # ── Installer autostart ───────────────────────────────────────────────────────
 # org.tunaos.InstallerKde is installed from the tuna-os remote by
