@@ -236,18 +236,19 @@ weekly schedules and on manual dispatch.
 ## Rollback
 
 `rollback-stable.yml` runs only after a manual dispatch, with `dry_run` true
-by default. It requires a target commit and a dated stable ISO basename.
+by default. It needs a target commit and the basename of a dated stable ISO.
 Before mutation it resolves and cosign-verifies the selected image digests,
-and downloads and verifies the ISO checksum and signature. Both architectures
-are selected by default; explicitly set `rollback_aarch64=false` only for a
+and downloads and verifies the ISO checksum and signature. The workflow selects
+both architectures by default; explicitly set `rollback_aarch64=false` only for a
 release that did not publish aarch64.
 
 A live run copies the verified digests with `skopeo copy --all
---preserve-digests`, checks the destination tags, and restores the ISO,
-signature, certificate and renamed checksum at the mutable R2 URLs. R2
-read-back compares bytes, and an HTTP HEAD checks the public download URL.
-The stable branch moves last. Promotion, rollback and stable ISO publication
-share the same concurrency group. R2 object sets are not atomic: failed
-partial copies must be retried while promotion is paused. See the
+--preserve-digests` and checks the destination tags. It restores the ISO,
+signature, certificate and renamed checksum at the mutable R2 URLs.
+The workflow compares bytes after an R2 read-back. An HTTP HEAD checks the public download URL.
+The stable branch moves last.
+
+Promotion, rollback and publication of the stable ISO use the same concurrency group.
+R2 object sets are not atomic. Pause promotion and retry any partial copies that failed. See the
 [rollback runbook](../runbooks/rollback-a-bad-stable-release.md) for dispatch
 commands, recovery and verification of the public CDN surface.
