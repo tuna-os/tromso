@@ -4,6 +4,17 @@ How Tromsø gets from `.bst` elements to a bootable, installable live ISO —
 and how to debug it when it breaks. (Same architecture as tuna-os/xfce-linux;
 patterns originate in projectbluefin/dakota and dakota-iso.)
 
+## Secure Boot key guard
+
+OCI (both architectures) and ISO builds check signing inputs before building
+and again before publishing with `files/boot-keys/check-release-keys.py
+--release`. Public snakeoil modes/identities and malformed certificates fail
+the job. These development keys must never be trusted. The current pipeline
+uses cosign keyless artifact signing, not the legacy Secure Boot Makefile;
+see [the key policy](../files/boot-keys/README.md) before enabling Secure Boot.
+This guard addresses #219's public signing-input regression class; it does
+not audit signatures inside existing artifacts.
+
 ## Build chain
 
 ```
@@ -136,6 +147,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-03 | Public development signing keys could be selected for release inputs (#219) | Legacy key helper had no release policy or complete-import check | Reject public modes and snakeoil certificate identities before build/publish; workflow coverage in `test_release_workflows_enforce_guard` |
 | 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
 | 2026-10-24 | Four workflows inherited repository token defaults (#321) | Job-level permissions did not constrain other jobs | Add top-level `contents: read`; retain job overrides and require explicit workflow permissions in the invariant tests |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |

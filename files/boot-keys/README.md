@@ -1,88 +1,59 @@
 # Secure Boot keys
 
-This directory contains helpers to obtain a UEFI Secure Boot chain of trust
-for GNOME OS.
+These helpers are inherited from GNOME/KDE Linux. The private keys in
+`snakeoil/` are **public, development-only test fixtures**. Anyone can sign
+with them. Never enrol their certificates on a machine you trust, or treat
+an artifact signed by them as authentic. They are retained for disposable
+local and CI development builds, following the upstream convention.
 
-The Makefile has the following targets:
+Tromso's current bootc pipeline does not invoke this Makefile and disables
+Secure Boot signing in its boot elements. Published OCI images and ISO files
+use cosign keyless signatures; those signatures do not establish a UEFI
+Secure Boot chain. No production Secure Boot secret provisioning is currently
+wired into these workflows.
 
-* `generate-keys` (default): obtain keys following `IMPORT_MODE`.
-* `clean`: delete all generated files
+## Modes and release guard
 
-There are various modes for obtaining keys, controlled by the `IMPORT_MODE`
-variable:
+`make generate-keys` obtains keys according to `IMPORT_MODE`:
 
-* unset (default): generate a full set of new keys locally.
-* `snakeoil`: use pregenerated 'snakeoil' keys which are committed to the repo
-* `local`: use 'snakeoil' for the root keys (PK, KEK and DB), generate the rest
-  locally.
-* `import`: read pregenerated keys from environment variables
+* Unset: generate fresh local keys.
+* `snakeoil`: copy the committed public test keys; development only.
+* `local`: copy the snakeoil PK/KEK/DB roots and generate other keys;
+  development only, since the roots are still public.
+* `import`: read keys and certificates from `SECURE_BOOT_*` environment
+  variables. Every required variable must be nonempty; missing imports fail
+  before writing outputs, even if previous outputs exist. No fallback occurs.
 
-See below for some guidance on which mode to use.
+Any future release Secure Boot signing must use separately provisioned keys
+with `IMPORT_MODE=import RELEASE_BUILD=1 make generate-keys`. Set these values
+for the entire build, including scheduled releases. Do not print secrets with
+`show-keys-for-ci` in CI logs.
 
-## Use cases
+`RELEASE_BUILD=1` checks inputs before generation and outputs afterwards.
+It rejects both `snakeoil` and `local`, and compares all generated `.crt`
+files (including bundles and extra firmware certificates) and environment
+`SECURE_BOOT_*_CRT` values against every committed snakeoil certificate's
+public key. This catches renamed, reformatted and reissued certificates.
+Invalid certificates and unreadable reference certificates also fail closed.
+Existing generated files are checked on every invocation; switching modes
+does not make stale snakeoil files safe. Use a fresh working directory when
+switching signing identities.
 
-UEFI Secure Boot ensures that a machine's firmware will only boot operating
-systems and UEFI applications that are trusted by the machine owner.
+The publishing workflows run the same guard before building and before
+publishing, for both OCI architectures and the live ISO, including nightlies:
 
-It does this by embedding a chain of trust in the firmware, and requiring that
-UEFI applications are signed by a key that's allowed by the chain of trust.
+```sh
+python3 files/boot-keys/check-release-keys.py --release
+```
 
-Most desktop and laptop vendors ship with a chain of trust controlled by
-Microsoft, and they enable Secure Boot by default in the firmware. This
-means that Microsoft Windows can start out-of-the-box on a modern machine. Any
-Linux distribution whose first-stage bootloader is signed by Microsoft can also
-start without any need to reconfigure firmware. That includes many mainstream
-Linux distributions today.
+No keys are required by this standalone check when Secure Boot signing is
+unused. It checks signing inputs, not signatures embedded in downloaded or
+cached artifacts, and does not claim to audit previously published images.
+If signing is enabled later, provision private release keys in the signing
+jobs, retain these checks, and audit the signed artifacts before publishing.
 
-GNOME OS does not have any agreement with Microsoft to sign its bootloader. To
-boot GNOME OS on a modern laptop or desktop, you must be the machine owner and
-you'll need to modify the Secure Boot configuration in the firmware to trust
-the keys.
-
-If you downloaded an automated build from os.gnome.org, this is signed with keys
-stored in GNOME's Gitlab. You don't need to generate new keys in this case. You
-can go straight to adding the existing keys to the firmware's chain of trust.
-
-If you're building GNOME OS locally, you will need to decide what signing
-keys to use. You have several options.
-
-### Snake Oil keys
-
-The 'snakeoil' keys are pregenerated and committed to this Git repo.
-
-That means, of course, that they don't provide any security guarantee at all.
-(The name is reference to fake medicines that were common around the 19th
-century in Europe and the US.)
-
-The gnome-build-meta CI uses the 'snakeoil' keys for building feature branches.
-That means the artifact cache contains prebuilt versions of the kernel, modules
-and bootloader, signed with the snakeoil key. Your local build might be faster
-using the 'snakeoil' keys as it can pull the prebuilt versions instead of
-locally building and signing new ones.
-
-### Local keys
-
-By default `make` generates a full set of new keys.
-
-This means your machine can be secure against certain attacks, like someone
-trying to boot a different operating system while you're not watching to steal
-your data.
-
-It also means you'll need to locally build all the elements that are signed,
-such as the kernel and bootloader.
-
-### Local vendor keys
-
-The `IMPORT_MODE=local` option is a hybrid of the first two options. It's
-intended for local builds where you are deploying to a system that has an
-existing installation of GNOME OS, and you are deploying your local build
-as an update rather than installing from scratch.
-
-In this mode, the insecure 'snakeoil' keys are used for the bootloader
-components. Those are not updated when you install GNOME OS as an update to an
-existing system, so you may as well take the fast path.
-
-Everything else (kernel, modules, sysexts) gets a new locally generated key.
+Other targets: `clean` deletes generated files; `export-snakeoil` replaces the
+development fixtures and must never be used with production keys.
 
 ## Outputs
 
@@ -107,13 +78,3 @@ your chosen keys.
 The latter option means the firmware will additionally allow any software
 allowed by the Microsoft keys. This is useful if you want to allow the
 machine to dual boot into other operating systems.
-
-## Furthe reading
-
-There is lots of documentation online about UEFI Secure Boot for further
-reading. Here are some links:
-
-* Arch Linux wiki: [Unified Extensible Firmware Interface/Secure Boot](https://wiki.archlinux.org/title/Unified_Extensible_Firmware_Interface/Secure_Boot)
-* Microsoft Windows Hardware Developer documentation:
-  ["Secure Boot overview"](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/secure-boot-landing)
-* Proxmox wiki: [Secure Boot Setup](https://pve.proxmox.com/wiki/Secure_Boot_Setup)

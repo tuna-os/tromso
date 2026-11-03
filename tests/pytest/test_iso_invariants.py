@@ -148,3 +148,19 @@ def test_workflows_declare_top_level_permissions():
     """Job overrides must not leave other jobs with repository defaults (#321)."""
     for workflow in sorted((REPO / ".github/workflows").glob("*.y*ml")):
         assert re.search(r"^permissions:", workflow.read_text(), re.MULTILINE), workflow.name
+
+def test_release_workflows_enforce_guard():
+    import yaml
+
+    for workflow, jobs in [('build-tromso-multirunner.yml', ['build_final', 'build_final_aarch64']),
+                           ('build-iso.yml', ['build-and-publish'])]:
+        data = yaml.safe_load((REPO / '.github/workflows' / workflow).read_text())
+        for job in jobs:
+            steps = data['jobs'][job]['steps']
+            checks = [i for i, step in enumerate(steps)
+                      if 'check-release-keys.py --release' in step.get('run', '')]
+            assert len(checks) == 2
+            assert all('if' not in steps[i] or steps[i]['name'] == 'Push to GHCR' for i in checks)
+            build = next(i for i, step in enumerate(steps)
+                         if step.get('name') in ('Build Final Target', 'Build Live ISO'))
+            assert checks[0] < build < checks[1]

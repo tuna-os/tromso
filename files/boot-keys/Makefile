@@ -1,6 +1,14 @@
 # See `README.md` for some guidance on what this Makefile does.
 
+SHELL := /bin/bash
+
 all: generate-keys
+
+# Export make command-line variables to the guard and import recipes.
+export IMPORT_MODE RELEASE_BUILD
+
+check-key-inputs:
+	python3 check-release-keys.py
 
 KEY_TYPES=PK PK_MIC KEK KEK_MIC DB VENDOR MODULES SYSEXT
 ALL_CERTS=$(foreach KEY,$(KEY_TYPES),$(KEY).crt)
@@ -16,7 +24,11 @@ DIST_KEYS=private-key import-pubring.pgp
 KERNEL_KEYRING_FILE=modules/linux-module-cert.crt
 KERNEL_KEYRING=MODULES.crt SYSEXT.crt
 
-generate-keys: $(BOOT_KEYS) $(KERNEL_KEYS) $(MICROSOFT_KEYS) $(MICROSOFT_KEYS_OWNER)
+# Check before any recipe, even with parallel make or cached outputs.
+$(BOOT_KEYS) $(KERNEL_KEYS): | check-key-inputs
+
+generate-keys: check-key-inputs $(BOOT_KEYS) $(KERNEL_KEYS) $(MICROSOFT_KEYS) $(MICROSOFT_KEYS_OWNER)
+	python3 check-release-keys.py
 
 modules/linux-module-cert.crt: $(KERNEL_KEYRING)
 	cat $(KERNEL_KEYRING) >$@
@@ -143,4 +155,4 @@ clean:
 	rm -f tpm2-pcr-{private,public}.pem
 	rm -f modules/linux-module-cert.crt
 
-.PHONY: generate-keys show-keys-for-ci clean
+.PHONY: generate-keys check-key-inputs show-keys-for-ci clean
