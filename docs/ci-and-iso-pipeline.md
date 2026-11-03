@@ -6,14 +6,15 @@ patterns originate in projectbluefin/dakota and dakota-iso.)
 
 ## Secure Boot key guard
 
-OCI (both architectures) and ISO builds check signing inputs before building
-and again before publishing with `files/boot-keys/check-release-keys.py
---release`. Public snakeoil modes/identities and malformed certificates fail
-the job. These development keys must never be trusted. The current pipeline
-uses cosign keyless artifact signing, not the legacy Secure Boot Makefile;
-see [the key policy](../files/boot-keys/README.md) before enabling Secure Boot.
-This guard addresses #219's public signing-input regression class; it does
-not audit signatures inside existing artifacts.
+OCI builds for both architectures and ISO builds check signature inputs before
+the build and publication. They use `files/boot-keys/check-release-keys.py --release`.
+Public snakeoil modes/identities and malformed certificates fail the job.
+Never trust these development keys.
+
+The pipeline signs artifacts with cosign keyless, not the legacy Secure Boot Makefile. Read
+[the key policy](../files/boot-keys/README.md) before you enable Secure Boot.
+This guard prevents the regression in #219 that accepted public keys as
+signature inputs. It does not audit signatures inside existing artifacts.
 
 ## Build chain
 
