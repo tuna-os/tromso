@@ -332,3 +332,14 @@ def test_release_workflows_enforce_guard():
             build = next(i for i, step in enumerate(steps)
                          if step.get('name') in ('Build Final Target', 'Build Live ISO'))
             assert checks[0] < build < checks[1]
+
+
+def test_python_ci_installs_workflow_parser():
+    """Workflow invariants need PyYAML even on a clean Python runner (#449)."""
+    import shlex
+    import yaml
+
+    workflow = yaml.safe_load((REPO / '.github/workflows/test.yml').read_text())
+    steps = workflow['jobs']['pytest']['steps']
+    install = next(step['run'] for step in steps if step.get('name') == 'Install dependencies')
+    assert 'pyyaml' in shlex.split(install.lower())
