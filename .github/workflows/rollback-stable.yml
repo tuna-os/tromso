@@ -1,23 +1,23 @@
 name: Rollback :stable
 
-# One-button rollback when a promoted stable is bad (dakota pattern,
-# simplified — no cosign yet, see the signing issue). Dispatch-only and
-# dry_run by default: humans opt in to moving tags.
-#
-#   1. Verify ghcr.io/tuna-os/tromso:<target_sha> exists.
-#   2. skopeo copy --preserve-digests it onto :stable (+ dated rollback tag).
-#   3. Force-push the stable branch to the target commit so the branch and
-#      the tag never diverge.
-#
-# Shares the promote-stable concurrency group so it cannot race a promotion.
+# Verify all selected targets before mutation (Dakota rollback pattern).
+# Dry-run is the default. Shares the promotion lock; dated ISOs are retained.
 
 on:
   workflow_dispatch:
     inputs:
       target_sha:
-        description: 'Full commit SHA to roll back to (must have a ghcr :<sha> image tag — find candidates via: gh run list --workflow "Build Tromso (Multi-Runner)" --branch stable --status success)'
+        description: 'Full commit SHA with a signed ghcr.io/tuna-os/tromso:<sha> image tag'
         required: true
         type: string
+      target_iso:
+        description: 'Known-good stable ISO basename: tromso-live-YYYYMMDD-<sha7>.iso'
+        required: true
+        type: string
+      rollback_aarch64:
+        description: 'Restore aarch64 too; disable only if the release did not publish it'
+        type: boolean
+        default: true
       reason:
         description: 'Why (logged in the step summary)'
         required: true
@@ -38,44 +38,91 @@ concurrency:
 jobs:
   rollback:
     runs-on: ubuntu-24.04
+    env:
+      TARGET_SHA: ${{ inputs.target_sha }}
+      TARGET_ISO: ${{ inputs.target_iso }}
+      INCLUDE_ARM: ${{ inputs.rollback_aarch64 }}
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_REGION: auto
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
-      - name: Verify target image exists
-        run: |
-          echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
-          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" --format 'target digest: {{.Digest}}'
-          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:stable" --format 'current stable digest: {{.Digest}}' || echo "no :stable yet"
-          git cat-file -e "${{ inputs.target_sha }}^{commit}" || { echo "::error::SHA not a commit in this repo"; exit 1; }
+      - name: Install verification tools
+        run: sudo apt-get update -qq && sudo apt-get install -y skopeo rclone
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Verify rollback targets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "${TARGET_SHA}^{commit}"
+          echo "$GITHUB_TOKEN" | skopeo login ghcr.io -u "$GH_ACTOR" --password-stdin
+          SUFFIXES=('')
+          if [ "$INCLUDE_ARM" = true ]; then SUFFIXES+=('-aarch64'); fi
+          for SUFFIX in "${SUFFIXES[@]}"; do
+            DIGEST=$(skopeo inspect "docker://ghcr.io/tuna-os/tromso:${TARGET_SHA}${SUFFIX}" --format '{{.Digest}}')
+            cosign verify \
+              --certificate-identity-regexp \
+                '^https://github\.com/tuna-os/tromso/\.github/workflows/build-tromso-multirunner\.yml@refs/heads/(main|stable)$' \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              "ghcr.io/tuna-os/tromso@${DIGEST}"
+            echo "digest${SUFFIX//-/_}=${DIGEST}" >> "$GITHUB_ENV"
+          done
+          bash scripts/iso-r2.sh verify "$TARGET_ISO" tromso/stable
 
       - name: Roll back image tags
         if: ${{ !inputs.dry_run }}
         run: |
+          set -euo pipefail
           DATE_TAG=$(date -u +%Y%m%d-%H%M)
-          sudo skopeo copy --preserve-digests \
-            "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" \
-            "docker://ghcr.io/tuna-os/tromso:stable"
-          sudo skopeo copy --preserve-digests \
-            "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" \
-            "docker://ghcr.io/tuna-os/tromso:stable-rollback-${DATE_TAG}"
+          SUFFIXES=('')
+          if [ "$INCLUDE_ARM" = true ]; then SUFFIXES+=('-aarch64'); fi
+          for SUFFIX in "${SUFFIXES[@]}"; do
+            KEY="digest${SUFFIX//-/_}"
+            DIGEST=${!KEY}
+            for TAG in "stable${SUFFIX}" "stable-rollback-${DATE_TAG}${SUFFIX}"; do
+              skopeo copy --all --preserve-digests \
+                "docker://ghcr.io/tuna-os/tromso@${DIGEST}" \
+                "docker://ghcr.io/tuna-os/tromso:${TAG}"
+              ACTUAL=$(skopeo inspect "docker://ghcr.io/tuna-os/tromso:${TAG}" --format '{{.Digest}}')
+              [ "$ACTUAL" = "$DIGEST" ]
+            done
+          done
+
+      - name: Restore signed stable ISO and sidecars
+        if: ${{ !inputs.dry_run }}
+        run: bash scripts/iso-r2.sh restore "$TARGET_ISO" tromso/stable
 
       - name: Move stable branch
         if: ${{ !inputs.dry_run }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git push origin "${{ inputs.target_sha }}:refs/heads/stable" --force
+          git push origin "${TARGET_SHA}:refs/heads/stable" --force
 
       - name: Summary
         if: always()
+        env:
+          REASON: ${{ inputs.reason }}
         run: |
           {
             echo "## Rollback ${{ inputs.dry_run && '(DRY RUN)' || '' }}"
-            echo "- target: \`${{ inputs.target_sha }}\`"
-            echo "- reason: ${{ inputs.reason }}"
+            echo "- target: \`${TARGET_SHA}\`"
+            echo "- reason: $REASON"
+            echo "- ISO: $TARGET_ISO"
+            echo "- aarch64 selected: $INCLUDE_ARM"
+            echo "- result: ${{ job.status }}"
             echo "- actor: ${{ github.actor }}"
           } >> "$GITHUB_STEP_SUMMARY"

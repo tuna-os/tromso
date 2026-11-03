@@ -7,6 +7,7 @@ on:
       - 'tromso/**'
       - 'Justfile'
       - 'iso.justfile'
+      - 'scripts/iso-r2.sh'
       - '.github/workflows/build-iso.yml'
   workflow_run:
     # Rebuild the ISO whenever a fresh OCI image lands on GHCR.
@@ -38,6 +39,11 @@ jobs:
       contents: read
       packages: read
       id-token: write # cosign keyless signing (Sigstore/Fulcio OIDC)
+
+    # Serialize stable publication with promotion and rollback, including R2.
+    concurrency:
+      group: ${{ (github.event.workflow_run.head_branch || github.ref_name) == 'stable' && 'promote-stable' || 'publish-iso-nightly' }}
+      cancel-in-progress: false
 
     steps:
       - name: Checkout
@@ -98,7 +104,7 @@ jobs:
         id: iso
         run: |
           DATE=$(date -u +%Y%m%d)
-          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          SHA=$(echo "${{ github.event.workflow_run.head_sha || github.sha }}" | cut -c1-7)
           echo "dated=tromso-live-${DATE}-${SHA}.iso" >> "$GITHUB_OUTPUT"
           echo "path=output/tromso-live.iso" >> "$GITHUB_OUTPUT"
 
@@ -111,6 +117,41 @@ jobs:
           sha256sum "$ISO" | sed "s|${ISO}|tromso-live-latest.iso|" > "output/tromso-live-latest.iso-CHECKSUM"
           echo "path=output/${DATED}-CHECKSUM" >> "$GITHUB_OUTPUT"
           echo "name=${DATED}-CHECKSUM" >> "$GITHUB_OUTPUT"
+
+      - name: Boot verification (UEFI + serial)
+        timeout-minutes: 10
+        run: |
+          ISO="${{ steps.iso.outputs.path }}"
+          sudo apt-get install -y qemu-system-x86 ovmf socat imagemagick -qq
+          EFI_CODE=""
+          for f in /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_CODE.fd; do
+            [ -f "$f" ] && EFI_CODE="$f" && break
+          done
+          for f in /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd /usr/share/edk2/ovmf/OVMF_VARS.fd; do
+            if [ -f "$f" ]; then cp "$f" /tmp/EFI_VARS.fd; break; fi
+          done
+          PFLASH=()
+          [ -n "$EFI_CODE" ] && [ -f /tmp/EFI_VARS.fd ] && \
+            PFLASH+=(-drive "if=pflash,format=raw,readonly=on,file=$EFI_CODE" \
+                     -drive "if=pflash,format=raw,file=/tmp/EFI_VARS.fd")
+          sudo qemu-system-x86_64 \
+            -machine type=q35,accel=kvm -cpu host -m 4G -smp 2 \
+            "${PFLASH[@]}" -cdrom "$ISO" -boot d \
+            -monitor unix:/tmp/qemu-monitor.sock,server,nowait \
+            -serial file:/tmp/serial.log -display none -daemonize
+          for i in $(seq 1 30); do [ -S /tmp/qemu-monitor.sock ] && break; sleep 2; done
+          for i in $(seq 1 60); do
+            sudo grep -q "TROMSO_LIVE_READY" /tmp/serial.log 2>/dev/null && { echo "==> Ready after $((i*5))s"; break; }
+            if [ "$i" -eq 60 ]; then echo "WARNING: ready token not seen after 5m"; fi
+            sleep 5
+          done
+          echo "screendump /tmp/screenshot.ppm" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
+          sleep 2
+          sudo test -f /tmp/screenshot.ppm && \
+            { sudo convert /tmp/screenshot.ppm screenshot.png 2>/dev/null || sudo cp /tmp/screenshot.ppm screenshot.png; }
+          echo "quit" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
+          sudo grep -qE "TROMSO_LIVE_READY|Finished live-ready\.service" /tmp/serial.log || \
+            { echo "ERROR: Live environment did not reach ready state"; sudo tail -50 /tmp/serial.log; exit 1; }
 
       - name: Install cosign
         if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
@@ -139,61 +180,9 @@ jobs:
           RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: |
-          ISO="${{ steps.iso.outputs.path }}"
-          DATED="${{ steps.iso.outputs.dated }}"
-          rclone copyto --log-level INFO --checksum --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}"
-          rclone copyto --log-level INFO --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.sig"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.cert"
-          # Same bytes as the dated ISO, so the same signature verifies it —
-          # publish under the "latest" name too so consumers of the stable
-          # download URL (validate-iso-kanpur.yml included) have something
-          # to verify against without needing to know today's dated filename.
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.sig"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.cert"
-          echo "https://download.tunaos.org/tromso/tromso-live-latest.iso"
-        continue-on-error: true
-
-      - name: Boot verification (UEFI + serial)
-        timeout-minutes: 10
-        run: |
-          ISO="${{ steps.iso.outputs.path }}"
-          sudo apt-get install -y qemu-system-x86 ovmf socat imagemagick -qq
-          EFI_CODE=""
-          for f in /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_CODE.fd; do
-            [ -f "$f" ] && EFI_CODE="$f" && break
-          done
-          for f in /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd /usr/share/edk2/ovmf/OVMF_VARS.fd; do
-            if [ -f "$f" ]; then cp "$f" /tmp/EFI_VARS.fd; break; fi
-          done
-          PFLASH=()
-          [ -n "$EFI_CODE" ] && [ -f /tmp/EFI_VARS.fd ] && \
-            PFLASH+=(-drive "if=pflash,format=raw,readonly=on,file=$EFI_CODE" \
-                     -drive "if=pflash,format=raw,file=/tmp/EFI_VARS.fd")
-          sudo qemu-system-x86_64 \
-            -machine type=q35,accel=kvm -cpu host -m 4G -smp 2 \
-            "${PFLASH[@]}" -cdrom "$ISO" -boot d \
-            -monitor unix:/tmp/qemu-monitor.sock,server,nowait \
-            -serial file:/tmp/serial.log -display none -daemonize
-          for i in $(seq 1 30); do [ -S /tmp/qemu-monitor.sock ] && break; sleep 2; done
-          for i in $(seq 1 60); do
-            sudo grep -q "TROMSO_LIVE_READY" /tmp/serial.log 2>/dev/null && { echo "==> Ready after $((i*5))s"; break; }
-            [ "$i" -eq 60 ] && echo "WARNING: ready token not seen after 5m" || true
-            sleep 5
-          done
-          echo "screendump /tmp/screenshot.ppm" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
-          sleep 2
-          sudo test -f /tmp/screenshot.ppm && \
-            { sudo convert /tmp/screenshot.ppm screenshot.png 2>/dev/null || sudo cp /tmp/screenshot.ppm screenshot.png; }
-          echo "quit" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
-          sudo grep -qE "TROMSO_LIVE_READY|Finished live-ready\.service" /tmp/serial.log || \
-            { echo "ERROR: Live environment did not reach ready state"; sudo tail -50 /tmp/serial.log; exit 1; }
+          bash scripts/iso-r2.sh publish \
+            "${{ steps.iso.outputs.dated }}" "${{ steps.channel.outputs.r2_prefix }}" \
+            "${{ steps.iso.outputs.path }}"
 
       - name: Upload ISO as artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
