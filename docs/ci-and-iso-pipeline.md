@@ -95,8 +95,7 @@ recover after they refresh the GHCR caches.
    initramfs (incl. the `95tromso-isofile` Ventoy dracut module) → final
    stage installs flatpaks (`src/install-flatpaks.sh`) and configures the
    live env (`src/configure-live.sh`).
-2. The recipe squashes the payload image and imports it into VFS container
-   storage inside the squashfs. This process enables the offline installation.
+2. The resolver selects one platform manifest and pins its digest. The recipe squashes that image for the live system and kernel. The media contains a separate OCI payload for offline installation.
 3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
@@ -116,9 +115,9 @@ just luks-test-qemu tromso          # boot → fisherman LUKS install → reboot
 
 `tromso/src/luks-unlock.py` drives the QEMU monitor. It checks screen dumps
 until Plymouth appears, types the passphrase with `sendkey`, and verifies the
-installed system boot. The workflow publishes screenshots to the
-`ci-screenshots` branch and PR comments. They show the live desktop, Plymouth
-prompt, and installed desktop.
+installed system boot. Screenshots and serial logs remain in Actions artifacts.
+The install jobs have read-only tokens and no registry login. They do not
+write a screenshot branch or PR comments.
 
 ## Source updates
 
@@ -163,12 +162,10 @@ skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
   publishes `:latest`, `:nightly`, `:nightly-YYYYMMDD`, `:<sha>`; the ISO
   lands at R2 `tromso/`.
 - **stable** is a release bookmark branch. A weekly schedule or manual dispatch
-  starts `promote-stable.yml`; set `force=true` for an override. The workflow
-  verifies the newest nightly build and ISO. It force-pushes that commit to
-  `stable` and starts the stable build. The build creates the `:stable` and
-  `:stable-YYYYMMDD` tags, plus an ISO under R2 `tromso/stable/`. The stable ISO
-  embeds the `:stable` payload. The build-iso.yml workflow changes `payload_ref`
-  for each channel.
+  starts `promote-stable.yml`. One immutable candidate from main must pass the ISO,
+  plain install, and LUKS gates. Only then can promotion copy its digest to
+  `:stable` and fast-forward the bookmark. There is no force override.
+  The stable ISO embeds that same digest and lands under R2 `tromso/stable/`.
 - Update PRs from source trackers or Renovate target only main. Stable moves
   only through promotion.
 
@@ -195,7 +192,7 @@ design gives one shared CAS and one final signer.
 
 Post-merge: salvage-enabled nightly world build → ISO boot gate
 (ready-marker + screenshot artifact) → weekly LUKS install e2e
-(screenshots on the `ci-screenshots` branch + PR comments). A cloud
+(screenshots and serial logs in Actions artifacts). A cloud
 routine ("tromso + xfce-linux CI babysitter", every 3 h) diagnoses
 completed failures from logs and pushes fixes.
 
@@ -232,6 +229,13 @@ the two tests. The run number selects the test. Set the repository variable
 workflow of one test always runs that test. The two tests run fully on their
 weekly schedules and on manual dispatch.
 
+Both install tests run PR-supplied recipes with read-only repository tokens
+(tromso#270). Checkout does not persist credentials. They do not log
+in to GHCR: the payload image is public. Screenshots, serial logs, and job
+summaries remain available in Actions. No privileged job reports results,
+and no write boundary connects the untrusted artifacts to the repository.
+Any future change to reports needs its own review and behavioral security tests.
+
 ## Rollback
 
 `rollback-stable.yml` runs only after a manual dispatch, and `dry_run` defaults
@@ -248,3 +252,119 @@ This workflow does not restore a full release. It restores only the x86_64
 because `build-tromso-multirunner.yml` signs each pushed digest. The
 [rollback runbook](../runbooks/rollback-a-bad-stable-release.md) gives the
 manual steps for other artifacts and the final verification.
+
+## Stable candidate verification (#309)
+
+Each published x86_64 build records its commit SHA and OCI digest in
+its `release-candidate` Actions artifact (30-day retention). Promotion selects
+the newest successful main build and checks that the artifact matches its run
+SHA. Promotion stops if evidence is missing, expired, or malformed. Run a fresh build
+instead of a mutable tag fallback.
+
+Promotion invokes the ISO boot gate, plain install, and LUKS install workflows
+with that exact SHA and digest. All check out the candidate source and write
+`ghcr.io/tuna-os/tromso@sha256:…` to `tromso/payload_ref` before the build.
+The terminal job needs success from all three reusable workflows in the same
+promotion run. Run dependencies and summaries record the candidate and results.
+Unrelated scheduled E2E runs are no longer release evidence.
+
+The shared ISO recipe reads `payload_ref` once. `scripts/resolve-payload-ref.sh`
+pins a tag or index to its linux/amd64 platform manifest before the build.
+The live system and kernel use a squashed copy with a local build name. The
+Containerfile has no default base image.
+
+The installer payload keeps the registry manifest unchanged. Skopeo copies the
+source to an OCI archive. `scripts/embed-oci-payload.sh` copies that archive
+into `/usr/lib/tunaos/payload` in the squashfs. Both copies use
+`--preserve-digests`. The producer rejects a manifest that differs from the
+selected candidate. It reads the config digest and platform from the blobs.
+
+Local container storage has unpacked layers. It cannot guarantee the original
+compressed bytes.
+
+The producer writes the v1 media contract with the immutable image, manifest,
+config, platform and day-2 ref. It updates both frontend catalogs and the
+shipped recipe to request that image. Plain and LUKS E2E callers read the same
+contract. Neither caller uses a network fallback. The producer takes the day-2
+ref from the configured recipe, not from the temporary live-image name.
+
+The live `/usr` is a writable overlay. The contract instead names
+`/run/rootfsbase/usr/lib/tunaos/payload`, beneath the read-only squashfs bind
+that dracut retains. See the [dmsquash-live implementation](https://github.com/dracut-ng/dracut/blob/main/modules.d/70dmsquash-live/dmsquash-live-root.sh).
+Fisherman runs the install container from this OCI layout. It also bind-mounts
+the layout read-only for bootc. The build needs no duplicate VFS payload or
+extra image-store declaration.
+
+#### Released consumer contract and bounded check
+
+The [TunaOS Flatpak index](https://tunaos.org/flatpak/index/static) shows
+`org.tunaos.InstallerKde/x86_64/master` at this OCI digest:
+`sha256:4176c2bb0ce0cd8b352281443c1d0f3a390b3c5a5050750675a662bb574d3edd`.
+Its embedded `files/manifest.json` records fisherman
+`230f6ec856bf70f40faf76dc1c9e7327cf1a7a2f`. The same commit appears in
+[bootc-installer release v2026.10.31-23e47c51](https://github.com/tuna-os/bootc-installer/releases/tag/v2026.10.31-23e47c51).
+
+That revision's [binding](https://github.com/tuna-os/fisherman/blob/230f6ec856bf70f40faf76dc1c9e7327cf1a7a2f/fisherman/cmd/fisherman/host_recipe.go)
+makes media input mandatory on live ISOs and checks that image and target agree.
+Its [preflight](https://github.com/tuna-os/fisherman/blob/230f6ec856bf70f40faf76dc1c9e7327cf1a7a2f/fisherman/internal/install/bound_media_linux.go)
+needs a canonical path without symlinks on a read-only filesystem. It hashes
+the manifest, config and layers, then checks sizes and host platform. It allows
+1,024 layers, 8 MiB of metadata and 10 GiB of unique blob bytes.
+
+Optional catalog and qualification fields are opaque IDs, not certificates;
+the producer does not invent them. Only candidate-bound hosted ISO, plain and
+LUKS results qualify a release.
+
+`tests/pytest/test_media_input.py` copies a real OCI image through an archive
+and the production embed helper. It checks byte identity and catalog/update
+refs, and rejects mutable or mismatched candidates. Run these modules with
+skopeo and jq installed:
+
+```bash
+python3 -m pytest tests/pytest/test_media_input.py \
+  tests/pytest/test_iso_invariants.py tests/pytest/test_release_candidate.py
+```
+
+Test the published fisherman binary or its exact source revision with the
+transported layout on a real read-only mount. Isolate mounts with
+`sudo unshare --mount --propagation private`. Mount the prepared root read-only
+at `/run/rootfsbase`; expose its media input under private
+`/etc/bootc-installer`.
+
+Run the actual install entry point with an invalid recipe to stop source
+verification before disk operations. Valid media must reach recipe validation.
+Writable filesystems, missing or corrupt blobs, symlinks, mismatched
+image/target/digest and platform must fail preflight.
+`fisherman validate` alone does not check media sources in this release.
+
+This bounded check does not qualify an ISO or prove its full boot path.
+Hosted gates and suitable disk/KVM capacity remain necessary for ISO/QEMU
+installation.
+
+Promotion follows Dakota's published-digest release pattern. It copies the
+verified digest to `:stable` with `skopeo --preserve-digests` and advances the
+stable bookmark without an OCI rebuild. It then publishes the stable ISO with
+the same candidate inputs. This covers x86_64. The independent aarch64 pipeline
+is not part of this gate.
+
+Registry publication and the git update are sequential, not transactional.
+A failed push needs operator reconciliation. Stable branch updates remain
+fast-forward only.
+
+Every event needs successful candidate, ISO, plain, and LUKS evidence.
+Manual dispatch does not bypass a failed or missing gate. Validation jobs
+have read-only repository tokens and receive no inherited secrets.
+The ISO build and boot job also has no OIDC authority.
+
+The publication job is separate. It signs the successful artifact under the
+existing `build-iso.yml` identity without a checkout of candidate code.
+It writes the four dated objects before latest sidecars, then advances the ISO
+alias last. Each dated object is immutable. Every upload error fails the workflow.
+
+R2 aliases are separate objects. Partial promotion can leave mixed sidecars,
+but not a successful run. Existing weekly/PR install tests retain their
+payload defaults.
+
+| Bug class | Guard |
+| --- | --- |
+| Unrelated green runs composed into stable (#309) | Candidate-bound workflows; behavioral gate and upload-failure cases in `test_release_candidate.py` |

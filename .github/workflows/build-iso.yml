@@ -1,6 +1,20 @@
 name: Build and Publish Tromsø Live ISO
 
 on:
+  workflow_call:
+    inputs:
+      candidate_sha:
+        type: string
+        default: ''
+      candidate_digest:
+        type: string
+        default: ''
+      release_channel:
+        type: string
+        default: ''
+      skip_upload:
+        type: boolean
+        default: true
   push:
     branches: [main]
     paths:
@@ -37,18 +51,22 @@ jobs:
     permissions:
       contents: read
       packages: read
-      id-token: write # cosign keyless signing (Sigstore/Fulcio OIDC)
+    outputs:
+      dated: ${{ steps.iso.outputs.dated }}
+      channel: ${{ steps.channel.outputs.name }}
+      r2_prefix: ${{ steps.channel.outputs.r2_prefix }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ inputs.candidate_sha || github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
 
       - name: Determine channel
         id: channel
         run: |
-          BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
+          BRANCH="${{ inputs.release_channel || github.event.workflow_run.head_branch || github.ref_name }}"
           if [ "$BRANCH" = "stable" ]; then
             echo "name=stable" >> "$GITHUB_OUTPUT"
             echo "payload_tag=stable" >> "$GITHUB_OUTPUT"
@@ -60,7 +78,15 @@ jobs:
           fi
 
       - name: Point ISO payload at channel image
-        run: echo "ghcr.io/tuna-os/tromso:${{ steps.channel.outputs.payload_tag }}" > tromso/payload_ref
+        env:
+          CANDIDATE_DIGEST: ${{ inputs.candidate_digest }}
+          PAYLOAD_TAG: ${{ steps.channel.outputs.payload_tag }}
+        run: |
+          if [ -n "$CANDIDATE_DIGEST" ]; then
+            echo "ghcr.io/tuna-os/tromso@${CANDIDATE_DIGEST}" > tromso/payload_ref
+          else
+            echo "ghcr.io/tuna-os/tromso:${PAYLOAD_TAG}" > tromso/payload_ref
+          fi
 
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
@@ -80,11 +106,6 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y podman buildah rclone mtools xorriso skopeo
 
-      - name: Log in to GHCR
-        run: echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build Live ISO
         run: |
           df -h /
@@ -98,8 +119,8 @@ jobs:
         id: iso
         run: |
           DATE=$(date -u +%Y%m%d)
-          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "dated=tromso-live-${DATE}-${SHA}.iso" >> "$GITHUB_OUTPUT"
+          SHA=$(git rev-parse --short=7 HEAD)
+          echo "dated=tromso-live-${DATE}-${SHA}-${{ github.run_id }}-${{ github.run_attempt }}.iso" >> "$GITHUB_OUTPUT"
           echo "path=output/tromso-live.iso" >> "$GITHUB_OUTPUT"
 
       - name: Generate SHA256 checksum
@@ -111,54 +132,6 @@ jobs:
           sha256sum "$ISO" | sed "s|${ISO}|tromso-live-latest.iso|" > "output/tromso-live-latest.iso-CHECKSUM"
           echo "path=output/${DATED}-CHECKSUM" >> "$GITHUB_OUTPUT"
           echo "name=${DATED}-CHECKSUM" >> "$GITHUB_OUTPUT"
-
-      - name: Install cosign
-        if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-
-      - name: Sign ISO (cosign keyless)
-        id: sign
-        if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
-        run: |
-          ISO="${{ steps.iso.outputs.path }}"
-          cosign sign-blob --yes \
-            --output-signature "${ISO}.sig" \
-            --output-certificate "${ISO}.cert" \
-            "$ISO"
-          echo "sig_path=${ISO}.sig" >> "$GITHUB_OUTPUT"
-          echo "cert_path=${ISO}.cert" >> "$GITHUB_OUTPUT"
-
-      - name: Upload ISO to Cloudflare R2
-        if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
-        env:
-          RCLONE_CONFIG_R2_TYPE: s3
-          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
-          RCLONE_CONFIG_R2_REGION: auto
-          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        run: |
-          ISO="${{ steps.iso.outputs.path }}"
-          DATED="${{ steps.iso.outputs.dated }}"
-          rclone copyto --log-level INFO --checksum --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}"
-          rclone copyto --log-level INFO --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.sig"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.cert"
-          # Same bytes as the dated ISO, so the same signature verifies it —
-          # publish under the "latest" name too so consumers of the stable
-          # download URL (validate-iso-kanpur.yml included) have something
-          # to verify against without needing to know today's dated filename.
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.sig"
-          rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.cert"
-          echo "https://download.tunaos.org/tromso/tromso-live-latest.iso"
-        continue-on-error: true
 
       - name: Boot verification (UEFI + serial)
         timeout-minutes: 10
@@ -184,7 +157,7 @@ jobs:
           for i in $(seq 1 30); do [ -S /tmp/qemu-monitor.sock ] && break; sleep 2; done
           for i in $(seq 1 60); do
             sudo grep -q "TROMSO_LIVE_READY" /tmp/serial.log 2>/dev/null && { echo "==> Ready after $((i*5))s"; break; }
-            [ "$i" -eq 60 ] && echo "WARNING: ready token not seen after 5m" || true
+            if [ "$i" -eq 60 ]; then echo "WARNING: ready token not seen after 5m"; fi
             sleep 5
           done
           echo "screendump /tmp/screenshot.ppm" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
@@ -198,7 +171,7 @@ jobs:
       - name: Upload ISO as artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: ${{ steps.iso.outputs.dated }}
+          name: ${{ steps.iso.outputs.dated }}-${{ steps.channel.outputs.name }}
           path: ${{ steps.iso.outputs.path }}
           if-no-files-found: error
           retention-days: 7
@@ -206,7 +179,7 @@ jobs:
       - name: Upload checksum as artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: checksum-${{ steps.iso.outputs.dated }}
+          name: checksum-${{ steps.iso.outputs.dated }}-${{ steps.channel.outputs.name }}
           path: ${{ steps.checksum.outputs.path }}
           if-no-files-found: warn
           retention-days: 7
@@ -215,7 +188,63 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
-          name: boot-screenshot-tromso
+          name: boot-screenshot-tromso-${{ steps.channel.outputs.name }}
           path: screenshot.png
           if-no-files-found: warn
           retention-days: 7
+
+  publish:
+    needs: build-and-publish
+    if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      id-token: write # Keep the existing build-iso.yml Fulcio identity.
+    env:
+      DATED: ${{ needs.build-and-publish.outputs.dated }}
+      R2_PREFIX: ${{ needs.build-and-publish.outputs.r2_prefix }}
+    steps:
+      - name: Download verified ISO
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ${{ needs.build-and-publish.outputs.dated }}-${{ needs.build-and-publish.outputs.channel }}
+          path: output
+
+      - name: Generate checksums
+        run: |
+          sha256sum output/tromso-live.iso | sed "s|output/tromso-live.iso|${DATED}|" > "output/${DATED}-CHECKSUM"
+          sha256sum output/tromso-live.iso | sed "s|output/tromso-live.iso|tromso-live-latest.iso|" > output/tromso-live-latest.iso-CHECKSUM
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign verified ISO
+        run: |
+          cosign sign-blob --yes \
+            --output-signature output/tromso-live.iso.sig \
+            --output-certificate output/tromso-live.iso.cert \
+            output/tromso-live.iso
+
+      - name: Install rclone
+        run: sudo apt-get update -qq && sudo apt-get install -y rclone
+
+      - name: Publish dated objects then latest aliases
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_REGION: auto
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          rclone copyto --checksum --immutable --s3-no-check-bucket output/tromso-live.iso "R2:${R2_BUCKET}/${R2_PREFIX}/${DATED}"
+          rclone copyto --checksum --immutable --s3-no-check-bucket "output/${DATED}-CHECKSUM" "R2:${R2_BUCKET}/${R2_PREFIX}/${DATED}-CHECKSUM"
+          rclone copyto --checksum --immutable --s3-no-check-bucket output/tromso-live.iso.sig "R2:${R2_BUCKET}/${R2_PREFIX}/${DATED}.sig"
+          rclone copyto --checksum --immutable --s3-no-check-bucket output/tromso-live.iso.cert "R2:${R2_BUCKET}/${R2_PREFIX}/${DATED}.cert"
+          rclone copyto --checksum --s3-no-check-bucket output/tromso-live.iso.sig "R2:${R2_BUCKET}/${R2_PREFIX}/tromso-live-latest.iso.sig"
+          rclone copyto --checksum --s3-no-check-bucket output/tromso-live.iso.cert "R2:${R2_BUCKET}/${R2_PREFIX}/tromso-live-latest.iso.cert"
+          rclone copyto --checksum --s3-no-check-bucket output/tromso-live-latest.iso-CHECKSUM "R2:${R2_BUCKET}/${R2_PREFIX}/tromso-live-latest.iso-CHECKSUM"
+          rclone copyto --checksum --s3-no-check-bucket output/tromso-live.iso "R2:${R2_BUCKET}/${R2_PREFIX}/tromso-live-latest.iso"
