@@ -4,6 +4,17 @@ How Tromsø gets from `.bst` elements to a bootable, installable live ISO —
 and how to debug it when it breaks. (Same architecture as tuna-os/xfce-linux;
 patterns originate in projectbluefin/dakota and dakota-iso.)
 
+## Secure Boot key guard
+
+OCI (both architectures) and ISO builds check signing inputs before building
+and again before publishing with `files/boot-keys/check-release-keys.py
+--release`. Public snakeoil modes/identities and malformed certificates fail
+the job. These development keys must never be trusted. The current pipeline
+uses cosign keyless artifact signing, not the legacy Secure Boot Makefile;
+see [the key policy](../files/boot-keys/README.md) before enabling Secure Boot.
+This guard addresses #219's public signing-input regression class; it does
+not audit signatures inside existing artifacts.
+
 ## Build chain
 
 ```
@@ -149,6 +160,7 @@ or PR comments.
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
 | 2026-11-13 | ISO signing fails on every run: `must specify --bundle with --new-bundle-format` (run 43353984640) | cosign-installer v4.1.3 installs cosign 3, which writes bundles by default and rejects the detached `--output-signature`/`--output-certificate` flags | Select cosign's legacy detached mode (`--use-signing-config=false --new-bundle-format=false`), require nonempty `.sig`/`.cert`, and run the README `cosign verify-blob` command before any upload; `test_iso_signing_preserves_detached_outputs_with_cosign3` |
+| 2026-11-03 | Public development signing keys could be selected for release inputs (#219) | Legacy key helper had no release policy or complete-import check | Reject public modes and snakeoil certificate identities before build/publish; workflow coverage in `test_release_workflows_enforce_guard` |
 | 2026-11-02 | STE fails with 493 findings against a zero budget (#428) | Seven existing documents contain long sentences, passive voice, gerunds, and noun clusters | Rewrite the flagged prose; preserve code examples and the zero budget |
 | 2026-10-24 | Unverified ISO could replace public latest (#334) | Upload preceded boot verification and ignored R2 failures | Boot gate precedes publication; immutable dated set completes before latest aliases; upload failures fail the job |
 | 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
