@@ -1,5 +1,6 @@
 # ISO/live/e2e recipes live in iso.justfile (kept separate for readability)
 import "iso.justfile"
+import "just/mkosi-ddi.just"
 
 # List available commands
 [group('info')]

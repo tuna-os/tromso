@@ -293,7 +293,11 @@ jobs:
         # version ended in `|| echo` and could never fail.
         run: |
           bst --no-interactive show --deps all --format "%{name} %{state}" oci/tromso.bst > /tmp/graph.txt
-          wc -l /tmp/graph.txt
+          # Validate Mkosi's root-tree target.
+          bst --no-interactive show --deps all \
+            --format "%{name} %{state}" \
+            mkosi/tromso-ddi.bst > /tmp/mkosi-ddi-graph.txt
+          wc -l /tmp/graph.txt /tmp/mkosi-ddi-graph.txt
 
   bats-tests:
     name: BATS Unit Tests

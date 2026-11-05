@@ -11,6 +11,15 @@ of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso
 [Release readiness](ROADMAP.md#release-readiness) for dated CI evidence and
 remaining blockers.
 
+![Tromso wordmark](branding/tromso/tromso-wordmark.svg)
+
+Tromso's icon and wallpaper are original TunaOS artwork, not KDE or Aurora
+branding.
+
+![Tromso desktop wallpaper preview](branding/tromso/tromso-wallpaper.png)
+
+Icon: [Tromso application mark](branding/tromso/tromso-logo.svg).
+
 > **Attribution.** Tromso reuses configuration and helper scripts derived from
 > [`ublue-os/aurora`](https://github.com/ublue-os/aurora) and the former
 > `get-aurora-dev` org, under their original licenses. Tromso is **not affiliated

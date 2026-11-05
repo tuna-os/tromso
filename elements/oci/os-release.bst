@@ -36,7 +36,7 @@ config:
       HOME_URL="${HOME_URL}"
       DOCUMENTATION_URL="${DOCUMENTATION_URL}"
       SUPPORT_URL="${SUPPORT_URL}"
-      LOGO=start-here-kde
+      LOGO=tromso-logo
       ANSI_COLOR="0;34"
       DEFAULT_HOSTNAME="tromso"
       IMAGE_NAME="${IMAGE_NAME}"

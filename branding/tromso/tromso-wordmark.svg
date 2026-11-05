@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 180" role="img" aria-labelledby="title desc">
+  <rect width="820" height="180" rx="18" fill="#f5f1e8"/>
+  <title id="title">Tromso wordmark</title>
+  <desc id="desc">Tromso, an independent KDE desktop project by TunaOS.</desc>
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#081d33"/><stop offset="1" stop-color="#163c52"/></linearGradient>
+    <linearGradient id="aurora" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#89f0cf"/><stop offset="1" stop-color="#59a9c4"/></linearGradient>
+  </defs>
+  <circle cx="92" cy="90" r="77" fill="url(#field)"/>
+  <path d="M50 75c24-29 47-31 69-10 15 15 30 16 47-1" fill="none" stroke="url(#aurora)" stroke-width="7" stroke-linecap="round"/>
+  <path d="m43 130 42-51 18 22 18-20 44 49z" fill="#c9e1e6"/>
+  <text x="202" y="105" fill="#102b40" font-family="sans-serif" font-size="72" font-weight="700" letter-spacing="1">TROMSO</text>
+  <text x="207" y="145" fill="#52788a" font-family="sans-serif" font-size="21" letter-spacing="4">KDE DESKTOP · TUNAOS</text>
+</svg>

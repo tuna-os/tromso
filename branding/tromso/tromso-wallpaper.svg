@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
+  <title id="title">Tromso desktop wallpaper</title>
+  <desc id="desc">An original northern landscape with a quiet aurora over arctic mountains.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#07182d"/><stop offset=".62" stop-color="#173b53"/><stop offset="1" stop-color="#254d62"/></linearGradient>
+    <linearGradient id="curtain" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8bf1cf" stop-opacity="0"/><stop offset=".45" stop-color="#70ddc3" stop-opacity=".58"/><stop offset="1" stop-color="#72aeca" stop-opacity="0"/></linearGradient>
+    <linearGradient id="mountain" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#b2d3db"/><stop offset="1" stop-color="#456779"/></linearGradient>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h1920v1080H0z"/>
+  <path d="M260 0q210 185 80 420t95 425q175-203 190-472T875 0h206q-163 211-96 464t98 404q206-207 178-511T1380 0h186q-126 177-28 428t54 475q226-266 161-527T1790 0h130v1080H0V0z" fill="url(#curtain)" opacity=".78"/>
+  <g fill="#e0f4ec" fill-opacity=".78"><circle cx="280" cy="205" r="2"/><circle cx="505" cy="131" r="3"/><circle cx="823" cy="251" r="2"/><circle cx="1108" cy="174" r="2"/><circle cx="1460" cy="254" r="3"/><circle cx="1674" cy="148" r="2"/><circle cx="1830" cy="321" r="2"/></g>
+  <path d="M0 811 220 665l120 95 194-254 221 314 169-189 205 232 190-315 235 278 166-152 200 161v245H0z" fill="url(#mountain)" fill-opacity=".8"/>
+  <path d="m340 760 194-254 113 161-113-68-72 92-60-24zm584-129 169 232-140-108-72 37zm395-83 235 278-180-120-64 27z" fill="#e4f1eb" fill-opacity=".58"/>
+  <path d="M0 874q310-75 602 18t638-6q382-117 680-12v206H0z" fill="#0c2639"/>
+  <path d="M0 948q306-50 615 27t660 0q349-81 645-8v113H0z" fill="#071a2a"/>
+  <path d="M250 886q170-60 320 0M1230 889q170-66 335 0" fill="none" stroke="#83d9ca" stroke-opacity=".18" stroke-width="5"/>
+</svg>
