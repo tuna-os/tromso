@@ -4,6 +4,18 @@ How Tromsø gets from `.bst` elements to a bootable, installable live ISO —
 and how to debug it when it breaks. (Same architecture as tuna-os/xfce-linux;
 patterns originate in projectbluefin/dakota and dakota-iso.)
 
+## Secure Boot key guard
+
+OCI builds for both architectures and ISO builds check signature inputs before
+the build and publication. They use `files/boot-keys/check-release-keys.py --release`.
+Public snakeoil modes/identities and malformed certificates fail the job.
+Never trust these development keys.
+
+The pipeline signs artifacts with cosign keyless, not the legacy Secure Boot Makefile. Read
+[the key policy](../files/boot-keys/README.md) before you enable Secure Boot.
+This guard prevents the regression in #219 that accepted public keys as
+signature inputs. It does not audit signatures inside existing artifacts.
+
 ## Build chain
 
 ```
@@ -95,8 +107,10 @@ recover after they refresh the GHCR caches.
    initramfs (incl. the `95tromso-isofile` Ventoy dracut module) → final
    stage installs flatpaks (`src/install-flatpaks.sh`) and configures the
    live env (`src/configure-live.sh`).
-2. The recipe squashes the payload image and imports it into VFS container
-   storage inside the squashfs. This process enables the offline installation.
+2. The recipe squashes the payload image and exports a gzip OCI layout into
+   the squashfs. It writes `/etc/bootc-installer/media-input.json` with the
+   exported manifest digest and the update reference. The live system mounts
+   the layout read-only at `/run/tromso/payload` before the desktop starts.
 3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
@@ -136,6 +150,9 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-03 | LUKS and plain E2E refuse installation: `live media requires /etc/bootc-installer/media-input.json` (#449) | The installer now requires an OCI layout and media receipt; the ISO had only a VFS image store | Export a gzip OCI layout, derive its receipt from the exported manifest, and mount it read-only before the desktop starts; test the receipt and ISO assembly in `test_iso_invariants.py` |
+| 2026-11-03 | Python Tests fails with `No module named 'yaml'` (#449) | The workflow guard test imports PyYAML, but CI installs only pytest | Install PyYAML in the Python Tests job; `test_python_ci_installs_workflow_parser` checks this dependency |
+| 2026-11-03 | Public development signing keys could be selected for release inputs (#219) | Legacy key helper had no release policy or complete-import check | Reject public modes and snakeoil certificate identities before build/publish; workflow coverage in `test_release_workflows_enforce_guard` |
 | 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
 | 2026-10-24 | Four workflows inherited repository token defaults (#321) | Job-level permissions did not constrain other jobs | Add top-level `contents: read`; retain job overrides and require explicit workflow permissions in the invariant tests |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |

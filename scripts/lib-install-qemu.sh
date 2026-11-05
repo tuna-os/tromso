@@ -21,15 +21,11 @@ install_qemu_init() {
 	SSH="sshpass -p live ssh $ssh_opts liveuser@127.0.0.1 -p ${SSH_PORT}"
 	SCP="sshpass -p live scp $ssh_opts -P ${SSH_PORT}"
 
-	# Use local containers-storage if the image is cached there (offline install);
-	# otherwise fall back to a network pull via docker://.
-	if $SSH "sudo podman image exists '${PAYLOAD_IMAGE}' 2>/dev/null"; then
-		INSTALL_IMAGE="containers-storage:${PAYLOAD_IMAGE}"
-		echo "Image found in local containers-storage — using offline install."
-	else
-		INSTALL_IMAGE="docker://${PAYLOAD_IMAGE}"
-		echo "Image not in local store — fisherman will pull from network."
-	fi
+	# The host-owned media receipt selects the verified embedded OCI source.
+	# An empty image lets fisherman enforce its receipt before any cache lookup.
+	$SSH 'test -r /etc/bootc-installer/media-input.json'
+	INSTALL_IMAGE=""
+	echo "Using the embedded media input for offline installation."
 
 	# Single-variant repo: optional <target>/composefs and <target>/bootloader
 	# files override the defaults (composefs-backed, systemd-boot — dakota style).

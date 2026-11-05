@@ -3,7 +3,7 @@
   "distro_name": "Tromso KDE Linux",
   "distro_logo": "resource:///org/bootcinstaller/Installer/images/tromso.png",
   "imgref": "ghcr.io/tuna-os/tromso:latest",
-  "local_imgref": "containers-storage:ghcr.io/tuna-os/tromso:latest",
+  "local_imgref": "oci:/run/tromso/payload",
   "bootloader": "systemd",
   "composeFsBackend": true,
   "tour": {

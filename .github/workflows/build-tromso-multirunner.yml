@@ -36,6 +36,7 @@ permissions:
   contents: read
 
 env:
+  RELEASE_BUILD: '1'
   IMAGE_NAME: tromso
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
   BST_TARGET: oci/tromso.bst
@@ -148,6 +149,9 @@ jobs:
           tool-cache: true
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Reject development Secure Boot keys
+        run: python3 files/boot-keys/check-release-keys.py --release
 
       - name: Checkout chunkah
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -330,6 +334,7 @@ jobs:
         id: push
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
+          python3 files/boot-keys/check-release-keys.py --release
           DATE_TAG=$(date -u +%Y%m%d)
           # Channels: main = nightly trunk (also owns :latest); stable = release bookmark
           if [ "${{ github.ref }}" = "refs/heads/stable" ]; then
@@ -462,6 +467,9 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Reject development Secure Boot keys
+        run: python3 files/boot-keys/check-release-keys.py --release
+
       - name: Checkout chunkah
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -587,6 +595,7 @@ jobs:
         id: push
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
+          python3 files/boot-keys/check-release-keys.py --release
           DATE_TAG=$(date -u +%Y%m%d)
           # -aarch64-suffixed only — never the bare channel tags an x86_64
           # consumer would resolve, so this can't regress the published image.
