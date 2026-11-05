@@ -44,6 +44,8 @@ copilot-session-*.md
 nohup.out
 
 # Python
+.coverage
+coverage.xml
 __pycache__/
 *.pyc
 

@@ -6,7 +6,7 @@
 [`projectbluefin/dakota`](https://github.com/projectbluefin/dakota). It builds KDE Plasma 6 on top
 of freedesktop-sdk and publishes a bootable OCI image to `ghcr.io/tuna-os/tromso`.
 
-**Status: Alpha — release readiness has not yet been verified.** See the
+**Status: Alpha — maintainers have not yet verified release readiness.** See the
 [roadmap release gates](ROADMAP.md#alpha--beta) and
 [Release readiness](ROADMAP.md#release-readiness) for dated CI evidence and
 remaining blockers.
@@ -51,9 +51,8 @@ tuna-os/tromso
 └── Justfile
 ```
 
-For detailed technical documentation on the BuildStream build graph, sandboxing policies,
+For detailed technical documentation on the BuildStream build graph, sandbox policies,
 and OCI image composition, see [Tromso Architecture](docs/ARCHITECTURE.md).
-
 ## Quick Start
 
 ### Prerequisites
@@ -155,20 +154,19 @@ cosign verify-blob tromso-live-<date>-<sha>.iso \
 
 ## Community outreach
 
-The [KDE community announcement kit](docs/outreach/kde-community-announcement.md)
+The [announcement kit for the KDE community](docs/outreach/kde-community-announcement.md)
 contains reviewable announcement drafts, source evidence, and the publication
-checklist. External publication is tracked in [#365](https://github.com/tuna-os/tromso/issues/365).
+checklist. [#365](https://github.com/tuna-os/tromso/issues/365) tracks external publication.
 
-The [KDE community co-marketing partnership kit](docs/outreach/kde-community-partnership.md)
-contains reviewable outreach proposals, co-marketing article drafts, Akademy and
-FOSDEM conference abstracts, and a KDE VDG collaboration framework. External
-outreach and partnership execution are tracked in [#372](https://github.com/tuna-os/tromso/issues/372).
+The [partnership kit for joint promotion with the KDE community](docs/outreach/kde-community-partnership.md)
+contains reviewable outreach proposals and drafts of articles for joint promotion.
+It also contains abstracts for Akademy and FOSDEM, and a framework for collaboration with KDE VDG.
+[#372](https://github.com/tuna-os/tromso/issues/372) tracks external outreach and partnership execution.
 
-The [BuildStream reference case study kit](docs/outreach/buildstream-community-reference.md)
-contains technical case study drafts, architecture documentation, freedesktop-sdk
-alignment notes, and upstream coordination checklists. Upstream visibility and
-coordination are tracked in [#374](https://github.com/tuna-os/tromso/issues/374).
-
+The [kit for a reference case study on BuildStream](docs/outreach/buildstream-community-reference.md)
+contains drafts of technical case studies, architecture documentation, freedesktop-sdk
+alignment notes, and upstream coordination checklists.
+[#374](https://github.com/tuna-os/tromso/issues/374) tracks upstream visibility and coordination.
 ## References
 
 - **[KDE Linux](https://invent.kde.org/kde-linux/kde-linux)** — the official project for KDE Linux uses mkosi and Arch, not BuildStream. Tromso uses its package selection as a reference, but does not use its build tools.
