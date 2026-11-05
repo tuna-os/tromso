@@ -1,105 +1,106 @@
 # KDE community announcement kit
 
-Tracking: [#365](https://github.com/tuna-os/tromso/issues/365).
-Status: drafts for maintainer review; no external announcement has been posted.
+Issue: [#365](https://github.com/tuna-os/tromso/issues/365).
+Status: drafts for maintainer review; no one has posted an external announcement.
 
 ## Announcement / editorial pitch
 
-Subject: Introducing Tromso: a community KDE Plasma 6 OCI/bootc desktop project
+Subject: Introduce Tromso: a community project for a KDE Plasma 6 desktop with OCI/bootc
 
 Hello KDE community,
 
 We would like to introduce [Tromso](https://github.com/tuna-os/tromso), a
-TunaOS community project building a KDE Plasma 6 desktop with BuildStream on
-top of freedesktop-sdk, targeting bootable OCI images managed with bootc.
-Tromso is an independent project, with no claim of KDE endorsement or official
-KDE Linux variant status.
+community project from TunaOS. It uses BuildStream to build a desktop with KDE
+Plasma 6 on top of freedesktop-sdk. It targets bootable images in OCI format that bootc
+manages. Tromso is independent. It claims no KDE endorsement or status as an
+official variant of KDE Linux.
 
-Our focus is the intersection of the Plasma desktop, source-based image
-composition, and image-based system updates. The repository contains the KDE
-package definitions, OCI composition, and live ISO tooling in one place. The
-approach draws on Project Bluefin Dakota and GNOME OS build patterns.
+Our focus combines the Plasma desktop, source-based image composition, and
+image-based system updates. The repository contains definitions for KDE
+packages, OCI composition, and tooling for live ISOs in one place.
+The approach draws on Project Bluefin Dakota and build patterns from GNOME OS.
 
 The [multi-runner pipeline](https://github.com/tuna-os/tromso/actions/workflows/build-tromso-multirunner.yml)
 splits the BuildStream graph into chunks and merges their content-addressed
-artifacts before final image composition. Publication is configured to use
-cosign keyless signing with GitHub Actions OIDC; the
+artifacts before final image composition. The publication configuration uses
+cosign for keyless signatures with OIDC from GitHub Actions. The
 [README](https://github.com/tuna-os/tromso#verifying-signatures) documents the
 expected signer identity and verification commands. These describe the build
-and verification design, rather than a guarantee that every run publishes an
-image.
+and verification design. They do not guarantee that every run publishes an image.
 
-Tromso remains Alpha according to its
+Tromso remains Alpha in its
 [roadmap](https://github.com/tuna-os/tromso/blob/main/ROADMAP.md). Build,
 installation, release operations, user guidance, and desktop validation are
 release gates. Please consult the roadmap and linked workflow runs for current
-evidence before treating an artifact as suitable for testing. This introduction
-is an invitation to collaborate, rather than a stable release announcement.
+evidence before you use an artifact for tests. This introduction
+invites collaboration. It does not announce a stable release.
 
-We welcome feedback from Plasma packagers and image-based desktop developers:
-which desktop smoke tests would be most useful, and where can our BuildStream
-packaging work help other community efforts? Please report Tromso-specific
-problems in [our issue tracker](https://github.com/tuna-os/tromso/issues).
+We welcome feedback from packagers for Plasma and developers of image-based desktops.
+Which smoke tests for the desktop would be most useful? Where can our
+BuildStream package work help other community efforts? Please report
+Tromso-specific problems in [our issue tracker](https://github.com/tuna-os/tromso/issues).
 
 - [Project overview and build instructions](https://github.com/tuna-os/tromso#readme)
 - [Pipeline and ISO documentation](https://github.com/tuna-os/tromso/blob/main/docs/ci-and-iso-pipeline.md)
 - [Contribution guide](https://github.com/tuna-os/tromso/blob/main/CONTRIBUTING.md)
 
-Thank you for building the desktop on which this work depends.
+Thank you for your work on the desktop on which this work depends.
 
 ## Short forum / Invent cross-post
 
-Title: Tromso: exploring KDE Plasma 6 with BuildStream and bootc
+Title: Tromso: explore KDE Plasma 6 with BuildStream and bootc
 
-Tromso is a TunaOS community project building a KDE Plasma 6 desktop on
-freedesktop-sdk with BuildStream, targeting OCI/bootc system images. Its
-repository includes multi-runner build orchestration, keyless signing
-configuration, and live ISO tooling. It is independent of the official KDE
-Linux project and remains Alpha; please read the roadmap and current build
-evidence before testing.
+Tromso is a community project from TunaOS. It uses BuildStream to build a
+desktop with KDE Plasma 6 on freedesktop-sdk. It targets OCI/bootc system
+images. Its repository includes orchestration for multi-runner builds,
+configuration for keyless signatures, and tooling for live ISOs.
 
-We would appreciate feedback on Plasma smoke tests and opportunities to share
-BuildStream packaging work. Overview, build instructions, and contribution
-links: https://github.com/tuna-os/tromso#readme
+It is independent of the official project for KDE Linux and remains Alpha.
+Please read the roadmap and current build evidence before tests.
+
+We would appreciate feedback on smoke tests for Plasma and opportunities to
+share package work with BuildStream. Overview, build instructions, and
+contribution links: https://github.com/tuna-os/tromso#readme
 
 Release gates: https://github.com/tuna-os/tromso/blob/main/ROADMAP.md
 
 Tromso-specific reports: https://github.com/tuna-os/tromso/issues
 
-When cross-posting, add the canonical announcement URL so discussion can be
-followed across channels.
+When you cross-post, add the canonical URL for the announcement.
+This lets readers follow discussion across channels.
 
 ## Evidence and publication checklist
 
 A maintainer should review the final copy and act as the public contact before
-sending it. Record the sender and publication URLs in issue #365. Publication
-is still outstanding after this kit is merged.
+they send it. Record the sender and publication URLs in issue #365.
+Publication remains outstanding after maintainers merge this kit.
 
 - Reconcile the README's functional-desktop claim with the roadmap's Alpha
-  gates. Do not repeat the issue's claims of maturity or verified boot without
-  a successful run URL, candidate commit/digest, and tested configuration.
+  gates. Do not repeat the issue's claims of maturity or verified boot without evidence.
+  This evidence must include a URL for a successful run, candidate commit/digest, and tested configuration.
 - Check the [build workflow](../../.github/workflows/build-tromso-multirunner.yml),
   [ISO workflow](../../.github/workflows/build-iso.yml), and
-  [pipeline guide](../ci-and-iso-pipeline.md) against the final copy. If adding
+  [pipeline guide](../ci-and-iso-pipeline.md) against the final copy. If you add
   artifact links, verify availability and signatures for that exact artifact.
-- Keep the wording at Plasma 6 unless the shipped package versions and a
-  desktop smoke test justify a more specific version. Avoid date-based claims
-  about upstream releases or enterprise adoption.
+- Keep the text at Plasma 6 unless evidence justifies a more specific version.
+  This evidence must include shipped package versions and a smoke test for the desktop.
+  Avoid date-based claims about upstream releases or enterprise adoption.
 - For KDE News/editorial coverage, ask the
-  [KDE press contact](https://kde.org/contact/) for the current appropriate
-  submission route. Do not assume the old KDE.News site accepts submissions.
+  [KDE press contact](https://kde.org/contact/) for the appropriate route for submissions now.
+  Do not assume the old KDE.News site accepts submissions.
 - For community discussion, use [KDE Discuss](https://discuss.kde.org/), whose
   Community and Announcement categories describe their scope. Choose the
   appropriate category under its current rules.
-- Confirm the KDE-Linux SIG's preferred channel with its participants before
-  posting. The [KDE mailing-list directory](https://mail.kde.org/mailman/listinfo/)
+- Confirm the preferred channel for the KDE-Linux SIG with its participants
+  before you post. The [directory of KDE email lists](https://mail.kde.org/mailman/listinfo/)
   and [kde-community scope](https://mail.kde.org/mailman/listinfo/kde-community)
-  are starting points; do not assume a SIG address or use an unrelated list.
-- Cross-post to KDE Invent only where a relevant project explicitly welcomes
-  community announcements. Confirm the venue first; do not create unrelated
-  code issues as advertising. Use the short copy and canonical announcement URL.
-- Add `https://docs.tunaos.org` only after the Tromso variant matrix page is
-  live and reviewed; link its exact page. Until then use the repository docs
-  above, without a placeholder documentation link in the outgoing copy.
-- Record each live URL and any moderation/pending status in #365; keep the
-  issue open until publication and the intended cross-posts are accounted for.
+  are initial references. Do not assume a SIG address or use an unrelated list.
+- Cross-post to KDE Invent only where a relevant project has explicitly welcomed announcements from the community.
+  Confirm the venue first. Do not create unrelated
+  code issues to advertise. Use the short copy and canonical URL for the announcement.
+- Add `https://docs.tunaos.org` only after the page for the Tromso variant matrix
+  is live and has maintainer review. Link its exact page.
+  Until then use the repository docs above.
+  Do not put a placeholder link to documentation in the copy for publication.
+- Record each live URL and any moderation status or status of approval requests in #365.
+  Keep the issue open until the record accounts for publication and the intended cross-posts.

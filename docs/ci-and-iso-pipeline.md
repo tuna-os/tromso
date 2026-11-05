@@ -10,7 +10,7 @@ patterns originate in projectbluefin/dakota and dakota-iso.)
 elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/tromso:latest
                         │ (workflow_run)
                         ▼
-              Build and Publish Tromsø Live ISO  ──►  R2: tromso/tromso-live-*.iso
+              Build local ISO → sign → UEFI boot gate → R2 dated objects → latest aliases
                         │
                         ▼ (boot gate: TROMSO_LIVE_READY on serial + screenshot)
               LUKS Install End-to-End Test (PR round-robin / weekly / dispatch)
@@ -105,6 +105,17 @@ link at `/usr/local/bin/fisherman` points to fisherman. It uses the shared
 `org.tunaos.Installer.install` polkit action. See INSTALLER-FRONTENDS.md in the
 organization workspace.
 
+Publication fails closed: the local candidate must pass the UEFI ready-token
+assertion before any R2 upload. All four dated objects (ISO, checksum, signature,
+certificate) must upload before the workflow updates latest aliases.
+Dated names include the checked-out source SHA, the workflow run ID, and its execution number;
+`rclone --immutable` rejects replacement. Checkout uses an immutable action pin and does not
+persist credentials. The signer identity and R2 secret names remain unchanged.
+
+The workflow also publishes the latest checksum and updates the ISO alias last.
+R2 has no transaction across these aliases: a failed promotion can leave mixed sidecars,
+but fails the workflow. Dated objects remain the consistent download set.
+
 ### LUKS end-to-end test (`test-luks-install.yml`)
 
 Local equivalent:
@@ -136,6 +147,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-10-24 | Unverified ISO could replace public latest (#334) | Upload preceded boot verification and ignored R2 failures | Boot gate precedes publication; immutable dated set completes before latest aliases; upload failures fail the job |
 | 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
 | 2026-10-24 | Four workflows inherited repository token defaults (#321) | Job-level permissions did not constrain other jobs | Add top-level `contents: read`; retain job overrides and require explicit workflow permissions in the invariant tests |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |
