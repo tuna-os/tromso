@@ -132,6 +132,22 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     assert "just export" in multi
 
 
+def test_e2e_install_execution_is_read_only():
+    """PR recipes must not receive write grants or persisted checkout credentials."""
+    import yaml
+
+    workflows = REPO / ".github/workflows"
+    for name in ("test-plain-install.yml", "test-luks-install.yml"):
+        workflow = yaml.safe_load((workflows / name).read_text())
+        for job in workflow["jobs"].values():
+            permissions = job.get("permissions", workflow["permissions"])
+            assert all(value != "write" for value in permissions.values())
+            for step in job["steps"]:
+                if step.get("uses", "").startswith("actions/checkout@"):
+                    assert step["with"]["persist-credentials"] is False
+                assert "podman login" not in step.get("run", "")
+
+
 def test_github_actions_use_immutable_references():
     """Remote actions and reusable workflows must not execute mutable tags."""
     for path in (REPO / ".github").rglob("*.y*ml"):

@@ -331,7 +331,7 @@ jobs:
           python-version: '3.15'
       - name: Install dependencies
         run: |
-          pip install pytest
+          pip install pytest pyyaml
       - name: Run pytest (tests/pytest)
         run: pytest tests/pytest/ -v --tb=short
 
@@ -363,9 +363,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.e2e-plain == 'true'
     permissions:
-      issues: write
-      pull-requests: write
-      contents: write
+      contents: read
       actions: read
     uses: ./.github/workflows/test-plain-install.yml
 
@@ -374,8 +372,6 @@ jobs:
     needs: changes
     if: needs.changes.outputs.e2e-luks == 'true'
     permissions:
-      issues: write
-      pull-requests: write
-      contents: write
+      contents: read
       actions: read
     uses: ./.github/workflows/test-luks-install.yml
