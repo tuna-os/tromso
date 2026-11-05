@@ -148,12 +148,15 @@ jobs:
           tool-cache: true
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Checkout chunkah
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: coreos/chunkah
           path: chunkah
+          persist-credentials: false
 
       - run: podman pull "$BST2_IMAGE"
 
@@ -461,12 +464,15 @@ jobs:
           tool-cache: true
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Checkout chunkah
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: coreos/chunkah
           path: chunkah
+          persist-credentials: false
 
       - run: podman pull "$BST2_IMAGE"
 

@@ -1,41 +1,41 @@
 # Observability Stack Audit & Telemetry Guidelines: Tromso
 
-This document provides the observability architecture, telemetry audit baseline, and monitoring recommendations for `tuna-os/tromso`.
+This document describes the observability architecture, telemetry baseline, and recommendations for `tuna-os/tromso`.
 
 ---
 
 ## 1. Executive Summary & Architecture Context
 
-`tuna-os/tromso` produces a bootable KDE Plasma 6 Linux OS image on top of `freedesktop-sdk` using BuildStream (`bst2`), packaged as a bootc-compatible OCI image (`ghcr.io/tuna-os/tromso`) and companion live installation ISOs.
+`tuna-os/tromso` builds KDE Plasma 6 on `freedesktop-sdk` with BuildStream (`bst2`). It produces a bootc-compatible OCI image (`ghcr.io/tuna-os/tromso`) and companion live ISOs.
 
-Due to the size of the KDE Plasma stack (~180 KDE packages plus SDK dependencies), the image build pipeline relies on a distributed multi-runner architecture (`.github/workflows/build-tromso-multirunner.yml`) calling `tuna-os/bst-ci`. Uncached elements are partitioned into a core set (`CORE_SPLIT=200`, plus `extra_core_targets`) and parallel matrix chunks that publish intermediate Content Addressable Storage (CAS) caches to GHCR.
+The KDE stack has about 180 packages, plus SDK dependencies. The multi-runner pipeline (`.github/workflows/build-tromso-multirunner.yml`) calls `tuna-os/bst-ci`. It divides uncached elements into a core set (`CORE_SPLIT=200`, plus `extra_core_targets`) and parallel chunks. Matrix jobs use GHCR to publish intermediate caches. These caches use content-addressable storage (CAS).
 
-This document audits the current observability facilities, establishes privacy and security boundaries, and provides actionable recommendations for build timing diagnostics, tracing, and metric collection.
+This audit describes existing observability tools and privacy boundaries. It recommends ways to measure build durations, trace steps, and collect metrics.
 
 ---
 
 ## 2. Telemetry Stack Audit & Baseline Status
 
 ### 2.1 Remote Backend Configuration
-- **Status**: No external telemetry backend or remote collector is configured (Operator targets: open-source=none, kube-native=none, commercial=none).
-- **Data Flow Policy**: Strict compliance with the TunaOS zero off-box data export policy. No telemetry exporter, OTLP endpoint, external daemon, or network beacon is shipped in the OS image or active in CI runner jobs without explicit operator configuration.
+- **Status**: Operators have configured no external backend or remote collector. Operator targets: open-source=none, kube-native=none, commercial=none.
+- **Data Policy**: TunaOS allows no off-box telemetry export by default. Operators must configure exporters for telemetry, OTLP endpoints, external daemons, or network beacons. This applies to the OS image and CI jobs.
 
 ### 2.2 Local Logging & Interactive Dashboards
-- **BuildStream Log Stream**: Detailed element builds write to `/tmp/tromso-build.log` (monitored in real time via `just log`). Element-specific build logs are archived under `~/.cache/buildstream/logs/<project>/<element-name>/<key>.log`.
-- **Local Web Dashboard**: `just dashboard` launches an interactive local web UI (`http://localhost:8765`) using `bst-dashboard.py` (cached at `~/.cache/bst-dashboard/`). It reads `/tmp/tromso-build.log` and the local project graph without exposing external endpoints.
-- **Systemd User Service**: `just dashboard-service` provisions a persistent systemd user unit (`~/.config/systemd/user/bst-dashboard.service`) with user lingering (`loginctl enable-linger $USER`) for background monitoring on dedicated build workstations.
-- **E2E Serial & QEMU Diagnostics**: The plain and LUKS install gates (`test-plain-install.yml`, `test-luks-install.yml`) stream serial console output to `/tmp/tromso-qemu-live-serial.log` and `/tmp/tromso-qemu-installed-serial.log`, archived as CI job artifacts.
+- **BuildStream Logs**: Element builds write to `/tmp/tromso-build.log`. Use `just log` to watch them. BuildStream archives logs for elements under `~/.cache/buildstream/logs/<project>/<element-name>/<key>.log`.
+- **Local Dashboard**: `just dashboard` starts a local web UI at `http://localhost:8765`. It uses `bst-dashboard.py`, cached at `~/.cache/bst-dashboard/`. It reads `/tmp/tromso-build.log` and the local graph. It exposes no external endpoints.
+- **Systemd User Service**: `just dashboard-service` creates `~/.config/systemd/user/bst-dashboard.service`. It uses `loginctl enable-linger $USER` to keep the dashboard active on build workstations.
+- **E2E Diagnostics**: The plain and LUKS install gates write serial output to `/tmp/tromso-qemu-live-serial.log` and `/tmp/tromso-qemu-installed-serial.log`. The `test-plain-install.yml` and `test-luks-install.yml` workflows archive these logs as job artifacts.
 
 ### 2.3 CI Timing & Code Coverage Infrastructure
-- **Matrix Timing Analysis**: `scripts/autotune-chunk-grouping.py` (invoked via `just autotune-chunks limit=N`) queries the GitHub Actions API via `gh api` to inspect recent runs of `build-tromso-multirunner.yml`. It calculates chunk wall-clock durations (min, max, average) and the duration imbalance ratio (`Max / Min`) to identify stragglers.
-- **Code Coverage**: `codecov.yml` defines repository test coverage thresholds (project target: 45%, patch target: 70% informational). No CI workflow uploads coverage reports to Codecov yet, so these targets receive no data; this gap is tracked in [#303](https://github.com/tuna-os/tromso/issues/303).
+- **Chunk Durations**: `scripts/autotune-chunk-grouping.py` queries recent runs of `build-tromso-multirunner.yml` through `gh api`. Use `just autotune-chunks limit=N` to call it. It calculates minimum, maximum, and average chunk durations. The imbalance ratio (`Max / Min`) helps to identify slow chunks.
+- **Code Coverage**: `codecov.yml` sets a 45% project target and a 70% informational patch target. No CI workflow uploads reports to Codecov yet. Issue [#303](https://github.com/tuna-os/tromso/issues/303) tracks this gap.
 
 ---
 
 ## 3. Telemetry & Observability Recommendations
 
 ### 3.1 Recommendation 1: CI Build Timing & Matrix Metric Structured Output
-`scripts/autotune-chunk-grouping.py` provides exportable metric schemas for Prometheus text exposition and OpenTelemetry (OTel) JSON format via the `--output-metrics` flag (and `just export-ci-metrics`).
+`scripts/autotune-chunk-grouping.py` exports metrics through `--output-metrics`. It supports Prometheus text and OpenTelemetry (OTel) JSON. The `just export-ci-metrics` recipe also exposes this feature.
 
 #### Metric Schema Definition
 
@@ -61,7 +61,7 @@ tromso_ci_chunk_imbalance_ratio{repo="tuna-os/tromso",workflow="build-tromso-mul
 ```
 
 #### OpenTelemetry ResourceMetrics Schema
-When formatted as OpenTelemetry JSON (`--metrics-format otel`), the metrics conform to the OTLP ResourceMetrics specification, attaching service attributes:
+OpenTelemetry JSON (`--metrics-format otel`) follows the OTLP ResourceMetrics specification. It adds these service attributes:
 - `service.name`: `tromso-ci`
 - `vcs.repository.name`: `tuna-os/tromso`
 - `ci.workflow.name`: `build-tromso-multirunner.yml`
@@ -82,28 +82,28 @@ python3 scripts/autotune-chunk-grouping.py --limit 5 --output-metrics /tmp/metri
 
 ### 3.2 Recommendation 2: BuildStream Step Tracing & Cache Instrumentation
 
-To measure build cache efficiency and pinpoint bottleneck elements:
-1. **Cache Hit / Miss Ratio Tracking**: Instrument the matrix planning and build jobs to record element cache status (`cached`, `buildable`, `waiting`). A sudden drop in hit ratio indicates cache-key churn (e.g. changes to `project.conf` or upstream junction refs like `freedesktop-sdk.bst`).
-2. **Heavy-Element Duration Tracing**: Monitor build durations of heavyweight elements identified in `build-tromso-multirunner.yml`:
+To measure cache efficiency and find slow elements:
+1. **Cache Ratios**: Record cache status (`cached`, `buildable`, `waiting`) in the plan and build jobs. A drop in hit ratio can show cache-key churn. Check changes to `project.conf` or junction references such as `freedesktop-sdk.bst`.
+2. **Slow Elements**: Monitor durations of the heavy elements from `build-tromso-multirunner.yml`:
    - `sdk/webkitgtk-6.0.bst` (~249 min)
    - `freedesktop-sdk.bst:components/llvm.bst` (~126 min)
    - `kde/qt6/qt6-qtdeclarative.bst` (~57 min)
    - `kde/qt6/qt6-qtbase.bst` (~43 min)
    - `freedesktop-sdk.bst:components/rust.bst` (~35 min)
-   Elements requiring > 30 minutes that appear in multiple chunk build paths should be promoted to `extra_core_targets` so they are built once in `build_core` and shared via CAS.
-3. **Remote Execution Telemetry**: When remote execution credentials (`CASD_CLIENT_CERT`, `CASD_CLIENT_KEY`) are configured (tromso#311), record build step execution offload vs. local fallback to ensure builds do not quietly fall back to slow local execution.
+   Move elements that take over 30 minutes into `extra_core_targets` if multiple chunks build them. Then `build_core` builds them once and shares them through CAS.
+3. **Remote Execution**: After operators configure `CASD_CLIENT_CERT` and `CASD_CLIENT_KEY` (tromso#311), record remote execution and local fallback. This helps to detect unexpected builds on local runners.
 
 ---
 
 ### 3.3 Recommendation 3: Dashboard & Alert Definitions
 
-When an authorized Prometheus/Grafana or OpenTelemetry collector backend is designated by operators, apply the following dashboard layout and alert rules:
+Operators must authorize a Prometheus/Grafana or OpenTelemetry backend before use. After authorization, apply these dashboard panels and alert rules:
 
 #### Recommended Grafana Dashboard Panels
-1. **Matrix Chunk Duration Distribution**: Bar chart / heatmap tracking duration of each chunk (`chunk0` through `chunk9`) across workflow runs.
+1. **Chunk Durations**: A bar chart or heatmap shows durations for each chunk (`chunk0` through `chunk9`) across runs.
 2. **Chunk Imbalance Trend**: Line chart of `tromso_ci_chunk_imbalance_ratio` over time. Targets should remain below `2.0x`.
-3. **Build Success Rate**: Single-stat percentage gauge for `tromso_ci_build_status` over the trailing 14 days.
-4. **Straggler Element Identification**: Top 10 longest-running elements per build run.
+3. **Build Success**: A percentage gauge shows `tromso_ci_build_status` over the trailing 14 days.
+4. **Slow Elements**: Show the ten slowest elements for each build.
 
 #### Recommended Prometheus Alert Rules
 ```yaml
@@ -142,10 +142,10 @@ groups:
 
 ## 4. Governance, Privacy & Security Rules
 
-1. **Zero Credential Leakage**: Telemetry exports and structured log entries must never log or label secrets, including:
+1. **Secrets**: Never include secrets in telemetry exports, logs, or labels. These secrets include:
    - `GITHUB_TOKEN` and repository write credentials
-   - Cosign signing certificates and ephemeral tokens
-   - Container registry authentication tokens (`ghcr.io`)
+   - Cosign certificates and ephemeral tokens
+   - Authentication tokens for container registries (`ghcr.io`)
    - CAS client keys and mTLS certificates
-2. **Label Cardinality Bounds**: All metric label keys (`repo`, `workflow`, `run_id`, `job`, `conclusion`) are strictly bounded. Dynamic unbounded parameters (such as raw commit messages, full diff payloads, or stack traces) must never be used as Prometheus label values.
-3. **PR & Change Control**: Any change introducing remote metric exporters or network endpoints requires explicit maintainer review and approval under standard PR hold gates.
+2. **Label Cardinality**: Bound the values of `repo`, `workflow`, `run_id`, `job`, and `conclusion`. Never use unbounded data such as raw commit messages, full diffs, or stack traces as Prometheus label values.
+3. **Change Control**: Changes that add remote exporters or network endpoints need review and approval from maintainers. Standard PR hold gates apply.
