@@ -102,3 +102,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run "Build Tromso (Multi-Runner)" --ref stable
+
+  alert:
+    needs: promote
+    if: ${{ always() && needs.promote.result == 'failure' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+    steps:
+      - name: Report failed promotion
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create --title 'Stable promotion failed' \
+            --body "Promote main to stable failed: ${RUN_URL}. Inspect the failed job before retrying."

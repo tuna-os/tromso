@@ -1,165 +1,98 @@
 # Runbook: roll back a bad `stable` release
 
-**Applies to:** `ghcr.io/tuna-os/tromso` stable tags, the R2 `tromso/stable/`
-ISO surface, and the `stable` git branch.
+A stable release moves the x86_64 GHCR image, optionally the aarch64 image,
+the signed ISO objects in R2 `tromso/stable/`, and the `stable` git branch.
+`rollback-stable.yml` restores these surfaces, with verification before any
+mutation and a dry run by default. It shares the promotion concurrency lock.
 
-**Scope note:** as of this writing the stable channel has never been cut —
-there is no `stable` branch, `Build and Publish Tromsø Live ISO` has no
-successful run, and `Promote main to stable` has failed on every weekly cron
-since 2026-08-04. This runbook is written for the first release and after,
-and it documents the surfaces automation does *not* currently restore.
+## 1. Contain and choose targets
 
-## 1. What a stable release publishes
+Pause the promotion cron so it cannot overwrite the rollback:
 
-One promotion (`promote-stable.yml` → `build-tromso-multirunner.yml` on the
-`stable` branch → `build-iso.yml` via `workflow_run`) moves all of these:
-
-| Surface | Ref | Moved by |
-| --- | --- | --- |
-| x86_64 image | `ghcr.io/tuna-os/tromso:stable`, `:stable-YYYYMMDD`, `:<sha>` | multirunner `build_final` |
-| aarch64 image | `:stable-aarch64`, `:stable-YYYYMMDD-aarch64`, `:<sha>-aarch64` | multirunner aarch64 job |
-| Live ISO | R2 `tromso/stable/tromso-live-latest.iso` + `tromso-live-<date>-<sha7>.iso` (+ `-CHECKSUM`, `.sig`, `.cert`) | `build-iso.yml` |
-| Git bookmark | branch `stable` | `promote-stable.yml` |
-
-`rollback-stable.yml` restores **only the x86_64 `:stable` tag and the git
-branch**. The aarch64 tags and the whole ISO surface must be restored by
-hand — sections 4 and 5.
-
-## 2. Decide what is actually broken
-
-The ISO embeds `ghcr.io/tuna-os/tromso:stable` as its payload
-(`build-iso.yml` rewrites `tromso/payload_ref` per channel), so the two
-failure modes need different responses:
-
-- **Installed system is bad** (bad package, broken boot after install):
-  the image rollback in section 3 is sufficient. The published ISO keeps
-  working because it resolves `:stable` at install time.
-- **Live environment is bad** (ISO does not boot, installer does not launch,
-  no `TROMSO_LIVE_READY` marker): the image rollback fixes nothing for
-  downloaders. You must restore the ISO objects — section 5.
-
-## 3. Contain first
-
-Pause the promotion cron before anything else, or the next Tuesday 09:00 UTC
-run can promote straight back over your rollback:
-
-```
+```bash
 gh workflow disable "Promote main to stable" --repo tuna-os/tromso
 ```
 
-Re-enable it only after the cause is fixed on `main`.
+Find a previously good image commit and dated ISO. The ISO can be a different
+release if the live environment and installed payload need different fixes.
+Dated objects are retained for investigation and future rollback.
 
-## 4. Roll back the image and the branch
-
-Find a candidate commit that has a published image:
-
-```
+```bash
 gh run list --repo tuna-os/tromso \
   --workflow "Build Tromso (Multi-Runner)" --branch stable --status success
-gh api "orgs/tuna-os/packages/container/tromso/versions" \
-  --jq '.[] | {updated_at, tags: .metadata.container.tags}'
-```
-
-Dry-run first (the workflow defaults to `dry_run: true` — leave it true on
-the first pass and read the digests it prints):
-
-```
-gh workflow run "Rollback :stable" --repo tuna-os/tromso \
-  -f target_sha=<full-sha> -f reason="<incident link>" -f dry_run=true
-```
-
-Then re-run with `dry_run=false`. It `skopeo copy --preserve-digests` the
-target onto `:stable` plus a dated `stable-rollback-*` tag, and force-pushes
-`stable` to the same commit.
-
-**Verify the signature before you trust the rolled-back image** — the
-workflow does not (its header comment saying "no cosign yet" is stale;
-`build-tromso-multirunner.yml` has signed every pushed digest since the
-cosign step landed):
-
-```
-cosign verify ghcr.io/tuna-os/tromso:stable \
-  --certificate-identity-regexp '^https://github.com/tuna-os/tromso/' \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
-```
-
-### aarch64 is not covered
-
-`rollback-stable.yml` never touches the `-aarch64` tags, so `:stable-aarch64`
-still points at the bad build after it runs. Restore it manually:
-
-```
-skopeo copy --preserve-digests \
-  docker://ghcr.io/tuna-os/tromso:<target-sha>-aarch64 \
-  docker://ghcr.io/tuna-os/tromso:stable-aarch64
-```
-
-## 5. Restore the ISO surface (manual)
-
-Nothing in CI restores R2. Dated ISOs are never deleted, so the previous good
-build is still there under its own name.
-
-```
-export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare \
-       RCLONE_CONFIG_R2_REGION=auto
-export RCLONE_CONFIG_R2_ACCESS_KEY_ID=... RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=... \
-       RCLONE_CONFIG_R2_ENDPOINT=... R2_BUCKET=...
-
-# 1. List what is there and pick the last known-good dated ISO.
 rclone lsl "R2:${R2_BUCKET}/tromso/stable/"
-
-# 2. Promote it back over the mutable "latest" name, with its signature.
-GOOD=tromso-live-<date>-<sha7>.iso
-rclone copyto "R2:${R2_BUCKET}/tromso/stable/${GOOD}" \
-              "R2:${R2_BUCKET}/tromso/stable/tromso-live-latest.iso"
-rclone copyto "R2:${R2_BUCKET}/tromso/stable/${GOOD}.sig" \
-              "R2:${R2_BUCKET}/tromso/stable/tromso-live-latest.iso.sig"
-rclone copyto "R2:${R2_BUCKET}/tromso/stable/${GOOD}.cert" \
-              "R2:${R2_BUCKET}/tromso/stable/tromso-live-latest.iso.cert"
 ```
 
-Do not delete the bad dated ISO: keep it for the postmortem, and its dated
-name is not what anyone downloads.
+Configure rclone with the repository's R2 credentials before using it locally.
+Never put credentials in an issue or workflow input. For ISOs published before
+#286, filenames may identify the default branch rather than the actual build
+commit: confirm provenance using the original workflow run and artifacts.
 
-**Caveat on identifying the good ISO by name.** The dated filename is built
-from `github.sha` (`build-iso.yml`, "Compute ISO name"), but the ISO build's
-usual trigger is `workflow_run`, where `GITHUB_SHA` is documented as the last
-commit on the *default* branch — not the commit that was built. (The checkout
-step in the same workflow compensates with
-`github.event.workflow_run.head_sha || github.sha`; the naming step does
-not.) So for stable ISOs the `<sha7>` in the filename generally names a
-`main` commit, not the stable commit inside the image. Confirm the candidate
-by run timestamp and by the `Build and Publish Tromsø Live ISO` run's
-artifacts, not by the SHA in the name.
+## 2. Verify without changing anything
 
-## 6. Verify the rollback
-
+```bash
+gh workflow run "Rollback :stable" --repo tuna-os/tromso \
+  -f target_sha=<full-known-good-sha> \
+  -f target_iso=tromso-live-<date>-<sha7>.iso \
+  -f reason="<incident link>" -f dry_run=true
 ```
+
+The workflow requires a commit in this repository, resolves its image digest,
+and verifies its cosign signature against the multirunner workflow identity.
+It downloads the dated ISO, checksum, signature and certificate from R2, then
+checks the checksum and verifies the blob against the ISO workflow identity.
+Missing or invalid targets stop the workflow before it moves anything.
+
+The workflow restores aarch64 by default, requiring a signed
+`:<target_sha>-aarch64` image and restoring that tag and its dated rollback
+bookmark along with x86_64. The aarch64 build is experimental and opt-in:
+if the affected release did not publish it, explicitly add
+`-f rollback_aarch64=false`. Read the summary to confirm the selection.
+
+## 3. Apply and verify
+
+Repeat the verified dispatch with `-f dry_run=false`. It copies verified
+image digests onto the selected stable and dated rollback tags, checks the
+destination digests, restores all four mutable R2 objects (ISO, `.sig`, `.cert`,
+and `-CHECKSUM`), and finally moves the `stable` branch to `target_sha`.
+
+R2 restore verifies the dated objects again before writing. It regenerates
+the checksum with the mutable filename and reads back all four destinations
+to compare bytes. Copy failures and mismatches fail the workflow. R2 has no
+transaction across objects: a partial copy can leave mixed sidecars. Keep
+promotion paused and rerun the same verified rollback after fixing the error.
+The branch moves only after both image and R2 steps succeed.
+
+Verify the public CDN surface as well as the workflow result:
+
+```bash
 skopeo inspect docker://ghcr.io/tuna-os/tromso:stable --format '{{.Digest}}'
+# If selected:
 skopeo inspect docker://ghcr.io/tuna-os/tromso:stable-aarch64 --format '{{.Digest}}'
 git ls-remote --heads https://github.com/tuna-os/tromso stable
-curl -sI https://download.tunaos.org/tromso/stable/tromso-live-latest.iso
+for suffix in '' .sig .cert -CHECKSUM; do
+  curl --fail --location --output "tromso-live-latest.iso${suffix}" \
+    "https://download.tunaos.org/tromso/stable/tromso-live-latest.iso${suffix}"
+done
+sha256sum --check tromso-live-latest.iso-CHECKSUM
 cosign verify-blob --signature tromso-live-latest.iso.sig \
   --certificate tromso-live-latest.iso.cert \
-  --certificate-identity-regexp '^https://github.com/tuna-os/tromso/' \
+  --certificate-identity-regexp '^https://github\.com/tuna-os/tromso/\.github/workflows/build-iso\.yml@refs/heads/(main|stable)$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   tromso-live-latest.iso
 ```
 
-All four digests/refs must name the target commit, the ISO URL must return
-`200`, and the blob signature must verify. Nothing in CI checks the ISO URL,
-so this `curl` is the only thing that catches a rollback that left the
-download surface broken.
+An installed system picks up the restored image on its next `bootc upgrade`.
+`bootc rollback` on a user's machine is independent of this release operation.
 
-An existing user's machine only picks up the rolled-back image on its next
-`bootc upgrade`; `bootc rollback` on the host is the per-machine lever and is
-independent of this procedure.
+## 4. Close out
 
-## 7. Close out
+Record the incident and restored refs in `docs/ci-and-iso-pipeline.md`.
+Land the fix on `main`, then re-enable promotion:
 
-- Record the incident and the restored refs in
-  `docs/ci-and-iso-pipeline.md`'s troubleshooting table.
-- Re-enable the promotion cron:
-  `gh workflow enable "Promote main to stable" --repo tuna-os/tromso`.
-- Land the fix on `main` and let a normal promotion move `stable` forward;
-  do not hand-edit the `stable` branch.
+```bash
+gh workflow enable "Promote main to stable" --repo tuna-os/tromso
+```
+
+Failed promotion runs create a GitHub issue linking to the failed run. Inspect
+which steps ran before retrying, and close the alert after resolving it.
