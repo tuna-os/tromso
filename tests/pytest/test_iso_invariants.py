@@ -148,3 +148,41 @@ def test_workflows_declare_top_level_permissions():
     """Job overrides must not leave other jobs with repository defaults (#321)."""
     for workflow in sorted((REPO / ".github/workflows").glob("*.y*ml")):
         assert re.search(r"^permissions:", workflow.read_text(), re.MULTILINE), workflow.name
+
+
+def test_iso_publication_requires_boot_gate_and_upload_success():
+    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
+    boot = workflow.index("- name: Boot verification")
+    publish = workflow.index("- name: Upload ISO to Cloudflare R2")
+    assert boot < workflow.index("- name: Sign ISO") < publish
+    upload = workflow[publish:workflow.index("- name: Upload ISO as artifact")]
+    assert "continue-on-error" not in upload
+    assert "if:" in upload and "skip_upload != true" in upload
+    assert "bash scripts/iso-r2.sh publish" in upload
+    naming = workflow[workflow.index("- name: Compute ISO name"):boot]
+    assert "github.event.workflow_run.head_sha || github.sha" in naming
+
+
+def test_rollback_verifies_before_mutation_and_dry_run_guards_every_write():
+    workflow = (REPO / ".github/workflows/rollback-stable.yml").read_text()
+    assert workflow.index("cosign verify") < workflow.index("- name: Roll back image tags")
+    assert workflow.index("iso-r2.sh verify") < workflow.index("- name: Roll back image tags")
+    for step in ("Roll back image tags", "Restore signed stable ISO and sidecars", "Move stable branch"):
+        body = workflow.split(f"- name: {step}", 1)[1].split("- name:", 1)[0]
+        assert "if: ${{ !inputs.dry_run }}" in body
+    assert '"docker://ghcr.io/tuna-os/tromso@${DIGEST}"' in workflow
+    assert "--preserve-digests" in workflow and "-aarch64" in workflow
+    assert "no cosign yet" not in workflow
+    arm_input = workflow.split("      rollback_aarch64:", 1)[1].split("      reason:", 1)[0]
+    assert "default: true" in arm_input
+    iso = (REPO / ".github/workflows/build-iso.yml").read_text()
+    assert "'promote-stable'" in iso and "group: promote-stable" in workflow
+
+
+def test_failed_promotions_alert_with_run_link():
+    workflow = (REPO / ".github/workflows/promote-stable.yml").read_text()
+    alert = workflow.split("  alert:", 1)[1]
+    assert "needs: promote" in alert
+    assert "always() && needs.promote.result == 'failure'" in alert
+    assert "issues: write" in alert
+    assert "gh issue create" in alert and "actions/runs/" in alert

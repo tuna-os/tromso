@@ -10,7 +10,7 @@ patterns originate in projectbluefin/dakota and dakota-iso.)
 elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/tromso:latest
                         │ (workflow_run)
                         ▼
-              Build and Publish Tromsø Live ISO  ──►  R2: tromso/tromso-live-*.iso
+              Build and Publish Tromsø Live ISO (boot gate → sign → R2 publish)
                         │
                         ▼ (boot gate: TROMSO_LIVE_READY on serial + screenshot)
               LUKS Install End-to-End Test (PR round-robin / weekly / dispatch)
@@ -136,6 +136,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-03 | Stable ISO published before boot verification; upload failures were ignored; rollback left R2 unchanged (#286) | Publish ran before the gate with continue-on-error; rollback only moved x86_64 and git | Gate before publishing, read back complete dated/latest signed sets, name from the triggering SHA; dry-run verified image/R2 rollback, aarch64 restore, and failed-promotion issue alerts |
 | 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |
 | 2026-10-24 | Four workflows inherited repository token defaults (#321) | Job-level permissions did not constrain other jobs | Add top-level `contents: read`; retain job overrides and require explicit workflow permissions in the invariant tests |
 | 2026-07-19 | Every `just` call in CI fails: "multiple candidate justfiles" | `justfile` + `Justfile` both at root; just ≥1.30 hard-errors | ISO recipes moved to `iso.justfile`, imported from `Justfile` |
@@ -234,17 +235,20 @@ weekly schedules and on manual dispatch.
 
 ## Rollback
 
-`rollback-stable.yml` runs only after a manual dispatch, and `dry_run` defaults
-to true. It reverses a promotion. The workflow verifies that the target
-`:<sha>` image exists. Then, `skopeo copy --preserve-digests` puts it on
-`:stable` and a dated `stable-rollback-*` tag. It force-pushes the stable branch
-to the same commit, so the branch and tag cannot diverge. It shares the
-concurrency group for promotion and cannot run at the same time.
+`rollback-stable.yml` runs only after a manual dispatch, with `dry_run` true
+by default. It needs a target commit and the basename of a dated stable ISO.
+Before mutation it resolves and cosign-verifies the selected image digests,
+and downloads and verifies the ISO checksum and signature. The workflow selects
+both architectures by default; explicitly set `rollback_aarch64=false` only for a
+release that did not publish aarch64.
 
-This workflow does not restore a full release. It restores only the x86_64
-`:stable` tag and the git branch. The `-aarch64` tags and R2 ISO under
-`tromso/stable/` stay on the bad build. The workflow does not use
-`cosign verify` on the target before the new tag. Signatures are available
-because `build-tromso-multirunner.yml` signs each pushed digest. The
-[rollback runbook](../runbooks/rollback-a-bad-stable-release.md) gives the
-manual steps for other artifacts and the final verification.
+A live run copies the verified digests with `skopeo copy --all
+--preserve-digests` and checks the destination tags. It restores the ISO,
+signature, certificate and renamed checksum at the mutable R2 URLs.
+The workflow compares bytes after an R2 read-back. An HTTP HEAD checks the public download URL.
+The stable branch moves last.
+
+Promotion, rollback and publication of the stable ISO use the same concurrency group.
+R2 object sets are not atomic. Pause promotion and retry any partial copies that failed. See the
+[rollback runbook](../runbooks/rollback-a-bad-stable-release.md) for dispatch
+commands, recovery and verification of the public CDN surface.
