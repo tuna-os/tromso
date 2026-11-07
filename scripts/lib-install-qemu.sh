@@ -16,20 +16,17 @@ set -euo pipefail
 
 install_qemu_init() {
 	DISK="/dev/vda"
-	PAYLOAD_IMAGE=$(cat "${TARGET}/payload_ref" | tr -d '[:space:]')
 	local ssh_opts="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5 -o PreferredAuthentications=password -o ServerAliveInterval=30 -o ServerAliveCountMax=20"
 	SSH="sshpass -p live ssh $ssh_opts liveuser@127.0.0.1 -p ${SSH_PORT}"
 	SCP="sshpass -p live scp $ssh_opts -P ${SSH_PORT}"
 
-	# Use local containers-storage if the image is cached there (offline install);
-	# otherwise fall back to a network pull via docker://.
-	if $SSH "sudo podman image exists '${PAYLOAD_IMAGE}' 2>/dev/null"; then
-		INSTALL_IMAGE="containers-storage:${PAYLOAD_IMAGE}"
-		echo "Image found in local containers-storage — using offline install."
-	else
-		INSTALL_IMAGE="docker://${PAYLOAD_IMAGE}"
-		echo "Image not in local store — fisherman will pull from network."
-	fi
+	# Use the same host-owned binding as the graphical installer. Missing or
+	# malformed media is a hard failure; never change to a registry fallback.
+	local media
+	media=$($SSH 'cat /etc/bootc-installer/media-input.json')
+	INSTALL_IMAGE=$(jq -er '.image | select(length > 0)' <<<"$media")
+	PAYLOAD_IMAGE=$(jq -er '.targetImgref | select(length > 0)' <<<"$media")
+	echo "Using the embedded immutable media source: ${INSTALL_IMAGE}"
 
 	# Single-variant repo: optional <target>/composefs and <target>/bootloader
 	# files override the defaults (composefs-backed, systemd-boot — dakota style).
@@ -62,7 +59,7 @@ install_qemu_run_fisherman() {
 	local bootcdirect_json="$4"
 
 	if [[ "${COMPOSEFS_BACKEND}" == "true" ]]; then
-		# Composefs path (dakota): podman-based install with VFS containers-storage.
+		# Composefs installs use the verified read-only media OCI layout.
 		printf '%s\n' "${composefs_json}" >"${recipe_tmp}"
 		$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/${remote_recipe_name}"
 		echo "Uploaded recipe — running fisherman (takes several minutes)..."
@@ -70,10 +67,8 @@ install_qemu_run_fisherman() {
 		$SSH "sudo bash /tmp/fisherman-install.sh /tmp/${remote_recipe_name}"
 	else
 		# Ostree path (stable, lts): bootcDirect — fisherman runs bootc natively.
-		# Empty image triggers bootcDirect; targetImgref sets the day-2 rebase ref.
-		# Fisherman emits --source-imgref containers-storage:<targetImgref> when
-		# targetImgref is present and image is empty, resolving the payload from
-		# the overlay additionalimagestore embedded in the squashfs.
+		# Empty image binds to media-input.json; targetImgref must agree with
+		# its day-2 tracking ref.
 		printf '%s\n' "${bootcdirect_json}" >"${recipe_tmp}"
 		$SCP "${recipe_tmp}" "liveuser@127.0.0.1:/tmp/${remote_recipe_name}"
 		echo "Uploaded recipe — building patched fisherman for bootcDirect..."

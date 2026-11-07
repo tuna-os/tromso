@@ -96,21 +96,33 @@ def test_no_quiet_karg_in_elements():
             assert '"quiet"' not in text, f"{bst} adds quiet karg"
 
 
-def test_high_frequency_workflows_cancel_superseded_runs():
-    """Push bursts once left stale checks and image/ISO builds queued for
-    hours. Newer work on the same ref must replace those obsolete runs."""
+def test_workflows_preserve_running_non_pr_checks():
+    """Main pushes and scheduled builds must reach a real pass/fail result.
+
+    PR updates may replace obsolete checks; only explicit manual ISO
+    re-dispatches may replace a running publisher.
+    """
     workflows = REPO / ".github" / "workflows"
-    names = (
-        "test.yml",
-        "build-iso.yml",
-        "build-tromso-multirunner.yml",
-    )
-    for name in names:
+    policies = {
+        "test.yml": "${{ github.event_name == 'pull_request' }}",
+        "test-luks-install.yml": "${{ github.event_name == 'pull_request' }}",
+        "test-plain-install.yml": "${{ github.event_name == 'pull_request' }}",
+        "build-iso.yml": "${{ github.event_name == 'workflow_dispatch' }}",
+        "build-tromso-multirunner.yml": "false",
+    }
+    for name, policy in policies.items():
         text = (workflows / name).read_text()
-        assert "concurrency:" in text, f"{name} lacks a concurrency group"
-        assert re.search(
-            r"cancel-in-progress:\s*true", text
-        ), f"{name} queues superseded same-ref runs"
+        concurrency = re.search(
+            r"^concurrency:\n((?:[ \t]+[^\n]*\n|\n)+)", text, re.MULTILINE
+        )
+        assert concurrency, f"{name} lacks a concurrency group"
+        assert re.search(r"^  group:", concurrency[1], re.MULTILINE)
+        setting = re.search(
+            r"^  cancel-in-progress: (.+)$", concurrency[1], re.MULTILINE
+        )
+        assert setting and setting[1] == policy, (
+            f"{name} must preserve running automatic checks/builds"
+        )
 
     iso = (workflows / "build-iso.yml").read_text()
     assert "github.event.workflow_run.head_branch || github.ref_name" in iso, (
