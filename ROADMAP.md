@@ -77,14 +77,14 @@ No calendar date is committed for these gates: each depends on the preceding
 candidate evidence. Tromsø remains Alpha until the complete record exists.
 
 The daily `Build Staleness Check` fails when no successful `main` build is
-available within 48 hours and maintains an alert issue. While that alert is
+available within 48 hours and maintains an alert issue. While that alert stays
 open, Tromsø is **not Beta-eligible**. Freshness is a prerequisite, not a
 substitute for the five gates or approval to promote.
 
 ### First Beta decision record
 
 The first Beta promotion should publish a short decision record in the GitHub
-Release notes containing:
+Release notes with:
 
 - the candidate commit and immutable OCI digest;
 - links to the build, ISO boot, plain-install, and encrypted-install evidence;
