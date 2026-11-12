@@ -377,12 +377,19 @@ jobs:
       - name: Trivy image scan
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
+        # The scan aquasecurity/trivy-action v0.36.0 ran: Trivy v0.70.0, SARIF
+        # to trivy-results.sarif. The aquasecurity org's IP allow list rejects
+        # the runner token, so actions.lock cannot verify its actions; run the
+        # image by digest instead. The action ignored `severity` for SARIF
+        # output, so no severity filter is set here either.
+        env:
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/work" -w /work \
+            -e TRIVY_FORMAT=sarif -e TRIVY_OUTPUT=trivy-results.sarif \
+            -e TRIVY_CACHE_DIR=/work/.cache/trivy \
+            ghcr.io/aquasecurity/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e \
+            image "${IMAGE_REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
 
       - name: Upload Trivy scan results
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
@@ -643,12 +650,15 @@ jobs:
       - name: Trivy image scan
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
+        # Same scan as the x86_64 job; see the comment there.
+        env:
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/work" -w /work \
+            -e TRIVY_FORMAT=sarif -e TRIVY_OUTPUT=trivy-results.sarif \
+            -e TRIVY_CACHE_DIR=/work/.cache/trivy \
+            ghcr.io/aquasecurity/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e \
+            image "${IMAGE_REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
 
       - name: Upload Trivy scan results
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
