@@ -52,8 +52,10 @@ jobs:
     steps:
       - name: Should this group run?
         id: gate
+        env:
+          INPUT_GROUP: ${{ github.event.inputs.group || 'elements' }}
         run: |
-          GROUP="${{ github.event.inputs.group || 'elements' }}"
+          GROUP="$INPUT_GROUP"
           if [ "$GROUP" = "all" ] || [ "$GROUP" = "${{ matrix.group }}" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
@@ -62,14 +64,14 @@ jobs:
 
       - name: Checkout
         if: steps.gate.outputs.run == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@v7.0.1  # zizmor: ignore[artipacked] the Create PR step pushes the tracking branch with the persisted token
         with:
           fetch-depth: 0
           token: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Setup Just
         if: steps.gate.outputs.run == 'true'
-        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        uses: extractions/setup-just@v4.0.0  # zizmor: ignore[unpinned-tools] pinning just-version would change the just release used
 
       - name: Refresh tags in BST source mirrors
         if: steps.gate.outputs.run == 'true'

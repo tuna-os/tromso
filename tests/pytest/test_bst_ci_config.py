@@ -145,7 +145,7 @@ def test_workflow_wires_the_action_and_removes_the_key():
     workflow = (
         REPO / ".github" / "workflows" / "build-tromso-multirunner.yml"
     ).read_text()
-    assert workflow.count("uses: ./.github/actions/generate-bst-ci-config") == 2
+    assert workflow.count("uses: $/.github/actions/generate-bst-ci-config") == 2
     assert workflow.count("rm -f client.key client.crt") == 2
     assert workflow.count("if: always()") >= 2
 

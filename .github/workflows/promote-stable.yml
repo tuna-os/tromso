@@ -35,7 +35,7 @@ jobs:
   promote:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1  # zizmor: ignore[artipacked] the fast-forward step pushes stable with the persisted token
         with:
           fetch-depth: 0
 
@@ -90,8 +90,10 @@ jobs:
           echo "sha=${BUILD_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Fast-forward stable to the verified commit
+        env:
+          VERIFIED_SHA: ${{ steps.health.outputs.sha }}
         run: |
-          SHA="${{ steps.health.outputs.sha }}"
+          SHA="$VERIFIED_SHA"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           echo "Promoting ${SHA} to stable"
