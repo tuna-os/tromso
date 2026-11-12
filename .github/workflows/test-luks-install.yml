@@ -44,7 +44,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Ensure screenshots branch exists
         continue-on-error: true
@@ -66,12 +68,12 @@ jobs:
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
         # cache, which deletes the just binary setup-just just installed.
-        uses: jlumbroso/free-disk-space@3f13feab2962a87273d379ebc36ea159527e6cc9 # v1.3.2
+        uses: lumbroso-commons/free-disk-space@v1.3.2
         with:
           tool-cache: true
 
       - name: Setup Just
-        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        uses: extractions/setup-just@v4.0.0  # zizmor: ignore[unpinned-tools] pinning just-version would change the just release used
 
       - name: Expose just to sudo/root
         # Recipes call `just` recursively and run under sudo; root's
@@ -88,7 +90,7 @@ jobs:
       - name: Log in to GHCR
         run: |
           echo "$GITHUB_TOKEN" | \
-            sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
+            sudo podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -184,7 +186,7 @@ jobs:
           always() && github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        uses: actions/github-script@v9.0.0
         env:
           LIVE_URL: ${{ steps.screenshots.outputs.live_url }}
           PLYMOUTH_URL: ${{ steps.screenshots.outputs.plymouth_url }}
@@ -230,17 +232,22 @@ jobs:
 
       - name: Write job summary
         if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.luks_test.outcome }}
+          ISO_SIZE: ${{ steps.build.outputs.iso_size }}
+          BUILD_DURATION: ${{ steps.build.outputs.duration }}
+          LUKS_DURATION: ${{ steps.luks_test.outputs.duration }}
         run: |
-          RESULT="${{ steps.luks_test.outcome }}"
+          RESULT="$TEST_OUTCOME"
           ICON=$( [ "$RESULT" = "success" ] && echo "✅" || echo "❌" )
           {
             echo "## ${ICON} LUKS End-to-End Test (${{ matrix.installer_channel }}) — ${RESULT}"
             echo ""
             echo "| Step | Value |"
             echo "|------|-------|"
-            echo "| ISO size | $(numfmt --to=iec ${{ steps.build.outputs.iso_size }} 2>/dev/null || echo N/A) |"
-            echo "| Build time | ${{ steps.build.outputs.duration }}s |"
-            echo "| LUKS test time | ${{ steps.luks_test.outputs.duration }}s |"
+            echo "| ISO size | $(numfmt --to=iec $ISO_SIZE 2>/dev/null || echo N/A) |"
+            echo "| Build time | ${BUILD_DURATION}s |"
+            echo "| LUKS test time | ${LUKS_DURATION}s |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Collect serial logs
@@ -249,7 +256,7 @@ jobs:
 
       - name: Upload serial logs artifact
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: luks-e2e-serial-logs-${{ matrix.installer_channel }}
           path: |

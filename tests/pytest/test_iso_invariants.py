@@ -149,16 +149,53 @@ def test_build_workflows_disable_checkout_credential_persistence():
         assert found > 0, f"No actions/checkout steps found in {name}"
 
 
+def _locked_actions():
+    """Map each workflow path to the `owner/repo@tag` refs that
+    .github/workflows/actions.lock pins to a commit (`gh actions-lock`)."""
+    locked = {}
+    workflow = None
+    in_workflows = False
+    lockfile = REPO / ".github" / "workflows" / "actions.lock"
+    for line in lockfile.read_text().splitlines():
+        if not line.startswith(" "):
+            in_workflows = line.rstrip() == "workflows:"
+            continue
+        if not in_workflows:
+            continue
+        key = re.fullmatch(r" {4}'([^']+)':.*", line)
+        if key:
+            workflow = key.group(1)
+            locked[workflow] = set()
+            continue
+        ref = re.fullmatch(r" {8}- '([^']+)'", line)
+        if ref and workflow:
+            locked[workflow].add(ref.group(1))
+    return locked
+
+
 def test_github_actions_use_immutable_references():
-    """Remote actions and reusable workflows must not execute mutable tags."""
+    """Remote actions and reusable workflows must not execute mutable tags.
+
+    A workflow may name an action by tag only when actions.lock pins that tag
+    to a commit for the same workflow. Composite actions and cross-repo
+    reusable workflows are outside the lockfile and stay SHA-pinned."""
+    locked = _locked_actions()
     for path in (REPO / ".github").rglob("*.y*ml"):
+        rel = path.relative_to(REPO).as_posix()
         for ref in re.findall(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", path.read_text(), re.M):
-            if ref.startswith("./"):
+            if ref.startswith(("./", "$/")):
                 continue
             if ref.startswith("docker://"):
                 assert re.fullmatch(r"docker://[^@]+@sha256:[0-9a-f]{64}", ref), (path, ref)
+            elif re.fullmatch(r"[^@]+@[0-9a-f]{40}", ref):
+                continue
             else:
-                assert re.fullmatch(r"[^@]+@[0-9a-f]{40}", ref), (path, ref)
+                assert "/.github/workflows/" not in ref, (path, ref)
+                name, _, tag = ref.partition("@")
+                action_repo = "/".join(name.split("/")[:2])
+                assert f"{action_repo}@{tag}" in locked.get(rel, set()), (
+                    f"{rel}: {ref} is neither SHA-pinned nor locked in actions.lock"
+                )
 
 
 def test_workflows_declare_top_level_permissions():

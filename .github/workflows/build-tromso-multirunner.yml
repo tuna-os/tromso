@@ -53,7 +53,7 @@ concurrency:
 jobs:
   # ── Phase 1-3: Plan, core, parallel dependency chunks ────────────────
   multirunner:
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@440509b589dd70cf688f48ed72d027835e8ec381 # main
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@440509b589dd70cf688f48ed72d027835e8ec381  # main  # zizmor: ignore[ref-version-mismatch] pinned to a reviewed main commit; Renovate bumps the digest, so main may be ahead
     permissions:
       contents: read
       packages: write
@@ -143,16 +143,16 @@ jobs:
       security-events: write # Trivy SARIF upload
     steps:
       - name: Free disk space
-        uses: jlumbroso/free-disk-space@3f13feab2962a87273d379ebc36ea159527e6cc9 # v1.3.2
+        uses: lumbroso-commons/free-disk-space@v1.3.2
         with:
           tool-cache: true
 
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
       - name: Checkout chunkah
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@v7.0.1
         with:
           repository: coreos/chunkah
           path: chunkah
@@ -161,13 +161,13 @@ jobs:
       - run: podman pull "$BST2_IMAGE"
 
       - name: Setup Just
-        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        uses: extractions/setup-just@v4.0.0  # zizmor: ignore[unpinned-tools] pinning just-version would change the just release used
 
       - name: Setup ORAS
-        uses: oras-project/setup-oras@5e2f2482b30b0cb3e14e67f89a80c88c659a7c63 # v2
+        uses: oras-project/setup-oras@v2.0.3
 
       - name: Login to GHCR
-        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -216,7 +216,7 @@ jobs:
         env:
           CASD_CLIENT_CERT: ${{ vars.CASD_CLIENT_CERT }}
           CASD_CLIENT_KEY: ${{ secrets.CASD_CLIENT_KEY }}
-        uses: ./.github/actions/generate-bst-ci-config
+        uses: $/.github/actions/generate-bst-ci-config
         with:
           enable-remote-execution: ${{ vars.CASD_CLIENT_CERT != '' }}
           enable-push: 'true'
@@ -233,10 +233,11 @@ jobs:
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
           RE_EXPECTED: ${{ vars.CASD_CLIENT_CERT != '' }}
+          FINAL_TARGET: ${{ needs.multirunner.outputs.final_target }}
         run: |
           mkdir -p logs
           set -o pipefail
-          timeout 300m just bst --log-file /src/logs/build-final.log build ${{ needs.multirunner.outputs.final_target }} 2>&1 | tee /tmp/bst-console.log
+          timeout 300m just bst --log-file /src/logs/build-final.log build $FINAL_TARGET 2>&1 | tee /tmp/bst-console.log
           # A green build is not proof BuildStream loaded the executor — it
           # falls back to local building without saying so, which would read
           # as a slow success. Fail closed on the startup banner instead.
@@ -252,6 +253,7 @@ jobs:
       - name: Check out the artifact and free the CAS
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+          FINAL_TARGET: ${{ needs.multirunner.outputs.final_target }}
         run: |
           # The merged CAS and the squashed image do not fit on one runner
           # together (xfce-linux#159 hit exactly this). Take the artifact out
@@ -259,7 +261,7 @@ jobs:
           df -h /
           rm -rf .build-out
           just bst artifact checkout \
-            "${{ needs.multirunner.outputs.final_target }}" --directory /src/.build-out
+            "$FINAL_TARGET" --directory /src/.build-out
           du -sh .build-out
           # Removed inside the bst container: its root owns the cache tree.
           podman run --rm -v "${HOME}/.cache/buildstream:/cache:rw" "$BST2_IMAGE" \
@@ -285,13 +287,15 @@ jobs:
           echo "image_ref=${{ env.IMAGE_NAME }}:latest" >> "$GITHUB_OUTPUT"
 
       - name: Verify + lint
+        env:
+          IMAGE_REF: ${{ steps.export.outputs.image_ref }}
         run: |
           sudo podman images
           just lint
           # kwin_wayland's cap_sys_nice is set under fakecap during OCI
           # assembly (the bst sandbox cannot setcap). Fail if it did not
           # survive build-oci, the podman import and the export re-tag.
-          ref="localhost/${{ steps.export.outputs.image_ref }}"
+          ref="localhost/${IMAGE_REF}"
           mnt=$(sudo podman image mount "$ref")
           caps=$(sudo getcap "$mnt/usr/bin/kwin_wayland" || true)
           # A whiteout that build-oci emits under a directory a lower layer
@@ -314,7 +318,7 @@ jobs:
 
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: final-logs-${{ env.IMAGE_NAME }}
           path: logs/
@@ -325,27 +329,29 @@ jobs:
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
           echo "$GITHUB_TOKEN" | \
-            sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
+            sudo podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to GHCR
         id: push
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        env:
+          IMAGE_REF: ${{ steps.export.outputs.image_ref }}
         run: |
           DATE_TAG=$(date -u +%Y%m%d)
           # Channels: main = nightly trunk (also owns :latest); stable = release bookmark
-          if [ "${{ github.ref }}" = "refs/heads/stable" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/stable" ]; then
             TAGS="stable stable-${DATE_TAG} ${{ github.sha }}"
           else
             TAGS="latest nightly nightly-${DATE_TAG} ${{ github.sha }}"
           fi
           for tag in $TAGS; do
-            sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
-              "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
+            sudo podman tag "localhost/${IMAGE_REF}" \
+              "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
             for i in 1 2 3; do
               sudo podman push --digestfile "/tmp/digest-${tag}" \
-                "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
+                "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}" && break
               echo "Retry $i..."; sleep 5
             done
           done
@@ -358,28 +364,37 @@ jobs:
 
       - name: Install cosign
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
-        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        uses: sigstore/cosign-installer@v4.1.3
 
       - name: Sign image (cosign keyless)
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        env:
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
         run: |
           cosign sign --yes \
-            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
+            "${IMAGE_REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
 
       - name: Trivy image scan
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
+        # The scan aquasecurity/trivy-action v0.36.0 ran: Trivy v0.70.0, SARIF
+        # to trivy-results.sarif. The aquasecurity org's IP allow list rejects
+        # the runner token, so actions.lock cannot verify its actions; run the
+        # image by digest instead. The action ignored `severity` for SARIF
+        # output, so no severity filter is set here either.
+        env:
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/work" -w /work \
+            -e TRIVY_FORMAT=sarif -e TRIVY_OUTPUT=trivy-results.sarif \
+            -e TRIVY_CACHE_DIR=/work/.cache/trivy \
+            ghcr.io/aquasecurity/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e \
+            image "${IMAGE_REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
 
       - name: Upload Trivy scan results
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+        uses: github/codeql-action/upload-sarif@v4.39.3
         with:
           sarif_file: trivy-results.sarif
 
@@ -402,7 +417,7 @@ jobs:
   # regress the x86_64 image consumers actually run.
   multirunner_aarch64:
     if: github.event_name == 'workflow_dispatch' && inputs.build_aarch64 == true
-    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@440509b589dd70cf688f48ed72d027835e8ec381 # main
+    uses: tuna-os/bst-ci/.github/workflows/multirunner-build.yml@440509b589dd70cf688f48ed72d027835e8ec381  # main  # zizmor: ignore[ref-version-mismatch] pinned to a reviewed main commit; Renovate bumps the digest, so main may be ahead
     permissions:
       contents: read
       packages: write
@@ -459,16 +474,16 @@ jobs:
       ARCH_SUFFIX: -aarch64
     steps:
       - name: Free disk space
-        uses: jlumbroso/free-disk-space@3f13feab2962a87273d379ebc36ea159527e6cc9 # v1.3.2
+        uses: lumbroso-commons/free-disk-space@v1.3.2
         with:
           tool-cache: true
 
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
       - name: Checkout chunkah
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@v7.0.1
         with:
           repository: coreos/chunkah
           path: chunkah
@@ -477,13 +492,13 @@ jobs:
       - run: podman pull "$BST2_IMAGE"
 
       - name: Setup Just
-        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        uses: extractions/setup-just@v4.0.0  # zizmor: ignore[unpinned-tools] pinning just-version would change the just release used
 
       - name: Setup ORAS
-        uses: oras-project/setup-oras@5e2f2482b30b0cb3e14e67f89a80c88c659a7c63 # v2
+        uses: oras-project/setup-oras@v2.0.3
 
       - name: Login to GHCR
-        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "$GITHUB_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -527,7 +542,7 @@ jobs:
         env:
           CASD_CLIENT_CERT: ${{ vars.CASD_CLIENT_CERT }}
           CASD_CLIENT_KEY: ${{ secrets.CASD_CLIENT_KEY }}
-        uses: ./.github/actions/generate-bst-ci-config
+        uses: $/.github/actions/generate-bst-ci-config
         with:
           enable-remote-execution: 'false'
           enable-push: 'true'
@@ -543,9 +558,10 @@ jobs:
       - name: Build Final Target
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+          FINAL_TARGET: ${{ needs.multirunner_aarch64.outputs.final_target }}
         run: |
           mkdir -p logs
-          timeout 300m just bst --log-file /src/logs/build-final.log build ${{ needs.multirunner_aarch64.outputs.final_target }}
+          timeout 300m just bst --log-file /src/logs/build-final.log build $FINAL_TARGET
 
       - name: Remove CASD client credentials
         if: always()
@@ -574,7 +590,7 @@ jobs:
 
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: final-logs-${{ env.IMAGE_NAME }}-aarch64
           path: logs/
@@ -585,28 +601,30 @@ jobs:
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         run: |
           echo "$GITHUB_TOKEN" | \
-            sudo podman login ghcr.io --username ${{ github.actor }} --password-stdin
+            sudo podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to GHCR
         id: push
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        env:
+          IMAGE_REF: ${{ steps.export.outputs.image_ref }}
         run: |
           DATE_TAG=$(date -u +%Y%m%d)
           # -aarch64-suffixed only — never the bare channel tags an x86_64
           # consumer would resolve, so this can't regress the published image.
-          if [ "${{ github.ref }}" = "refs/heads/stable" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/stable" ]; then
             TAGS="stable-aarch64 stable-${DATE_TAG}-aarch64 ${{ github.sha }}-aarch64"
           else
             TAGS="latest-aarch64 nightly-aarch64 nightly-${DATE_TAG}-aarch64 ${{ github.sha }}-aarch64"
           fi
           for tag in $TAGS; do
-            sudo podman tag "localhost/${{ steps.export.outputs.image_ref }}" \
-              "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}"
+            sudo podman tag "localhost/${IMAGE_REF}" \
+              "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
             for i in 1 2 3; do
               sudo podman push --digestfile "/tmp/digest-${tag}" \
-                "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${tag}" && break
+                "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}" && break
               echo "Retry $i..."; sleep 5
             done
           done
@@ -619,28 +637,33 @@ jobs:
 
       - name: Install cosign
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
-        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        uses: sigstore/cosign-installer@v4.1.3
 
       - name: Sign image (cosign keyless)
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
+        env:
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
         run: |
           cosign sign --yes \
-            "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}"
+            "${IMAGE_REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
 
       - name: Trivy image scan
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
+        # Same scan as the x86_64 job; see the comment there.
+        env:
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/work" -w /work \
+            -e TRIVY_FORMAT=sarif -e TRIVY_OUTPUT=trivy-results.sarif \
+            -e TRIVY_CACHE_DIR=/work/.cache/trivy \
+            ghcr.io/aquasecurity/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e \
+            image "${IMAGE_REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
 
       - name: Upload Trivy scan results
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+        uses: github/codeql-action/upload-sarif@v4.39.3
         with:
           sarif_file: trivy-results.sarif
 

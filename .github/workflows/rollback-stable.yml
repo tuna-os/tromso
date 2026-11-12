@@ -39,43 +39,52 @@ jobs:
   rollback:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1  # zizmor: ignore[artipacked] the Move stable branch step pushes with the persisted token
         with:
           fetch-depth: 0
 
       - name: Verify target image exists
         run: |
-          echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
-          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" --format 'target digest: {{.Digest}}'
+          echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:${TARGET_SHA}" --format 'target digest: {{.Digest}}'
           sudo skopeo inspect "docker://ghcr.io/tuna-os/tromso:stable" --format 'current stable digest: {{.Digest}}' || echo "no :stable yet"
-          git cat-file -e "${{ inputs.target_sha }}^{commit}" || { echo "::error::SHA not a commit in this repo"; exit 1; }
+          git cat-file -e "${TARGET_SHA}^{commit}" || { echo "::error::SHA not a commit in this repo"; exit 1; }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_SHA: ${{ inputs.target_sha }}
 
       - name: Roll back image tags
         if: ${{ !inputs.dry_run }}
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
         run: |
           DATE_TAG=$(date -u +%Y%m%d-%H%M)
           sudo skopeo copy --preserve-digests \
-            "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" \
+            "docker://ghcr.io/tuna-os/tromso:${TARGET_SHA}" \
             "docker://ghcr.io/tuna-os/tromso:stable"
           sudo skopeo copy --preserve-digests \
-            "docker://ghcr.io/tuna-os/tromso:${{ inputs.target_sha }}" \
+            "docker://ghcr.io/tuna-os/tromso:${TARGET_SHA}" \
             "docker://ghcr.io/tuna-os/tromso:stable-rollback-${DATE_TAG}"
 
       - name: Move stable branch
         if: ${{ !inputs.dry_run }}
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git push origin "${{ inputs.target_sha }}:refs/heads/stable" --force
+          git push origin "${TARGET_SHA}:refs/heads/stable" --force
 
       - name: Summary
         if: always()
+        env:
+          DRY_RUN_LABEL: ${{ inputs.dry_run && '(DRY RUN)' || '' }}
+          TARGET_SHA: ${{ inputs.target_sha }}
+          REASON: ${{ inputs.reason }}
         run: |
           {
-            echo "## Rollback ${{ inputs.dry_run && '(DRY RUN)' || '' }}"
-            echo "- target: \`${{ inputs.target_sha }}\`"
-            echo "- reason: ${{ inputs.reason }}"
-            echo "- actor: ${{ github.actor }}"
+            echo "## Rollback ${DRY_RUN_LABEL}"
+            echo "- target: \`${TARGET_SHA}\`"
+            echo "- reason: ${REASON}"
+            echo "- actor: ${GITHUB_ACTOR}"
           } >> "$GITHUB_STEP_SUMMARY"

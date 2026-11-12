@@ -8,7 +8,7 @@ on:
       - 'Justfile'
       - 'iso.justfile'
       - '.github/workflows/build-iso.yml'
-  workflow_run:
+  workflow_run:  # zizmor: ignore[dangerous-triggers] the job runs only for same-repo schedule or workflow_dispatch builds, see its if guard
     # Rebuild the ISO whenever a fresh OCI image lands on GHCR.
     workflows: ["Build Tromso (Multi-Runner)"]
     types: [completed]
@@ -33,7 +33,13 @@ jobs:
     name: Build Tromsø Live ISO
     # Always a GitHub-hosted runner -- no third-party runner escape hatch.
     runs-on: ubuntu-24.04
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    # workflow_run: only successful upstream builds from this repository that
+    # ran on schedule or workflow_dispatch, the only triggers that workflow has.
+    if: >-
+      ${{ github.event_name != 'workflow_run' || (
+      github.event.workflow_run.conclusion == 'success' &&
+      contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event.workflow_run.event) &&
+      github.event.workflow_run.head_repository.full_name == github.repository) }}
     permissions:
       contents: read
       packages: read
@@ -41,15 +47,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
 
       - name: Determine channel
         id: channel
+        env:
+          SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
         run: |
-          BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
+          BRANCH="$SOURCE_BRANCH"
           if [ "$BRANCH" = "stable" ]; then
             echo "name=stable" >> "$GITHUB_OUTPUT"
             echo "payload_tag=stable" >> "$GITHUB_OUTPUT"
@@ -61,17 +69,19 @@ jobs:
           fi
 
       - name: Point ISO payload at channel image
-        run: echo "ghcr.io/tuna-os/tromso:${{ steps.channel.outputs.payload_tag }}" > tromso/payload_ref
+        env:
+          PAYLOAD_TAG: ${{ steps.channel.outputs.payload_tag }}
+        run: echo "ghcr.io/tuna-os/tromso:${PAYLOAD_TAG}" > tromso/payload_ref
 
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
         # cache, which deletes the just binary setup-just just installed.
-        uses: jlumbroso/free-disk-space@3f13feab2962a87273d379ebc36ea159527e6cc9 # v1.3.2
+        uses: lumbroso-commons/free-disk-space@v1.3.2
         with:
           tool-cache: true
 
       - name: Setup Just
-        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        uses: extractions/setup-just@v4.0.0  # zizmor: ignore[unpinned-tools] pinning just-version would change the just release used
 
       - name: Expose just to sudo/root
         # Recipes call `just` recursively and run under sudo; root's
@@ -82,7 +92,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y podman buildah rclone mtools xorriso skopeo
 
       - name: Log in to GHCR
-        run: echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "$GITHUB_TOKEN" | sudo podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -105,9 +115,12 @@ jobs:
 
       - name: Generate SHA256 checksum
         id: checksum
+        env:
+          ISO_PATH: ${{ steps.iso.outputs.path }}
+          ISO_DATED: ${{ steps.iso.outputs.dated }}
         run: |
-          ISO="${{ steps.iso.outputs.path }}"
-          DATED="${{ steps.iso.outputs.dated }}"
+          ISO="$ISO_PATH"
+          DATED="$ISO_DATED"
           sha256sum "$ISO" | sed "s|${ISO}|${DATED}|" | tee "output/${DATED}-CHECKSUM"
           sha256sum "$ISO" | sed "s|${ISO}|tromso-live-latest.iso|" > "output/tromso-live-latest.iso-CHECKSUM"
           echo "path=output/${DATED}-CHECKSUM" >> "$GITHUB_OUTPUT"
@@ -115,13 +128,15 @@ jobs:
 
       - name: Install cosign
         if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
-        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        uses: sigstore/cosign-installer@v4.1.3
 
       - name: Sign ISO (cosign keyless)
         id: sign
         if: ${{ inputs.skip_upload != true && github.event_name != 'pull_request' }}
+        env:
+          ISO_PATH: ${{ steps.iso.outputs.path }}
         run: |
-          ISO="${{ steps.iso.outputs.path }}"
+          ISO="$ISO_PATH"
           cosign sign-blob --yes \
             --output-signature "${ISO}.sig" \
             --output-certificate "${ISO}.cert" \
@@ -139,32 +154,41 @@ jobs:
           RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          ISO_PATH: ${{ steps.iso.outputs.path }}
+          ISO_DATED: ${{ steps.iso.outputs.dated }}
+          R2_PREFIX: ${{ steps.channel.outputs.r2_prefix }}
+          CHECKSUM_PATH: ${{ steps.checksum.outputs.path }}
+          CHECKSUM_NAME: ${{ steps.checksum.outputs.name }}
+          SIG_PATH: ${{ steps.sign.outputs.sig_path }}
+          CERT_PATH: ${{ steps.sign.outputs.cert_path }}
         run: |
-          ISO="${{ steps.iso.outputs.path }}"
-          DATED="${{ steps.iso.outputs.dated }}"
-          rclone copyto --log-level INFO --checksum --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}"
-          rclone copyto --log-level INFO --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso"
+          ISO="$ISO_PATH"
+          DATED="$ISO_DATED"
+          rclone copyto --log-level INFO --checksum --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${R2_PREFIX}/${DATED}"
+          rclone copyto --log-level INFO --s3-no-check-bucket "$ISO" "R2:${R2_BUCKET}/${R2_PREFIX}/tromso-live-latest.iso"
           rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.checksum.outputs.path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${{ steps.checksum.outputs.name }}"
+            "$CHECKSUM_PATH" "R2:${R2_BUCKET}/${R2_PREFIX}/${CHECKSUM_NAME}"
           rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.sig"
+            "$SIG_PATH" "R2:${R2_BUCKET}/${R2_PREFIX}/${DATED}.sig"
           rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/${DATED}.cert"
+            "$CERT_PATH" "R2:${R2_BUCKET}/${R2_PREFIX}/${DATED}.cert"
           # Same bytes as the dated ISO, so the same signature verifies it —
           # publish under the "latest" name too so consumers of the stable
           # download URL (validate-iso-kanpur.yml included) have something
           # to verify against without needing to know today's dated filename.
           rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.sig_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.sig"
+            "$SIG_PATH" "R2:${R2_BUCKET}/${R2_PREFIX}/tromso-live-latest.iso.sig"
           rclone copyto --log-level INFO --s3-no-check-bucket \
-            "${{ steps.sign.outputs.cert_path }}" "R2:${R2_BUCKET}/${{ steps.channel.outputs.r2_prefix }}/tromso-live-latest.iso.cert"
+            "$CERT_PATH" "R2:${R2_BUCKET}/${R2_PREFIX}/tromso-live-latest.iso.cert"
           echo "https://download.tunaos.org/tromso/tromso-live-latest.iso"
         continue-on-error: true
 
       - name: Boot verification (UEFI + serial)
         timeout-minutes: 10
+        env:
+          ISO_PATH: ${{ steps.iso.outputs.path }}
         run: |
-          ISO="${{ steps.iso.outputs.path }}"
+          ISO="$ISO_PATH"
           sudo apt-get install -y qemu-system-x86 ovmf socat imagemagick -qq
           EFI_CODE=""
           for f in /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_CODE.fd; do
@@ -197,7 +221,7 @@ jobs:
             { echo "ERROR: Live environment did not reach ready state"; sudo tail -50 /tmp/serial.log; exit 1; }
 
       - name: Upload ISO as artifact
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ steps.iso.outputs.dated }}
           path: ${{ steps.iso.outputs.path }}
@@ -205,7 +229,7 @@ jobs:
           retention-days: 7
 
       - name: Upload checksum as artifact
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: checksum-${{ steps.iso.outputs.dated }}
           path: ${{ steps.checksum.outputs.path }}
@@ -213,7 +237,7 @@ jobs:
           retention-days: 7
 
       - name: Upload boot screenshot as artifact
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: boot-screenshot-tromso
