@@ -281,3 +281,21 @@ def test_iso_publication_event_gates_fail_closed():
                             {"__builtins__": {}})
             expected = status and boot == "success" and not skip and event != "pull_request"
             assert admitted == (expected and (not alias or dated == "success"))
+
+
+def test_iso_signing_preserves_detached_outputs_with_cosign3():
+    """Cosign 3's bundle defaults reject the detached output paths."""
+    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
+    signing = workflow.split("cosign sign-blob", 1)[1].split("- name:", 1)[0]
+    assert "--use-signing-config=false" in signing
+    assert "--new-bundle-format=false" in signing
+    for suffix in ("sig", "cert"):
+        assert f'test -s "${{ISO}}.{suffix}"' in signing
+    assert '--output-signature "${ISO}.sig"' in signing
+    assert '--output-certificate "${ISO}.cert"' in signing
+    # Fail closed before upload: verify with the consumer's detached inputs.
+    verify = signing.split("cosign verify-blob", 1)[1]
+    assert '--certificate "${ISO}.cert"' in verify
+    assert '--signature "${ISO}.sig"' in verify
+    assert "--certificate-oidc-issuer https://token.actions.githubusercontent.com" in verify
+    assert signing.index("cosign verify-blob") < signing.index("sig_path=")
