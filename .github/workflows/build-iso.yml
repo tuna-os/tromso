@@ -21,6 +21,9 @@ on:
         default: false
         type: boolean
 
+env:
+  RELEASE_BUILD: '1'
+
 permissions:
   contents: read
 
@@ -51,6 +54,9 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
+
+      - name: Reject development Secure Boot keys
+        run: python3 files/boot-keys/check-release-keys.py --release
 
       - name: Determine channel
         id: channel
@@ -104,6 +110,9 @@ jobs:
           mkdir -p output
           sudo cp /var/iso-build/*.iso output/ 2>/dev/null || true
           sudo chown -R "$USER:$(id -gn)" output/
+
+      - name: Recheck Secure Boot keys before publishing
+        run: python3 files/boot-keys/check-release-keys.py --release
 
       - name: Compute ISO name
         id: iso

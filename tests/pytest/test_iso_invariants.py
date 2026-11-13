@@ -315,3 +315,31 @@ def test_iso_signing_preserves_detached_outputs_with_cosign3():
     assert '--signature "${ISO}.sig"' in verify
     assert "--certificate-oidc-issuer https://token.actions.githubusercontent.com" in verify
     assert signing.index("cosign verify-blob") < signing.index("sig_path=")
+
+
+def test_release_workflows_enforce_guard():
+    import yaml
+
+    for workflow, jobs in [('build-tromso-multirunner.yml', ['build_final', 'build_final_aarch64']),
+                           ('build-iso.yml', ['build-and-publish'])]:
+        data = yaml.safe_load((REPO / '.github/workflows' / workflow).read_text())
+        for job in jobs:
+            steps = data['jobs'][job]['steps']
+            checks = [i for i, step in enumerate(steps)
+                      if 'check-release-keys.py --release' in step.get('run', '')]
+            assert len(checks) == 2
+            assert all('if' not in steps[i] or steps[i]['name'] == 'Push to GHCR' for i in checks)
+            build = next(i for i, step in enumerate(steps)
+                         if step.get('name') in ('Build Final Target', 'Build Live ISO'))
+            assert checks[0] < build < checks[1]
+
+
+def test_python_ci_installs_workflow_parser():
+    """Workflow invariants need PyYAML even on a clean Python runner (#449)."""
+    import shlex
+    import yaml
+
+    workflow = yaml.safe_load((REPO / '.github/workflows/test.yml').read_text())
+    steps = workflow['jobs']['pytest']['steps']
+    install = next(step['run'] for step in steps if step.get('name') == 'Install dependencies')
+    assert 'pyyaml' in shlex.split(install.lower())
