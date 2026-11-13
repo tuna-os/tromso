@@ -169,8 +169,10 @@ def test_every_bst_build_job_generates_image_version_first():
                 f"before it, so the image would ship VERSION_ID=\"{LOCAL_DEFAULT}\""
             )
     # Guard against the check passing vacuously if the build moves or is renamed.
-    assert "build-tromso-multirunner.yml:build_final" in build_jobs, build_jobs
-    assert "build-tromso-multirunner.yml:build_final_aarch64" in build_jobs, build_jobs
+    # Both architectures' final jobs call build-final.yml, so it covers both.
+    assert "build-final.yml:build_final" in build_jobs, build_jobs
+    multi = (WORKFLOWS / "build-tromso-multirunner.yml").read_text()
+    assert multi.count("uses: $/.github/workflows/build-final.yml") == 2
 
 
 def test_os_release_uses_image_version():

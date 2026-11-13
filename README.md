@@ -115,8 +115,9 @@ ghcr.io/tuna-os/tromso:<git-sha>
 
 **How it works:** the plan, core, and dependency chunks run through the shared
 `tuna-os/bst-ci` reusable workflow. The `build_final` job merges the chunk CAS
-archives, exports the OCI image, adds a signature, and publishes the nightly or
-stable tags. Scheduled and manual triggers start this workflow. It is the only
+archives, exports the OCI image, and publishes the nightly or stable tags. The
+`sign_final` job of this workflow then adds a signature to the pushed digest.
+Scheduled and manual triggers start this workflow. It is the only
 BuildStream publication path, so each successful image uses the same convergent
 cache and signer identity.
 

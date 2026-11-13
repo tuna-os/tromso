@@ -129,13 +129,16 @@ def test_multi_runner_is_the_only_buildstream_image_builder():
     multi = (workflows / "build-tromso-multirunner.yml").read_text()
     assert "multirunner:" in multi
     assert "build_final:" in multi
-    assert "just export" in multi
+    # Final assembly for every architecture is the one reusable workflow.
+    assert multi.count("uses: $/.github/workflows/build-final.yml") == 2
+    assert "just export" not in multi
+    assert "just export" in (workflows / "build-final.yml").read_text()
 
 
 def test_build_workflows_disable_checkout_credential_persistence():
     """Issue #382: build workflows must disable checkout credential persistence
     to prevent GITHUB_TOKEN exposure in .git/config."""
-    for name in ("build-iso.yml", "build-tromso-multirunner.yml"):
+    for name in ("build-iso.yml", "build-tromso-multirunner.yml", "build-final.yml"):
         workflow_path = REPO / ".github" / "workflows" / name
         lines = workflow_path.read_text().splitlines()
         found = 0
@@ -146,7 +149,10 @@ def test_build_workflows_disable_checkout_credential_persistence():
                 assert "persist-credentials: false" in step_block, (
                     f"actions/checkout step at {name}:{idx + 1} lacks persist-credentials: false"
                 )
-        assert found > 0, f"No actions/checkout steps found in {name}"
+        # build-tromso-multirunner.yml has no checkout of its own since #314:
+        # its build steps live in build-final.yml, its signing jobs need none.
+        if name != "build-tromso-multirunner.yml":
+            assert found > 0, f"No actions/checkout steps found in {name}"
 
 
 def _locked_actions():
@@ -320,7 +326,11 @@ def test_iso_signing_preserves_detached_outputs_with_cosign3():
 def test_release_workflows_enforce_guard():
     import yaml
 
-    for workflow, jobs in [('build-tromso-multirunner.yml', ['build_final', 'build_final_aarch64']),
+    multi = yaml.safe_load((REPO / '.github/workflows/build-tromso-multirunner.yml').read_text())
+    # Both architectures run the guarded steps of build-final.yml.
+    for job in ('build_final', 'build_final_aarch64'):
+        assert multi['jobs'][job]['uses'] == '$/.github/workflows/build-final.yml'
+    for workflow, jobs in [('build-final.yml', ['build_final']),
                            ('build-iso.yml', ['build-and-publish'])]:
         data = yaml.safe_load((REPO / '.github/workflows' / workflow).read_text())
         for job in jobs:

@@ -33,9 +33,13 @@ elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/
 The plan, core, and parallel dependency chunks (steps 1-3) use the shared
 [tuna-os/bst-ci](https://github.com/tuna-os/bst-ci) reusable workflow. Each
 BuildStream desktop repository uses this workflow, with different image names,
-targets, and chunk counts. The local `build_final` job (step 4) uses cosign
-without a key. This process puts the identity of this workflow in the Fulcio
-certificate. The verification instructions in README.md use that identity.
+targets, and chunk counts. Step 4 uses the `build-final.yml` workflow of this
+repository. Both architectures use this one copy of the steps (#314).
+
+The `sign_final` jobs of `build-tromso-multirunner.yml` sign the pushed
+digest. They use cosign without a key. The Fulcio certificate thus keeps the
+identity of `build-tromso-multirunner.yml`. The verification instructions in
+README.md use that identity. `build-final.yml` has no `id-token` permission.
 
 Free GitHub runners can't hold the whole KDE build, so it's split:
 
@@ -52,6 +56,11 @@ Free GitHub runners can't hold the whole KDE build, so it's split:
 4. **build_final** — merges all chunk CAS tarballs, builds the final target,
    `just export` (squash + OCI labels + chunkify), `just lint`
    (`bootc container lint`), pushes `latest` + date + sha tags (main only).
+   `scripts/resolve-image-tags.sh` sets the tags. Only x86_64 gets the
+   `latest`, `nightly` and `stable` tags without a suffix. Other
+   architectures must use a suffix, for example `latest-aarch64`. The
+   aarch64 path is manual only. It does not use remote execution. It does
+   not run the x86_64 checks for kwin capabilities and overlay whiteouts.
 
 BuildStream settings CI uses live in the checked-in `buildstream-ci.conf`.
 
