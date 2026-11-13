@@ -165,7 +165,10 @@ def qemu_check_serial(serial_log: str) -> str:
     """
     import re
     try:
-        raw = open(serial_log).read()
+        # The serial console can carry non-UTF-8 bytes (line noise, firmware
+        # output); replace them rather than failing the whole check.
+        with open(serial_log, encoding="utf-8", errors="replace") as f:
+            raw = f.read()
     except OSError:
         return ""
     # Strip ANSI escape codes and collapse whitespace so that systemd status
