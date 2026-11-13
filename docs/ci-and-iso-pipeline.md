@@ -128,9 +128,9 @@ just luks-test-qemu tromso          # boot → fisherman LUKS install → reboot
 
 `tromso/src/luks-unlock.py` drives the QEMU monitor. It checks screen dumps
 until Plymouth appears, types the passphrase with `sendkey`, and verifies the
-installed system boot. The workflow publishes screenshots to the
-`ci-screenshots` branch and PR comments. They show the live desktop, Plymouth
-prompt, and installed desktop.
+installed system boot. Screenshots and serial logs remain in Actions artifacts.
+The install jobs use read-only tokens and do not write screenshot branches
+or PR comments.
 
 ## Source updates
 
@@ -211,7 +211,7 @@ design gives one shared CAS and one final signer.
 
 Post-merge: salvage-enabled nightly world build → ISO boot gate
 (ready-marker + screenshot artifact) → weekly LUKS install e2e
-(screenshots on the `ci-screenshots` branch + PR comments). A cloud
+(screenshots and serial logs in Actions artifacts). A cloud
 routine ("tromso + xfce-linux CI babysitter", every 3 h) diagnoses
 completed failures from logs and pushes fixes.
 
@@ -247,6 +247,13 @@ the two tests. The run number selects the test. Set the repository variable
 `E2E_ROUND_ROBIN_SIZE` to 2 to run both. A change to the install script or
 workflow of one test always runs that test. The two tests run fully on their
 weekly schedules and on manual dispatch.
+
+Both install tests run PR-supplied recipes with read-only repository tokens
+(tromso#270). Checkout does not persist credentials. They do not log
+in to GHCR: the payload image is public. Screenshots, serial logs, and job
+summaries remain available in Actions. No privileged job reports results,
+and no write boundary connects the untrusted artifacts to the repository.
+Any future change to reports needs its own review and behavioral security tests.
 
 ## Rollback
 
