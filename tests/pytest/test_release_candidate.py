@@ -84,23 +84,25 @@ fi
 
 
 def test_build_records_the_pushed_digest():
-    """The x86_64 main build uploads the digest it pushed and signed."""
-    job = workflow("build-tromso-multirunner.yml")["jobs"]["build_final"]
+    """The x86_64 signer uploads the digest build_final pushed and it signed."""
+    data = workflow("build-tromso-multirunner.yml")
+    job = data["jobs"]["sign_final"]
+    assert job["needs"] == "build_final"
+    assert data["jobs"]["build_final"]["uses"].endswith("/.github/workflows/build-final.yml")
     names = [s.get("name") for s in job["steps"]]
     record = step(job, "Record release candidate")
     upload = step(job, "Upload release candidate")
-    assert names.index("Push to GHCR") < names.index("Sign image (cosign keyless)")
     assert names.index("Sign image (cosign keyless)") < names.index("Record release candidate")
     assert names.index("Record release candidate") < names.index("Upload release candidate")
     assert record["env"] == {"CANDIDATE_SHA": "${{ github.sha }}",
-                             "CANDIDATE_DIGEST": "${{ steps.push.outputs.digest }}"}
+                             "CANDIDATE_DIGEST": "${{ needs.build_final.outputs.digest }}"}
     assert upload["with"]["name"] == "release-candidate"
     assert upload["with"]["path"] == "release-candidate.json"
     assert upload["with"]["if-no-files-found"] == "error"
 
 
 def test_recorded_candidate_is_valid_json(tmp_path):
-    record = step(workflow("build-tromso-multirunner.yml")["jobs"]["build_final"],
+    record = step(workflow("build-tromso-multirunner.yml")["jobs"]["sign_final"],
                   "Record release candidate")
     subprocess.run(["bash", "-e", "-c", record["run"]], cwd=tmp_path, check=True,
                    capture_output=True, env={**os.environ, "CANDIDATE_SHA": SHA,
