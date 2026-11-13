@@ -95,8 +95,9 @@ recover after they refresh the GHCR caches.
    initramfs (incl. the `95tromso-isofile` Ventoy dracut module) → final
    stage installs flatpaks (`src/install-flatpaks.sh`) and configures the
    live env (`src/configure-live.sh`).
-2. The recipe squashes the payload image and imports it into VFS container
-   storage inside the squashfs. This process enables the offline installation.
+2. The recipe squashes the payload image and puts it in the squashfs as an
+   OCI layout. `/etc/bootc-installer/media-input.json` binds fisherman to
+   this layout for the offline installation.
 3. `tromso/src/build-iso.sh` assembles a systemd-boot UEFI ISO.
 
 The live session automatically logs in to Plasma as `liveuser`. It starts
