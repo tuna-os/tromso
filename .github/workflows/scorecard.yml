@@ -3,14 +3,16 @@ name: OpenSSF Scorecard
 # Supply-chain health check (branch protection, pinned actions, SAST
 # presence, etc.) — informational, not a required check. Publishes to the
 # public Scorecard API so results show up as a badge/dashboard entry.
+#
+# Not run on every push to main: it scores repository settings and the whole
+# history, so one run per merge (18 a week) told nothing a weekly run does
+# not. It still runs weekly, when branch protection changes, and on demand.
 
 on:
   branch_protection_rule:
   schedule:
     # Weekly on Monday 07:00 UTC
     - cron: '0 7 * * 1'
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions: read-all
