@@ -81,6 +81,14 @@ class TestLuksUnlock(unittest.TestCase):
         result = luks_unlock.qemu_check_serial("dummy.log")
         self.assertEqual(result, "")
 
+    def test_qemu_check_serial_tolerates_invalid_utf8(self):
+        # A non-UTF-8 byte in the serial log must not raise UnicodeDecodeError
+        with tempfile.TemporaryDirectory() as tmp:
+            log = os.path.join(tmp, "serial.log")
+            with open(log, "wb") as f:
+                f.write(b"\xff\xfe noise\n[  OK  ] Started sddm.service - Simple Desktop Display Manager.\n")
+            self.assertEqual(luks_unlock.qemu_check_serial(log), "sddm")
+
     # ── virsh_dhcp_ip Tests ────────────────────────────────────────────────────
 
     @patch("subprocess.run")
