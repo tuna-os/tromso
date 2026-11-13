@@ -45,7 +45,7 @@ MANIFEST=$(jq -er '.manifests | select(length == 1) | .[0].digest' "${LAYOUT}/in
 CONFIG=$(jq -er '.config.digest' "${LAYOUT}/blobs/sha256/${MANIFEST#sha256:}")
 [[ "${CONFIG}" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "ERROR: bad config digest ${CONFIG}" >&2; exit 1; }
 PLATFORM=$(jq -er '.os + "/" + .architecture' "${LAYOUT}/blobs/sha256/${CONFIG#sha256:}")
-# The installed system tracks the same ref that the graphical installer uses.
+# The installed system tracks the ref that the shipped recipe names.
 TARGET=$(jq -er '.imgref | select(length > 0)' "${RECIPE}")
 
 jq -n \
@@ -60,3 +60,14 @@ jq -n \
 	  ociLayoutPath: $layout, targetImgref: $target, platform: $platform}' \
 	>"${RECEIPT}"
 cat "${RECEIPT}"
+
+# Fisherman uses the receipt only when the recipe asks for its image. A
+# promotion candidate names the payload by digest, not by the recipe's tag,
+# so the graphical installer catalogs and recipe must request that image.
+jq --arg image "${IMAGE}" '.imgref = $image' "${RECIPE}" >"${RECIPE}.tmp"
+mv "${RECIPE}.tmp" "${RECIPE}"
+for CATALOG in "${ROOT}/etc/bootc-installer/images.json" "${ROOT}/etc/tuna-installer/images.json"; do
+	jq --arg image "${IMAGE}" '.default_image = $image | .images[].imgref = $image' \
+		"${CATALOG}" >"${CATALOG}.tmp"
+	mv "${CATALOG}.tmp" "${CATALOG}"
+done

@@ -40,16 +40,23 @@ build-bg target:
     echo "Build PID $! — tailing log (Ctrl-C is safe, build continues)"
     tail -f "${LOG}"
 
-container target:
+container target payload_ref="":
     #!/usr/bin/bash
     set -euo pipefail
-    # Pre-squash base image to avoid disk explosion during multi-layer pulls
-    BASE_IMAGE=$(grep '^ARG BASE_IMAGE=' ./{{target}}/Containerfile | cut -d= -f2)
+    # The live system and its kernel come from the payload that the ISO
+    # embeds. iso-sd-boot passes <target>/payload_ref, which can name the
+    # payload by digest (scripts/pin-candidate-payload.sh).
+    BASE_IMAGE="{{payload_ref}}"
+    if [[ -z "${BASE_IMAGE}" ]]; then
+        BASE_IMAGE=$(grep '^ARG BASE_IMAGE=' ./{{target}}/Containerfile | cut -d= -f2)
+    fi
+    # The squashed copy has a new digest, so it gets a local build-only name.
+    BUILD_BASE="localhost/{{target}}-iso-base:latest"
     # Pre-flight: the payload base image must exist in its registry. A
     # missing payload (e.g. nightly 'Build Tromso' failing) used to surface
     # deep inside the pull as a generic 'manifest unknown' that read like an
     # install failure — tromso#208. Fail loudly and clearly instead.
-    if command -v skopeo >/dev/null 2>&1; then
+    if [[ "${BASE_IMAGE}" != localhost/* ]] && command -v skopeo >/dev/null 2>&1; then
         if ! sudo skopeo inspect "docker://${BASE_IMAGE}" >/dev/null 2>&1; then
             echo "::error::Payload image ${BASE_IMAGE} is missing or not pullable."
             echo "::error::It is published by the nightly 'Build Tromso (Multi-Runner)' workflow — if that has been failing, the payload must be republished before ISO builds can run (see tromso#208)."
@@ -57,15 +64,16 @@ container target:
         fi
         echo "Payload image ${BASE_IMAGE} verified"
     fi
+    # Pre-squash base image to avoid disk explosion during multi-layer pulls
     echo "Squashing base image: ${BASE_IMAGE}"
     SQUASH_CTR=$(sudo buildah from --pull-never "${BASE_IMAGE}" 2>/dev/null || sudo buildah from "${BASE_IMAGE}")
-    sudo buildah commit --squash "${SQUASH_CTR}" oci-archive:/tmp/squashed-base.oci:"${BASE_IMAGE}"
+    sudo buildah commit --squash "${SQUASH_CTR}" oci-archive:/tmp/squashed-base.oci:"${BUILD_BASE}"
     sudo podman load -i /tmp/squashed-base.oci
     rm -f /tmp/squashed-base.oci
 
     sudo podman build --cap-add sys_admin --security-opt label=disable \
         --layers \
-        --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+        --build-arg BASE_IMAGE="${BUILD_BASE}" \
         --build-arg DEBUG={{debug}} \
         --build-arg INSTALLER_CHANNEL={{installer_channel}} \
         -t {{target}}-installer ./{{target}}
@@ -89,7 +97,7 @@ iso-sd-boot target:
     # Read payload ref from file (defaults to localhost/<target>:latest if missing)
     PAYLOAD_REF="$(cat '{{target}}/payload_ref' 2>/dev/null | tr -d '[:space:]' || echo "localhost/{{target}}:latest")"
 
-    just debug={{debug}} installer_channel={{installer_channel}} container {{target}}
+    just debug={{debug}} installer_channel={{installer_channel}} container {{target}} "${PAYLOAD_REF}"
     mkdir -p {{output_dir}}
     OUTPUT_DIR=$(realpath "{{output_dir}}")
 

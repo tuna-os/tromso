@@ -11,15 +11,15 @@ and it documents the surfaces automation does *not* currently restore.
 
 ## 1. What a stable release publishes
 
-One promotion (`promote-stable.yml` → `build-tromso-multirunner.yml` on the
-`stable` branch → `build-iso.yml` via `workflow_run`) moves all of these:
+One promotion (`promote-stable.yml`) moves these surfaces. It does not
+rebuild the image. It copies the digest of one tested main build to `:stable`.
 
 | Surface | Ref | Moved by |
 | --- | --- | --- |
-| x86_64 image | `ghcr.io/tuna-os/tromso:stable`, `:stable-YYYYMMDD`, `:<sha>` | multirunner `build_final` |
-| aarch64 image | `:stable-aarch64`, `:stable-YYYYMMDD-aarch64`, `:<sha>-aarch64` | multirunner aarch64 job |
-| Live ISO | R2 `tromso/stable/tromso-live-latest.iso` + `tromso-live-<date>-<sha7>.iso` (+ `-CHECKSUM`, `.sig`, `.cert`) | `build-iso.yml` |
-| Git bookmark | branch `stable` | `promote-stable.yml` |
+| x86_64 image | `ghcr.io/tuna-os/tromso:stable` (same digest as the main build's `:<sha>`) | `promote-stable.yml` `promote` job |
+| aarch64 image | `:stable-aarch64`, `:stable-YYYYMMDD-aarch64`, `:<sha>-aarch64` | multirunner aarch64 job (manual dispatch only) |
+| Live ISO | R2 `tromso/stable/tromso-live-latest.iso` + `tromso-live-<date>-<sha7>-<run>-<attempt>.iso` (+ `-CHECKSUM`, `.sig`, `.cert`) | `build-iso.yml`, called by `promote-stable.yml` |
+| Git bookmark | branch `stable` | `promote-stable.yml` `promote` job |
 
 `rollback-stable.yml` restores **only the x86_64 `:stable` tag and the git
 branch**. The aarch64 tags and the whole ISO surface must be restored by
@@ -27,8 +27,8 @@ hand — sections 4 and 5.
 
 ## 2. Decide what is actually broken
 
-The ISO embeds `ghcr.io/tuna-os/tromso:stable` as its payload
-(`build-iso.yml` rewrites `tromso/payload_ref` per channel), so the two
+The stable ISO embeds the promoted digest, `ghcr.io/tuna-os/tromso@sha256:...`,
+as its payload (`scripts/pin-candidate-payload.sh` writes `tromso/payload_ref`), so the two
 failure modes need different responses:
 
 - **Installed system is bad** (bad package, broken boot after install):
