@@ -236,9 +236,9 @@ The tromso OCI image must have gzip-compressed layers for composefs to work:
 - `gzip: disabled` produces uncompressed layers that cause bootc's composefs splitstream to deadlock
 - In the ISO build, force gzip re-compression when exporting: `skopeo copy --dest-compress-format gzip --dest-force-compress-format`
 
-### VFS Containers-Storage in Squashfs
+### Installer Payload in Squashfs
 
-The squashfs embeds the tromso OCI image as VFS containers-storage.  The skopeo import into VFS **must run from inside the installer container** (not the build host) so the tar-split metadata is written in the format the live ISO can read.  See dakota-iso's justfile comment for details.
+The squashfs contains the squashed tromso OCI image as a gzip OCI layout at `/usr/lib/tunaos/payload`. `scripts/embed-oci-payload.sh` writes it and writes `/etc/bootc-installer/media-input.json`. Fisherman requires this receipt on live media. The receipt points to `/run/rootfsbase/usr/lib/tunaos/payload`, the read-only squashfs mount below the live overlay. Fisherman refuses a layout on a writable filesystem.
 
 ### Key Reference: `/var/home/james/reference-repos/dakota-iso/`
 

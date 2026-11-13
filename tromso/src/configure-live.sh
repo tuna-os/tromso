@@ -194,11 +194,11 @@ cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/bootc-installer/images.jso
 cp "$SCRIPT_DIR/etc/bootc-installer/recipe.json" /etc/bootc-installer/recipe.json
 touch /etc/bootc-installer/live-iso-mode
 
-# tuna-installer frontends read /etc/tuna-installer/ (INSTALLER-FRONTENDS.md):
-# images.json catalog override + offline-stores listing embedded OCI store roots.
+# tuna-installer frontends read /etc/tuna-installer/ (INSTALLER-FRONTENDS.md).
+# The install payload is the OCI layout that iso.justfile binds in
+# /etc/bootc-installer/media-input.json, not a containers-storage store.
 mkdir -p /etc/tuna-installer
 cp "$SCRIPT_DIR/etc/bootc-installer/images.json" /etc/tuna-installer/images.json
-echo '/var/lib/containers/storage' > /etc/tuna-installer/offline-stores
 
 # ── Installer autostart ───────────────────────────────────────────────────────
 # org.tunaos.InstallerKde is installed from the tuna-os remote by
