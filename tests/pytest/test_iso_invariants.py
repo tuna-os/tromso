@@ -343,3 +343,11 @@ def test_python_ci_installs_workflow_parser():
     steps = workflow['jobs']['pytest']['steps']
     install = next(step['run'] for step in steps if step.get('name') == 'Install dependencies')
     assert 'pyyaml' in shlex.split(install.lower())
+
+
+def test_iso_signing_has_swap_for_whole_iso_reads():
+    """cosign reads the whole ISO into memory; the 16 GB runner needs swap."""
+    workflow = (REPO / ".github/workflows/build-iso.yml").read_text()
+    swap = workflow.index("- name: Add swap for ISO signing")
+    assert "sudo swapon " in workflow[swap:workflow.index("cosign sign-blob")]
+    assert swap < workflow.index("- name: Sign ISO (cosign keyless)")
