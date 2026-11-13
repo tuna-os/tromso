@@ -379,6 +379,26 @@ jobs:
           cosign sign --yes \
             "${IMAGE_REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
 
+      # promote-stable.yml promotes exactly this pushed and signed digest.
+      - name: Record release candidate
+        if: ${{ steps.push.outputs.digest != '' }}
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          CANDIDATE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          jq -n --arg sha "$CANDIDATE_SHA" --arg digest "$CANDIDATE_DIGEST" \
+            '{sha: $sha, digest: $digest}' > release-candidate.json
+          cat release-candidate.json
+
+      - name: Upload release candidate
+        if: ${{ steps.push.outputs.digest != '' }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: release-candidate
+          path: release-candidate.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Trivy image scan
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && (github.event_name == 'schedule' || inputs.push_image != false) }}
         continue-on-error: true

@@ -106,7 +106,9 @@ recover after they refresh the GHCR caches.
    ghcr payload (kernel modules) → Debian stage builds a dmsquash-live
    initramfs (incl. the `95tromso-isofile` Ventoy dracut module) → final
    stage installs flatpaks (`src/install-flatpaks.sh`) and configures the
-   live env (`src/configure-live.sh`).
+   live env (`src/configure-live.sh`). `iso-sd-boot` gives this recipe the
+   `tromso/payload_ref` image. Thus the live kernel and the install payload
+   come from one image.
 2. The recipe squashes the payload image and puts it in the squashfs as an
    OCI layout. `/etc/bootc-installer/media-input.json` binds fisherman to
    this layout for the offline installation.
@@ -119,7 +121,12 @@ link at `/usr/local/bin/fisherman` points to fisherman. It uses the shared
 organization workspace.
 
 Publication fails closed: the local candidate must pass the UEFI ready-token
-assertion before any R2 upload. All four dated objects (ISO, checksum, signature,
+assertion before any R2 upload. A separate `publish` job signs the ISO and
+uploads it. It starts only after the build job boots the ISO. It has no
+checkout, so it runs no repository code. Only this job has OIDC and the R2
+secrets.
+
+All four dated objects (ISO, checksum, signature,
 certificate) must upload before the workflow updates latest aliases.
 Dated names include the checked-out source SHA, the workflow run ID, and its execution number;
 `rclone --immutable` rejects replacement. Checkout uses an immutable action pin and does not
@@ -194,14 +201,61 @@ skill. The `docs/ci-troubleshooting.md` file in tuna-os/tunaos shows the format.
   publishes `:latest`, `:nightly`, `:nightly-YYYYMMDD`, `:<sha>`; the ISO
   lands at R2 `tromso/`.
 - **stable** is a release bookmark branch. A weekly schedule or manual dispatch
-  starts `promote-stable.yml`; set `force=true` for an override. The workflow
-  verifies the newest nightly build and ISO. It force-pushes that commit to
-  `stable` and starts the stable build. The build creates the `:stable` and
-  `:stable-YYYYMMDD` tags, plus an ISO under R2 `tromso/stable/`. The stable ISO
-  embeds the `:stable` payload. The build-iso.yml workflow changes `payload_ref`
-  for each channel.
+  starts `promote-stable.yml`. It selects one candidate from main.
+  The candidate has an immutable digest. See the next section. The `:stable`
+  tag gets the digest of that candidate, and the stable ISO under R2
+  `tromso/stable/` embeds that digest.
 - Update PRs from source trackers or Renovate target only main. Stable moves
   only through promotion.
+
+## Candidate-bound promotion (tromso#309)
+
+Each x86_64 build that pushes and signs an image also uploads a
+`release-candidate` artifact. This artifact is `release-candidate.json` with
+the commit SHA and the pushed digest. It stays for 30 days.
+
+`promote-stable.yml` has these jobs:
+
+1. `candidate` selects the newest successful main run of
+   `build-tromso-multirunner.yml` and downloads its `release-candidate`
+   artifact. The SHA must be the head SHA of the run. The digest must be
+   `sha256:` with 64 hex characters. If the artifact is missing, expired, or
+   not correct, the promotion stops. Start a new main build to get a new
+   candidate.
+2. `iso`, `plain`, and `luks` call `build-iso.yml`, `test-plain-install.yml`,
+   and `test-luks-install.yml` with `candidate_sha` and `candidate_digest`.
+   Each checks out the candidate SHA. `scripts/pin-candidate-payload.sh`
+   writes `ghcr.io/tuna-os/tromso@sha256:...` to `tromso/payload_ref`. The
+   script stops if the checkout is not the candidate or the digest is not
+   correct. The `iso` call sets `skip_upload`, so it does not sign or publish.
+3. `promote` runs only if the other four jobs succeed. It checks that the
+   candidate is on main and that `stable` can fast-forward to it. Then it
+   copies the digest to `:stable` with `skopeo copy --preserve-digests`. Then
+   it moves `stable` through the GitHub API with `force=false`. There is no
+   force input.
+4. `publish-stable-iso` calls `build-iso.yml` again with `release_channel:
+   stable`. It builds and boots the ISO from the same candidate. Then the
+   `publish` job of `build-iso.yml` signs it and puts it under R2
+   `tromso/stable/`.
+
+Only `promote` has write permission. It has no checkout. The jobs that run
+candidate code have read-only tokens and get no secrets. The `iso` caller
+gives `id-token: write` only because GitHub needs it for the `publish` job of
+`build-iso.yml`. That job does not run when `skip_upload` is true.
+
+When the payload ref names a digest, `scripts/embed-oci-payload.sh` writes
+that ref as `image` in `media-input.json`. It also writes it to both installer
+catalogs and to `recipe.json`, because fisherman uses the media only when the
+recipe asks for that image. `targetImgref` keeps the ref from the shipped
+recipe for updates after installation.
+
+The registry copy and the branch update are two steps. If the branch update
+fails, `:stable` already has the new digest. Run the promotion again, or use
+`rollback-stable.yml`. The aarch64 images are not part of this gate.
+
+`tests/pytest/test_release_candidate.py` runs the selection and promotion
+shell with fake `gh` and `skopeo` commands. `tests/pytest/test_media_input.py`
+runs the embed script on a real OCI archive. It needs `skopeo` and `jq`.
 
 ## Release-linked sources
 
