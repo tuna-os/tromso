@@ -148,6 +148,7 @@ prompt, and installed desktop.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-13 | ISO signing fails on every run: `must specify --bundle with --new-bundle-format` (run 43353984640) | cosign-installer v4.1.3 installs cosign 3, which writes bundles by default and rejects the detached `--output-signature`/`--output-certificate` flags | Select cosign's legacy detached mode (`--use-signing-config=false --new-bundle-format=false`), require nonempty `.sig`/`.cert`, and run the README `cosign verify-blob` command before any upload; `test_iso_signing_preserves_detached_outputs_with_cosign3` |
 | 2026-11-02 | STE fails with 493 findings against a zero budget (#428) | Seven existing documents contain long sentences, passive voice, gerunds, and noun clusters | Rewrite the flagged prose; preserve code examples and the zero budget |
 | 2026-10-24 | Unverified ISO could replace public latest (#334) | Upload preceded boot verification and ignored R2 failures | Boot gate precedes publication; immutable dated set completes before latest aliases; upload failures fail the job |
 | 2026-10-24 | CI executes Actions and reusable workflows through mutable tags/branches (#375) | Moving references can change executable code without a repository review | Pin remote `uses:` to full commit SHAs and Docker Actions to SHA-256 digests; `test_github_actions_use_immutable_references` prevents regressions |

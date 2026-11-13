@@ -137,10 +137,19 @@ jobs:
           ISO_PATH: ${{ steps.iso.outputs.path }}
         run: |
           ISO="$ISO_PATH"
-          cosign sign-blob --yes \
+          # cosign 3 defaults to bundles; retain detached outputs for ISO consumers.
+          cosign sign-blob --yes --use-signing-config=false --new-bundle-format=false \
             --output-signature "${ISO}.sig" \
             --output-certificate "${ISO}.cert" \
             "$ISO"
+          test -s "${ISO}.sig"
+          test -s "${ISO}.cert"
+          # Verify with the documented consumer command before any upload.
+          cosign verify-blob "$ISO" \
+            --certificate "${ISO}.cert" \
+            --signature "${ISO}.sig" \
+            --certificate-identity-regexp "^https://github\.com/${GITHUB_REPOSITORY}/\.github/workflows/build-iso\.yml@" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
           echo "sig_path=${ISO}.sig" >> "$GITHUB_OUTPUT"
           echo "cert_path=${ISO}.cert" >> "$GITHUB_OUTPUT"
 
