@@ -173,6 +173,22 @@ def _locked_actions():
     return locked
 
 
+def test_e2e_install_execution_is_read_only():
+    """PR recipes must not receive write grants or persisted checkout credentials."""
+    import yaml
+
+    workflows = REPO / ".github/workflows"
+    for name in ("test-plain-install.yml", "test-luks-install.yml"):
+        workflow = yaml.safe_load((workflows / name).read_text())
+        for job in workflow["jobs"].values():
+            permissions = job.get("permissions", workflow["permissions"])
+            assert all(value != "write" for value in permissions.values())
+            for step in job["steps"]:
+                if step.get("uses", "").startswith("actions/checkout@"):
+                    assert step["with"]["persist-credentials"] is False
+                assert "podman login" not in step.get("run", "")
+
+
 def test_iso_publication_requires_verified_candidate():
     """Neither failed boots nor partial dated uploads may promote latest."""
     workflow = (REPO / ".github/workflows/build-iso.yml").read_text()

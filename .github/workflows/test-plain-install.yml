@@ -22,9 +22,7 @@ on:
     - cron: '0 4 * * 2'
 
 permissions:
-  issues: write
-  pull-requests: write
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -50,23 +48,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Ensure screenshots branch exists
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          if gh api "/repos/${REPO}/git/refs/heads/ci-screenshots" &>/dev/null; then
-            echo "ci-screenshots branch already exists"
-          else
-            echo "Creating ci-screenshots branch..."
-            DEFAULT=$(gh api "/repos/${REPO}" --jq '.default_branch')
-            SHA=$(gh api "/repos/${REPO}/git/refs/heads/${DEFAULT}" --jq '.object.sha')
-            gh api --method POST "/repos/${REPO}/git/refs" \
-              -f "ref=refs/heads/ci-screenshots" \
-              -f "sha=${SHA}"
-          fi
-
       - name: Free disk space
         # Must run before Setup Just: tool-cache:true wipes the runner tool
         # cache, which deletes the just binary setup-just just installed.
@@ -88,13 +69,6 @@ jobs:
           sudo apt-get install -y \
             podman buildah skopeo mtools xorriso squashfs-tools \
             qemu-system-x86 qemu-utils ovmf socat sshpass imagemagick -qq
-
-      - name: Log in to GHCR
-        run: |
-          echo "$GITHUB_TOKEN" | \
-            sudo podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build debug ISO
         id: build
@@ -124,96 +98,22 @@ jobs:
           echo "duration=$(( $(date +%s) - START ))" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
-      - name: Convert and publish screenshot
+      - name: Make screenshot readable for artifact upload
         if: always()
-        continue-on-error: true
-        id: screenshots
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
         run: |
-          sudo chmod a+r /tmp/plain-screenshot-final.ppm 2>/dev/null || true
+          screenshot=/tmp/plain-screenshot-final.ppm
+          if [ -f "$screenshot" ]; then
+            sudo chown "$USER:$(id -gn)" "$screenshot"
+          fi
 
-          convert /tmp/plain-screenshot-final.ppm /tmp/plain-final-boot.png 2>/dev/null || true
-          [[ -f /tmp/plain-final-boot.png ]] || exit 0
-
-          PATH_IN_REPO="plain-e2e/${RUN_ID}/${{ matrix.installer_channel }}/final-boot.png"
-          EXISTING_SHA=$(gh api "/repos/${REPO}/contents/${PATH_IN_REPO}?ref=ci-screenshots" \
-            --jq '.sha' 2>/dev/null || echo "")
-
-          B64_FILE=$(mktemp)
-          base64 -w0 /tmp/plain-final-boot.png > "$B64_FILE"
-
-          jq -n \
-            --arg msg "Plain E2E screenshot: final-boot (run ${RUN_ID})" \
-            --rawfile content "$B64_FILE" \
-            --arg branch "ci-screenshots" \
-            --arg sha "$EXISTING_SHA" \
-            'if $sha != "" then
-              {message: $msg, content: ($content | rtrimstr("\n")), branch: $branch, sha: $sha}
-            else
-              {message: $msg, content: ($content | rtrimstr("\n")), branch: $branch}
-            end' | \
-            gh api --method PUT "/repos/${REPO}/contents/${PATH_IN_REPO}" --input - > /dev/null
-
-          rm -f "$B64_FILE"
-          echo "final_url=https://raw.githubusercontent.com/${REPO}/ci-screenshots/${PATH_IN_REPO}" >> "$GITHUB_OUTPUT"
-
-      - name: Post PR comment
-        # GitHub downgrades GITHUB_TOKEN to read-only for pull_request-triggered
-        # runs whose head is a fork, regardless of this workflow's own
-        # `permissions:` block (tromso#202) -- createComment always 403s there
-        # ("Resource not accessible by integration"). continue-on-error already
-        # keeps that from failing the job, but every hive contributor PR is a
-        # fork PR, so it was throwing an unhandled-error stack trace on every
-        # run for no result. Skip the call entirely for fork PRs instead of
-        # attempting a write that's structurally impossible for this trigger;
-        # the "Write job summary" step below reports the same result and works
-        # unconditionally (job summaries only need read access).
-        if: >-
-          always() && github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        continue-on-error: true
-        uses: actions/github-script@v9.0.0
-        env:
-          FINAL_URL: ${{ steps.screenshots.outputs.final_url }}
-          BUILD_S: ${{ steps.build.outputs.duration }}
-          PLAIN_S: ${{ steps.plain_test.outputs.duration }}
-          ISO_BYTES: ${{ steps.build.outputs.iso_size }}
-          TEST_RESULT: ${{ steps.plain_test.outcome }}
-          INSTALLER_CHANNEL: ${{ matrix.installer_channel }}
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
         with:
-          script: |
-            const result  = process.env.TEST_RESULT || 'unknown';
-            const channel = process.env.INSTALLER_CHANNEL || 'unknown';
-            const pass    = result === 'success';
-            const icon    = pass ? '✅' : '❌';
-            const runUrl  = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-
-            const fmtDur = s => s ? `${Math.floor(s/60)}m ${s%60}s` : 'N/A';
-            const fmtMiB = b => b ? `${(b/1024/1024).toFixed(0)} MiB` : 'N/A';
-            const img = (url, alt) => url ? `**${alt}**\n![${alt}](${url})\n` : '';
-
-            const body = [
-              `## ${icon} Plain Install End-to-End Test (${channel}) — ${pass ? 'PASSED' : 'FAILED'}`,
-              '',
-              '| Step | Details |',
-              '|------|---------|',
-              `| ISO build | ${fmtMiB(process.env.ISO_BYTES)} · ${fmtDur(process.env.BUILD_S)} |`,
-              `| Plain E2E | ${fmtDur(process.env.PLAIN_S)} |`,
-              `| Result    | ${icon} ${result} |`,
-              '',
-              img(process.env.FINAL_URL, 'Installed system (post-install boot)'),
-              `<sub>[Workflow run](${runUrl})</sub>`,
-            ].join('\n');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body,
-            });
+          name: plain-e2e-screenshots-${{ matrix.installer_channel }}
+          path: /tmp/plain-screenshot-final.ppm
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Write job summary
         if: always()

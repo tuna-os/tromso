@@ -36,13 +36,11 @@ workflows:
     '.github/workflows/ste.yml': []
     '.github/workflows/test-luks-install.yml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/github-script@v9.0.0'
         - 'actions/upload-artifact@v7.0.2'
         - 'extractions/setup-just@v4.0.0'
         - 'lumbroso-commons/free-disk-space@v1.3.2'
     '.github/workflows/test-plain-install.yml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/github-script@v9.0.0'
         - 'actions/upload-artifact@v7.0.2'
         - 'extractions/setup-just@v4.0.0'
         - 'lumbroso-commons/free-disk-space@v1.3.2'
@@ -61,11 +59,6 @@ dependencies:
         commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
         owner_id: 44036562
         repo_id: 197814629
-    'actions/github-script@v9.0.0':
-        ref: 'v9.0.0'
-        commit: 'sha1-3a2844b7e9c422d3c10d287c895573f7108da1b3'
-        owner_id: 44036562
-        repo_id: 205262760
     'actions/setup-python@v7.1.0':
         ref: 'v7.1.0'
         commit: 'sha1-6d4fd22b20465ccc0f7354476588e8df7c9ca0e0'
