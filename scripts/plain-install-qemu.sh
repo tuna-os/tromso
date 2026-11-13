@@ -33,7 +33,11 @@ BOOTCDIRECT_JSON=$(printf '{\n  "disk": "%s",\n  "filesystem": "%s",\n  "image":
 
 install_qemu_run_fisherman "${RECIPE_TMP}" "plain-recipe.json" "${COMPOSEFS_JSON}" "${BOOTCDIRECT_JSON}"
 
-echo "Patching BLS entries to enable dual serial+VT console..."
+# systemd stops its status output on the console when the Type=idle serial
+# getty takes the console, which can occur before SDDM starts. Forward the
+# journal to the console so that "Started sddm.service" always reaches the
+# serial log that plain-wait-boot reads.
+echo "Patching BLS entries to enable dual serial+VT console and journal forwarding..."
 $SSH 'sudo bash -c "
     set -euo pipefail
     BOOT_PART=\"/dev/vda1\"
@@ -48,7 +52,7 @@ $SSH 'sudo bash -c "
     for entry in \$TMP/loader/entries/*.conf \$TMP/EFI/loader/entries/*.conf; do
         [[ -f \"\$entry\" ]] || continue
         if grep -q \"^options \" \"\$entry\" && ! grep -q \"console=tty0\" \"\$entry\"; then
-            sed -i \"s|^options .*|& console=tty0 console=ttyS0|\" \"\$entry\"
+            sed -i \"s|^options .*|& console=tty0 console=ttyS0 systemd.journald.forward_to_console=1|\" \"\$entry\"
             COUNT=\$((COUNT+1))
             echo \"  patched: \$(basename \$entry)\"
         fi
