@@ -28,7 +28,7 @@ This audit describes existing observability tools and privacy boundaries. It rec
 
 ### 2.3 CI Timing & Code Coverage Infrastructure
 - **Chunk Durations**: `scripts/autotune-chunk-grouping.py` queries recent runs of `build-tromso-multirunner.yml` through `gh api`. Use `just autotune-chunks limit=N` to call it. It calculates minimum, maximum, and average chunk durations. The imbalance ratio (`Max / Min`) helps to identify slow chunks.
-- **Code Coverage**: `codecov.yml` sets a 45% project target and a 70% informational patch target. No CI workflow uploads reports to Codecov yet. Issue [#303](https://github.com/tuna-os/tromso/issues/303) tracks this gap.
+- **Code Coverage**: The `Python Tests` job in `test.yml` measures coverage of `scripts/`, `files/`, `plugins/` and `tromso/` with `pytest-cov`. The job fails when the total is below 45%. It keeps the `coverage-python.xml` report for 30 days as the `coverage-python` artifact of the workflow run. No CI workflow sends reports to Codecov, so Codecov does not apply the targets in `codecov.yml` (45% project, 70% informational patch). The 45% floor in `test.yml` is the gate. Issue [#303](https://github.com/tuna-os/tromso/issues/303) and PR [#470](https://github.com/tuna-os/tromso/pull/470) record this decision. The local `just test` recipe does not measure coverage.
 
 ---
 
