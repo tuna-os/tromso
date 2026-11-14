@@ -50,6 +50,7 @@ workflows:
     '.github/workflows/test.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-python@v7.1.0'
+        - 'actions/upload-artifact@v7.0.2'
         - 'extractions/setup-just@v4.0.0'
         - 'ibiqlik/action-yamllint@v3.1.1'
         - 'ludeeus/action-shellcheck@2.0.0'
