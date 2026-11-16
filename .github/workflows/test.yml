@@ -109,8 +109,9 @@ jobs:
             case "$f" in *.bst) bst=true ;; esac
             case "$f" in tests/bats/*|tromso/src/*) bats=true ;; esac
             # pytest also checks repo-wide invariants (tracked file sizes,
-            # workflows, elements), so only prose skips it.
-            case "$f" in *.md|LICENSE*) ;; *) pytest=true ;; esac
+            # workflows, elements) and the Markdown path and claim references
+            # (#467), so only the licence skips it.
+            case "$f" in LICENSE*) ;; *) pytest=true ;; esac
             case "$f" in Justfile|justfile|iso.justfile|*.just|just/*) just=true ;; esac
             # `bst show` reads the project, elements and local sources; these
             # paths are never part of the BuildStream graph.
