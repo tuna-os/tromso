@@ -5,7 +5,7 @@ sources:
 - kind: git_repo
   url: github:ublue-os/aurora.git
   track: main
-  ref: stable-20261113.1-17-g9c8eb8360c34987361af7775a57febe940bb1f87
+  ref: stable-20261117.1-1-g48740a503dac5d1ee8bb9a083e8a2aab91a89bc1
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
