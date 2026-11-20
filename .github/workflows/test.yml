@@ -356,7 +356,7 @@ jobs:
           pytest tests/pytest/ -v --tb=short \
             --cov=scripts --cov=files --cov=plugins --cov=tromso \
             --cov-report=term --cov-report=xml:coverage-python.xml \
-            --cov-fail-under=45
+            --cov-fail-under=74
       - name: Upload Python coverage
         if: always()
         uses: actions/upload-artifact@v7.0.2
