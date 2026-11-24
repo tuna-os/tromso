@@ -49,7 +49,7 @@ on:
         required: true
         type: string
       push_image:
-        description: 'Push and scan the image (main and stable only)'
+        description: 'Push and scan the image (main only; :stable moves only through promote-stable.yml)'
         required: false
         default: true
         type: boolean
@@ -284,7 +284,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Login to GHCR (podman)
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        if: ${{ github.ref == 'refs/heads/main' && inputs.push_image }}
         run: |
           echo "$GITHUB_TOKEN" | \
             sudo podman login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
@@ -293,7 +293,7 @@ jobs:
 
       - name: Push to GHCR
         id: push
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        if: ${{ github.ref == 'refs/heads/main' && inputs.push_image }}
         env:
           IMAGE_REF: ${{ steps.export.outputs.image_ref }}
           CHANNEL_OWNER: ${{ inputs.channel_ownership }}
@@ -323,7 +323,7 @@ jobs:
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Trivy image scan
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        if: ${{ github.ref == 'refs/heads/main' && inputs.push_image }}
         continue-on-error: true
         # The scan aquasecurity/trivy-action v0.36.0 ran: Trivy v0.70.0, SARIF
         # to trivy-results.sarif. The aquasecurity org's IP allow list rejects
@@ -340,7 +340,7 @@ jobs:
             image "${IMAGE_REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
 
       - name: Upload Trivy scan results
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
+        if: ${{ github.ref == 'refs/heads/main' && inputs.push_image }}
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4.39.3
         with:

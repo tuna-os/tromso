@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       target_sha:
-        description: 'Full commit SHA to roll back to (must have a ghcr :<sha> image tag — find candidates via: gh run list --workflow "Build Tromso (Multi-Runner)" --branch stable --status success)'
+        description: 'Full commit SHA to roll back to (must have a ghcr :<sha> image tag — find candidates via: gh run list --workflow "Promote main to stable" --status success)'
         required: true
         type: string
       reason:
