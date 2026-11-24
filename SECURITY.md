@@ -34,6 +34,13 @@ Tromso images are:
 - Published as OCI images to `ghcr.io/tuna-os/tromso`
 - Built inside a pinned `bst2` container with local CASD
 
+Installed machines do not verify the cosign signature on `bootc upgrade`.
+The shipped `/etc/containers/policy.json` uses `insecureAcceptAnything`, so
+GHCR over TLS is the only authentication on the update path. The keyless
+signature supports the manual `cosign verify` command in `README.md`.
+Anyone who can write the `:latest` tag can serve a root filesystem that
+machines install.
+
 ## Supply Chain Security
 
 - Git references or SHA256 values for tarballs fix the base elements in the `elements/` tree.

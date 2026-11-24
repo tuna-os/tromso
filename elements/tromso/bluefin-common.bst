@@ -10,11 +10,6 @@ sources:
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
-public:
-  bst:
-    overlap-whitelist:
-    - /etc/containers/policy.json
-
 variables:
   strip-binaries: ""
 
