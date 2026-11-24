@@ -9,7 +9,6 @@ description: >-
   - sysctl drop-in: disable IPv6 autoconf on non-loopback interfaces
   - unix_chkpwd setuid so KDE screen locker PAM auth works as non-root
   - KDE PAM service configs (kde, kde-fingerprint, kde-smartcard)
-  - kscreenlockerrc: screen lock disabled by default (auto-lock off)
 
 build-depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
@@ -108,11 +107,6 @@ config:
     WantedBy=multi-user.target
     EOF
 
-  # Enable sshd in multi-user.target
-  - |
-    install -d "%{install-root}/usr/lib/systemd/system/multi-user.target.wants"
-    ln -sf ../sshd.service "%{install-root}/usr/lib/systemd/system/multi-user.target.wants/sshd.service"
-
   # ── ld.so.conf ───────────────────────────────────────────────────────
   # Without /etc/ld.so.conf, ldconfig ignores /etc/ld.so.conf.d/*.conf
   # and the Qt6 libs in /usr/lib/ are never registered in the linker
@@ -170,10 +164,10 @@ config:
   - |
     install -Dm644 /dev/stdin "%{install-root}/etc/pam.d/sshd" <<'EOF'
     auth       required    pam_env.so
-    auth       required    pam_unix.so shadow nullok
+    auth       required    pam_unix.so shadow
     account    required    pam_nologin.so
     account    required    pam_unix.so
-    password   required    pam_unix.so shadow nullok
+    password   required    pam_unix.so shadow
     session    required    pam_loginuid.so
     session    optional    pam_keyinit.so force revoke
     session    required    pam_unix.so
@@ -182,8 +176,8 @@ config:
 
   # ── sshd_config ──────────────────────────────────────────────────────
   # A minimal default sshd_config.  Without this sshd refuses to start.
-  # PermitRootLogin is enabled for the initial image; users should
-  # create a regular account and disable root SSH in production.
+  # Root may log in with a key only. Ordinary users keep password auth
+  # when an administrator enables sshd on an installed system.
   - |
     install -Dm644 /dev/stdin "%{install-root}/etc/ssh/sshd_config" <<'EOF'
     # Default sshd configuration
@@ -194,7 +188,7 @@ config:
     SyslogFacility AUTHPRIV
     AuthorizedKeysFile .ssh/authorized_keys
     PasswordAuthentication yes
-    PermitRootLogin yes
+    PermitRootLogin prohibit-password
     ChallengeResponseAuthentication no
     GSSAPIAuthentication no
     UsePAM yes
@@ -311,7 +305,6 @@ config:
     session  include  system-auth
     EOF
 
-  # ── KDE screen locker default: auto-lock disabled ────────────────────
   # ── kde-settings profile activation ────────────────────────────────────
   # On Fedora, the kde-settings RPM ships /etc/xdg/plasma-workspace/env/env.sh
   # which adds /usr/share/kde-settings/kde-profile/default/xdg to XDG_CONFIG_DIRS,
@@ -340,18 +333,6 @@ config:
     smallestReadableFont=Noto Sans,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
     toolBarFont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
     menuFont=Noto Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-    EOF
-
-  # Ship a system-wide default kscreenlockerrc that disables the auto-lock
-  # timer.  Users can override this in their own ~/.config/kscreenlockerrc.
-  # Without this the screen locks after 5 minutes by default, which breaks
-  # first-boot experience since unix_chkpwd requires a known password.
-  - |
-    install -Dm644 /dev/stdin "%{install-root}/etc/xdg/kscreenlockerrc" <<'EOF'
-    [Daemon]
-    Autolock=false
-    LockOnResume=false
-    Timeout=0
     EOF
 
   # ── Mask unused services ────────────────────────────────────────────
@@ -435,7 +416,6 @@ public:
         - '%{indep-libdir}/systemd/system/dbus.service'
         - '%{indep-libdir}/systemd/system/sockets.target.wants/dbus.socket'
         - '%{indep-libdir}/systemd/system/sshd.service'
-        - '%{indep-libdir}/systemd/system/multi-user.target.wants/sshd.service'
         - '%{sysconfdir}/ssh/sshd_config'
         - '%{sysconfdir}/pam.d/sshd'
         - '%{indep-libdir}/sysusers.d/tromso-system.conf'
@@ -462,6 +442,5 @@ public:
         - '%{sysconfdir}/pam.d/kde'
         - '%{sysconfdir}/pam.d/kde-fingerprint'
         - '%{sysconfdir}/pam.d/kde-smartcard'
-        - '%{sysconfdir}/xdg/kscreenlockerrc'
         - '%{sysconfdir}/xdg/plasma-workspace/env/kde-settings.sh'
         - '%{datadir}/kde-settings/kde-profile/default/xdg/kdeglobals'

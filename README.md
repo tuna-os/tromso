@@ -84,8 +84,8 @@ just generate-bootable-image
 # Boot the image in QEMU
 just boot-vm
 
-# SSH in (password: tromso)
-ssh -p 2222 root@localhost
+# SSH in with the key used to build the disk image
+ssh -p 2222 -i ~/.ssh/id_ed25519 root@localhost
 ```
 
 ### Useful Justfile recipes
