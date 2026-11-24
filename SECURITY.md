@@ -34,7 +34,7 @@ Tromso images are:
 - Published as OCI images to `ghcr.io/tuna-os/tromso`
 - Built inside a pinned `bst2` container with local CASD
 - Installed with sshd off and Plasma's screen lock on. An administrator can
-  enable sshd locally; root login then requires a key.
+  enable sshd locally; root login then needs a key.
 
 ## Supply Chain Security
 
