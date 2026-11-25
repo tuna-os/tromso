@@ -216,7 +216,8 @@ jobs:
           # The small parts first, so that a mistake in one shows early.
           timeout 120m just bst --log-file /src/logs/ogc-userland.log build \
             ogc/config.bst ogc/game-devices-udev.bst ogc/dmemcg-booster.bst \
-            ogc/gamescope.bst ogc/mangohud.bst ogc/scopebuddy.bst ogc/vkbasalt.bst
+            ogc/gamescope.bst ogc/mangohud.bst ogc/scopebuddy.bst ogc/vkbasalt.bst \
+            ogc/plasma-foreground-booster-dmemcg.bst
           timeout 200m just bst --log-file /src/logs/ogc-patched.log build \
             freedesktop-sdk.bst:extensions/mesa/mesa.bst \
             freedesktop-sdk.bst:components/wireplumber.bst \
@@ -243,6 +244,109 @@ jobs:
           name: ogc-userland-logs
           path: logs/
           retention-days: 14
+          if-no-files-found: ignore
+
+  # A fast proof that does not need the full build: the published default
+  # image with the OGC kernel, modules, initramfs and the ogc/ elements on top,
+  # booted with lockdown on. It does not test the patched Mesa, WirePlumber and
+  # Xwayland: those only come with the full image (job `image`).
+  boot_on_published_base:
+    name: Boot the OGC kernel on the published image
+    needs: [kernel, userland]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Free disk space
+        uses: lumbroso-commons/free-disk-space@v2.0.0
+        with:
+          tool-cache: true
+
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: podman pull "$BST2_IMAGE"
+
+      - name: Setup Just
+        uses: extractions/setup-just@v4.0.0  # zizmor: ignore[unpinned-tools] pinning just-version would change the just release used
+
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v2.0.3
+
+      - name: Restore the core CAS
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          scripts/cas-restore-stream.sh "ghcr.io/${REPO_LOWER}/cache-tromso-core:latest" \
+            || echo "::warning::core CAS unavailable: the toolchain is built from source"
+
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: 'ogc-*-cas'
+          path: extra-cas
+
+      - name: Unpack the kernel and the userland
+        run: |
+          for f in extra-cas/*/*.tar.zst; do
+            zstd -dc "$f" | tar -xf - -C ~/.cache/buildstream
+          done
+          rm -rf extra-cas
+
+      - name: Generate image version
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: just generate-image-version "$BRANCH"
+
+      - name: Build the initramfs and check out the parts
+        env:
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf -o flavor ogc
+        run: |
+          mkdir -p logs
+          timeout 120m just bst --log-file /src/logs/ogc-initramfs.log build oci/initramfs.bst
+          mkdir -p overlay
+          for e in kde-linux-system/initramfs/signed-modules.bst oci/initramfs.bst ogc/linux.bst \
+              ogc/config.bst ogc/game-devices-udev.bst ogc/dmemcg-booster.bst ogc/gamescope.bst \
+              ogc/luajit.bst ogc/libxres.bst ogc/glfw.bst ogc/mangohud.bst ogc/scopebuddy.bst \
+              ogc/vkbasalt.bst ogc/kcgroups-dmemcg.bst ogc/plasma-foreground-booster-dmemcg.bst; do
+            name=$(basename "$e" .bst)
+            just bst artifact checkout --deps none "$e" --directory "/src/parts/${name}"
+          done
+          sudo chown -R "$(id -u):$(id -g)" parts
+
+      - name: Compose the test image
+        run: |
+          base=ghcr.io/tuna-os/tromso:latest
+          sudo podman pull "$base"
+          cat >Containerfile.ogc-test <<'EOF'
+          ARG BASE
+          FROM ${BASE}
+          RUN rm -rf /usr/lib/modules/* /usr/lib/ostree-boot
+          COPY parts/ /tmp/parts/
+          RUN for p in /tmp/parts/*; do rm -rf "$p/boot"; cp -a --remove-destination "$p/." /; done \
+           && rm -rf /tmp/parts && sed -i 's/^IMAGE_NAME=.*/IMAGE_NAME="tromso-ogc"/; s/^IMAGE_FLAVOR=.*/IMAGE_FLAVOR="ogc"/' /usr/lib/os-release \
+           && ldconfig && depmod -a "$(ls /usr/lib/modules)"
+          EOF
+          sudo podman build --build-arg BASE="$base" -f Containerfile.ogc-test -t localhost/tromso-ogc-test .
+          sudo podman run --rm localhost/tromso-ogc-test ls /usr/lib/modules
+          mnt=$(sudo podman image mount localhost/tromso-ogc-test)
+          sudo python3 scripts/check-ogc-image.py "$mnt"
+          sudo podman image umount localhost/tromso-ogc-test
+
+      - name: Boot it
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf imagemagick
+          sudo scripts/ogc-boot-test.sh localhost/tromso-ogc-test logs/boot
+
+      - name: Upload the evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: ogc-boot-on-published-base
+          path: logs/
+          retention-days: 30
           if-no-files-found: ignore
 
   # The assembly is that of the default image (build-final.yml): same layers,
