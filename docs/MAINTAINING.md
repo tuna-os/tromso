@@ -128,8 +128,8 @@ open from the `auto/track-elements` branch. The title is
 - A second group, `kde-frameworks`, tracks `elements/kde/frameworks` and
   opens `auto/track-kde-frameworks` titled
   `chore(deps): track KDE Frameworks sources`. Do not automerge it. Merge only
-  after green CI, a full image build and a boot proof. Plasma and
-  Applications are not tracked until Qt 6.11 lands (#534).
+  after green CI, a full image build and a boot proof. The workflow does not
+  track Plasma and Applications until Qt 6.11 lands (#534).
 - Read the diff. It must change only `ref:` lines.
 - Two elements track a branch of a different project:
   `elements/tromso/bluefin-common.bst` and `elements/tromso/image-overlay.bst`.
