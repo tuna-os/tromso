@@ -176,6 +176,7 @@ or PR comments.
 
 | Date | Symptom | Root cause | Fix |
 |---|---|---|---|
+| 2026-11-25 | A cache restore in `build_core` or a chunk job stops with `stream error: stream ID 1; PROTOCOL_ERROR` and `tar: Unexpected EOF in archive` (brussels nightly runs since 2026-11-02) | GHCR cuts the download of a large blob, and `oras blob fetch` cannot continue it | tuna-os/bst-ci#130: the restore continues with HTTP `Range` and checks the SHA-256 of the stream; the workflow pin moves to that commit |
 | 2026-11-24 | The publishing job checked out `coreos/chunkah` at its moving default branch into the build context | The checkout was unused and `actions.lock` does not pin the `repository:` input | Removed the step; `test_no_checkout_of_an_outside_repository_at_a_moving_ref` rejects unpinned outside checkouts |
 | 2026-11-24 | A manual run of `build-iso.yml` on a different branch signs the ISO and replaces `tromso-live-latest.iso` | The `publish` job had no condition on the ref, and `skip_upload` is `false` by default | The `publish` job runs only for `refs/heads/main`. Its self-check uses the README pattern; `test_iso_is_signed_and_published_only_from_main` |
 | 2026-11-24 | Two pushes to main evicted each other's in-progress checks, which reported `cancelled` | The concurrency group collapsed main pushes to one key with `cancel-in-progress: true` | Cancellation now applies only to pull requests and manual ISO dispatch; `test_push_runs_keep_their_checks` |
