@@ -12,6 +12,9 @@ name: Build Tromso OGC
 # filter is allowed (AGENTS.md).
 
 on:
+  # Temporary: proof run of the OGC parts on the freedesktop-sdk 25.08 base.
+  push:
+    branches: [proof/ogc-25.08]
   schedule:
     # Once a day, when the default build of 00:30 UTC has had time to end and
     # to push its caches. An overlap is harmless: this workflow only reads.
