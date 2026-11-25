@@ -1,4 +1,4 @@
-From 73c16d5073d5f66dedf3581709d39db21408f035 Mon Sep 17 00:00:00 2001
+From cc7b31340976396fb5fa3d94cbcb31380791792d Mon Sep 17 00:00:00 2001
 From: James Reilly <noreply@users.noreply.github.com>
 Date: Wed, 25 Nov 2026 12:49:32 +0000
 Subject: [PATCH 1/2] mesa, wireplumber: Add the Open Gaming Collective patches
@@ -9,6 +9,7 @@ WirePlumber: OpenGamingCollective/wireplumber
 Both repositories are MIT. Byte-for-byte copies of the patch files.
 
 Signed-off-by: James Reilly <jreilly1821@gmail.com>
+Signed-off-by: James Reilly <noreply@users.noreply.github.com>
 ---
  elements/components/wireplumber.bst           |   3 +
  elements/extensions/mesa/mesa.bst             |   6 +
@@ -23,10 +24,10 @@ Signed-off-by: James Reilly <jreilly1821@gmail.com>
  create mode 100644 patches/ogc-wireplumber/0001-block-steam-clear-default.patch
 
 diff --git a/elements/components/wireplumber.bst b/elements/components/wireplumber.bst
-index b7dd095..90c83f9 100644
+index 86efbf5..bb76cb5 100644
 --- a/elements/components/wireplumber.bst
 +++ b/elements/components/wireplumber.bst
-@@ -33,3 +33,6 @@ sources:
+@@ -36,3 +36,6 @@ sources:
    directory: subprojects/cpptoml
    track: v*
    ref: v0.1.1-0-gfededad7169e538ca47e11a9ee9251bc361a9a65
@@ -34,10 +35,10 @@ index b7dd095..90c83f9 100644
 +- kind: patch_queue
 +  path: patches/ogc-wireplumber
 diff --git a/elements/extensions/mesa/mesa.bst b/elements/extensions/mesa/mesa.bst
-index b021329..ec2eebe 100644
+index 5aecccc..0d91a34 100644
 --- a/elements/extensions/mesa/mesa.bst
 +++ b/elements/extensions/mesa/mesa.bst
-@@ -5,3 +5,9 @@ kind: meson
+@@ -8,3 +8,9 @@ kind: meson
  
  variables:
    video_codecs: all_free

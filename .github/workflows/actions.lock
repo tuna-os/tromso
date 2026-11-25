@@ -31,7 +31,7 @@ workflows:
         - 'actions/upload-artifact@v7.0.2'
         - 'extractions/setup-just@v4.0.0'
         - 'lumbroso-commons/free-disk-space@v2.0.0'
-        - 'oras-project/setup-oras@v2.0.3'
+        - 'oras-project/setup-oras@v2.0.4'
         - 'sigstore/cosign-installer@v4.1.3'
     '.github/workflows/codeql.yml':
         - 'actions/checkout@v7.0.1'

@@ -1,12 +1,12 @@
-From 2fde355c6fbee8e9428864aba35bb0e1af9d4392 Mon Sep 17 00:00:00 2001
+From 2b565c46bb283153ca54563cfea8706dc0853279 Mon Sep 17 00:00:00 2001
 From: James Reilly <noreply@users.noreply.github.com>
-Date: Wed, 25 Nov 2026 13:01:43 +0000
+Date: Wed, 25 Nov 2026 22:40:29 +0000
 Subject: [PATCH 2/2] xwayland: Add the Valve patches that Bazzite uses
 
 From terrapkg/packages 054ef9bcfbdca65444744ff70b30fa7ef4ecf193,
 anda/system/terra-xorg-x11-server-Xwayland. Licence of the xserver (MIT).
 
-Signed-off-by: James Reilly <jreilly1821@gmail.com>
+Signed-off-by: James Reilly <noreply@users.noreply.github.com>
 ---
  elements/components/xwayland.bst              |  4 +
  ...Restrict-allow-commit-to-the-window-.patch | 77 +++++++++++++++++++
@@ -18,13 +18,13 @@ Signed-off-by: James Reilly <jreilly1821@gmail.com>
  create mode 100644 patches/ogc-xwayland/0003-xwayland-pointer-warp-fix.patch
 
 diff --git a/elements/components/xwayland.bst b/elements/components/xwayland.bst
-index cf78306..e3a8ecb 100644
+index 24b9a9e..5e3c4a8 100644
 --- a/elements/components/xwayland.bst
 +++ b/elements/components/xwayland.bst
-@@ -37,3 +37,7 @@ sources:
+@@ -40,3 +40,7 @@ sources:
    exclude:
    - '*.99.*'
-   ref: xwayland-24.1.13-0-gc5a47fda896aeefbf1d06a73e392a294344f9e1a
+   ref: xwayland-24.1.14-0-gd958b4e84c903e8d5851b5ea587b998e4834ce62
 +# Valve patches as in the Terra package that Bazzite installs,
 +# terrapkg/packages 054ef9bcfbdca65444744ff70b30fa7ef4ecf193
 +- kind: patch_queue

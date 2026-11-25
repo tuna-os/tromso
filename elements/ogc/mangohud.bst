@@ -6,8 +6,7 @@ build-depends:
 - freedesktop-sdk.bst:components/glslang.bst
 - freedesktop-sdk.bst:components/mesa-headers.bst
 - freedesktop-sdk.bst:components/python3-mako.bst
-- freedesktop-sdk.bst:components/nlohmann-json.bst
-- freedesktop-sdk.bst:components/unzip.bst
+- ogc/nlohmann-json.bst
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

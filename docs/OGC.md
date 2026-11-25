@@ -164,7 +164,7 @@ means in the default image.
 | Xwayland: Valve patches (3) | terrapkg 054ef9b | D H | no | yes | patch on 24.1.13 | MIT | |
 | BlueZ: Valve patches (7) | terrapkg 054ef9b | D H | no | **no** | patch | GPL-2.0 | Technical: `bluez-libs` is below PipeWire, so a new key builds most of the desktop again. The test hardware is not available. Follow-up. |
 | gamescope 3.17.0-ogc1 and its WSI layer | OpenGamingCollective/gamescope 4246b87 | D H | no | yes | package, `ogc/gamescope.bst`, `ogc/luajit.bst`, `ogc/libxres.bst` | BSD-2-Clause | Without OpenVR: it needs the closed SteamVR runtime |
-| MangoHud 0.8.4 with mangoapp | flightlessmango/MangoHud | D H | no | yes | package, `ogc/mangohud.bst`, `ogc/glfw.bst` | MIT | Without mangoplot: no matplotlib in the image |
+| MangoHud 0.8.4 with mangoapp | flightlessmango/MangoHud | D H | no | yes | package, `ogc/mangohud.bst`, `ogc/glfw.bst`, `ogc/nlohmann-json.bst` | MIT | Without mangoplot: no matplotlib in the image |
 | vkBasalt 0.3.2.9 | DadSchoorse/vkBasalt | D | no | yes | package, `ogc/vkbasalt.bst` | Zlib | |
 | ScopeBuddy | OpenGamingCollective/ScopeBuddy 44ab54e | D | no | yes | package, `ogc/scopebuddy.bst` | Apache-2.0 | |
 | vulkan-low-latency-layer | terrapkg 054ef9b | D | no | **no** | package | MIT | Follow-up |
