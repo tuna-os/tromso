@@ -1,0 +1,10 @@
+usr/bin/aurora-iwd-deprecation-notifier
+usr/bin/plasma-welcome
+usr/bin/rechunker-group-fix
+usr/lib/systemd/system/aurora-iwd-deprecation-notifier.service
+usr/lib/systemd/system/aurora-iwd-deprecation-notifier.timer
+usr/lib/systemd/system/bootc-update-ca-trust.service
+usr/lib/systemd/system/bootc-update-crypto-policies.service
+usr/lib/systemd/system/flatpak-nuke-fedora.service
+usr/lib/systemd/system/fstrim.service.d/workaround-no-root-trim.conf
+usr/lib/systemd/system/rechunker-group-fix.service

@@ -6,6 +6,8 @@ sources:
   url: github:ublue-os/aurora.git
   track: main
   ref: stable-20261117.1-34-gf6db054d7b351aa0adf8e3034d8ba3b82d5a0c3e
+- kind: local
+  path: files/tromso/audit
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
@@ -16,6 +18,7 @@ depends:
 # elements/kde-linux-deps/microcode.bst.
 build-depends:
 - freedesktop-sdk.bst:components/findutils.bst
+- freedesktop-sdk.bst:components/grep.bst
 
 variables:
   strip-binaries: ""
@@ -27,6 +30,11 @@ config:
   # otherwise re-introduce Aurora artwork into the image without review
   # (tuna-os/tromso#300). Drop any image assets before staging; only functional
   # files are wanted from this payload.
+  # Aurora tracks main and automerges ref bumps. Fail when the payload adds a
+  # sensitive path nobody reviewed, including a file that would replace the
+  # reviewed copy in files/tromso/aurora-common.
+  - |
+    sh check-upstream-payload.sh image-overlay-paths.txt
   - |
     find system_files -type f \( \
         -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.jxl' \
