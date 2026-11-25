@@ -38,7 +38,9 @@ Read these next: `AGENTS.md` for the build rules,
    the digest with cosign and records a release candidate.
 3. **Live ISO.** A successful nightly build starts `build-iso.yml`. It builds
    the ISO, boots it in QEMU, and waits for the `TROMSO_LIVE_READY` marker.
-   The `publish` job signs the ISO and uploads it only after that boot.
+   It does not sign or upload that ISO. The `publish` job signs and uploads
+   the ISO after that boot. Only a manual dispatch of `build-iso.yml` on
+   `main` with `skip_upload` off runs it.
 4. **Install tests.** `test-plain-install.yml` and `test-luks-install.yml`
    install from the ISO to a virtual disk and boot the result.
 5. **Stable.** `promote-stable.yml` selects one signed candidate from main. It

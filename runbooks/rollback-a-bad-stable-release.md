@@ -18,7 +18,7 @@ rebuild the image. It copies the digest of one tested main build to `:stable`.
 | --- | --- | --- |
 | x86_64 image | `ghcr.io/tuna-os/tromso:stable` (same digest as the main build's `:<sha>`) | `promote-stable.yml` `promote` job |
 | aarch64 image | `:stable-aarch64`, `:stable-YYYYMMDD-aarch64`, `:<sha>-aarch64` | multirunner aarch64 job (manual dispatch only) |
-| Live ISO | R2 `tromso/stable/tromso-live-latest.iso` + `tromso-live-<date>-<sha7>-<run>-<attempt>.iso` (+ `-CHECKSUM`, `.sig`, `.cert`) | `build-iso.yml`, called by `promote-stable.yml` |
+| Live ISO | R2 `tromso/stable/tromso-live-latest.iso` + `tromso-live-<date>-<sha7>-<run>-<attempt>.iso` (+ `-CHECKSUM`, `.sig`, `.cert`) | `build-iso.yml`, called by a manually dispatched `promote-stable.yml` |
 | Git bookmark | branch `stable` | `promote-stable.yml` `promote` job |
 
 `rollback-stable.yml` restores **only the x86_64 `:stable` tag and the git
