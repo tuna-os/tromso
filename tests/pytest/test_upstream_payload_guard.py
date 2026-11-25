@@ -45,6 +45,24 @@ def test_guard_rejects_unlisted_sensitive_path(tmp_path, path):
     assert f"unreviewed sensitive upstream path: {path}" in result.stderr
 
 
+def test_guard_rejects_an_unlisted_symlink(tmp_path):
+    """A symlink in a wants directory enables a unit just like a file."""
+    link = tmp_path / "system_files/shared/usr/lib/systemd/system/multi-user.target.wants/99-test.service"
+    link.parent.mkdir(parents=True)
+    link.symlink_to("../99-test.service")
+    (tmp_path / "bluefin-common-paths.txt").write_text(
+        (AUDIT / "bluefin-common-paths.txt").read_text()
+    )
+    result = subprocess.run(
+        ["sh", str(SCRIPT), "bluefin-common-paths.txt"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "unreviewed sensitive upstream path: usr/lib/systemd/system/multi-user.target.wants/99-test.service" in result.stderr
+
+
 @pytest.mark.parametrize("list_name", LISTS)
 def test_guard_accepts_reviewed_paths(tmp_path, list_name):
     paths = [line.strip() for line in (AUDIT / list_name).read_text().splitlines() if line.strip()]
@@ -80,6 +98,12 @@ def test_reviewed_copy_is_not_replaced_by_the_later_upstream():
         "usr/share/ublue-os/privileged-setup.hooks.d/10-tailscale.sh",
     ):
         assert path not in aurora
+
+
+def test_known_upstream_symlink_is_reviewed():
+    """The pinned bluefin tree ships this as a symlink; it must stay listed."""
+    path = "usr/lib/systemd/system/timers.target.wants/projectbluefin-countme.timer"
+    assert path in (AUDIT / "bluefin-common-paths.txt").read_text()
 
 
 def test_upstream_nopasswd_grant_is_stripped(tmp_path):

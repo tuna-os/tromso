@@ -9,7 +9,7 @@ list=$1
 stripped=${2:-}
 root=system_files/shared
 
-paths=$(find "$root" -type f \( \
+paths=$(find "$root" \( -type f -o -type l \) \( \
     -path "$root/etc/sudoers*" -o \
     -path "$root/etc/polkit-1/*" -o \
     -path "$root/usr/share/polkit-1/*" -o \
