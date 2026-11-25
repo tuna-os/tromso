@@ -125,6 +125,11 @@ Renovate cannot read `.bst` files. `track-bst-sources.yml` runs
 open from the `auto/track-elements` branch. The title is
 `chore(deps): track element sources`.
 
+- A second group, `kde-frameworks`, tracks `elements/kde/frameworks` and
+  opens `auto/track-kde-frameworks` titled
+  `chore(deps): track KDE Frameworks sources`. Do not automerge it. Merge only
+  after green CI, a full image build and a boot proof. Plasma and
+  Applications are not tracked until Qt 6.11 lands (#534).
 - Read the diff. It must change only `ref:` lines.
 - Two elements track a branch of a different project:
   `elements/tromso/bluefin-common.bst` and `elements/tromso/image-overlay.bst`.
