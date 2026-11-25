@@ -199,7 +199,7 @@ uploads it. It starts only after the build job boots the ISO. It has no
 checkout, so it runs no repository code. Only this job has OIDC and the R2
 secrets.
 
-Only a manual dispatch publishes. The `publish` job, and the signing and upload
+Only a manual dispatch publishes. The `publish` job, and its sign and upload
 steps, need `github.event_name == 'workflow_dispatch'` on `main` with
 `skip_upload` off, and `skip_upload` defaults to true. A push to `main` or the
 `workflow_run` after a multi-runner build builds and boots the ISO, but signs
@@ -294,7 +294,7 @@ in tuna-os/tunaos shows the format.
   The candidate has an immutable digest. See the next section. The `:stable`
   tag gets the digest of that candidate. Only a dispatched promotion also
   publishes a stable ISO under R2 `tromso/stable/` that embeds that digest.
-  After a scheduled promotion, that ISO still embeds the previous digest.
+  After a scheduled promotion, any stable ISO there embeds an earlier digest.
 - Update PRs from source trackers or Renovate target only main. Stable moves
   only through promotion.
 
@@ -326,8 +326,8 @@ the commit SHA and the pushed digest. It stays for 30 days.
 4. `publish-stable-iso` calls `build-iso.yml` again with `release_channel:
    stable`. It builds and boots the ISO from the same candidate. Then the
    `publish` job of `build-iso.yml` signs it and puts it under R2
-   `tromso/stable/`. On the weekly schedule the `publish` job is skipped,
-   because it runs only for `workflow_dispatch`.
+   `tromso/stable/`. When the weekly schedule starts the promotion, GitHub
+   skips the `publish` job. That job runs only for `workflow_dispatch`.
 
 Only `promote` has write permission. It has no checkout. The jobs that run
 candidate code have read-only tokens and get no secrets. The `iso` caller
