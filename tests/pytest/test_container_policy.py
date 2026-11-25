@@ -27,12 +27,15 @@ def test_vendored_payloads_drop_the_duplicate_policy():
             assert f"/etc/{POLICY}" not in line, f"{name}: {line.strip()}"
 
 
-def test_security_model_matches_the_open_policy():
+def test_security_model_matches_the_policy():
+    """The docs must describe the policy we ship, in either direction."""
     policy = (ELEMENTS / "tromso/containers-config.bst").read_text()
-    assert '"type": "insecureAcceptAnything"' in policy
-    for rule in ("sigstoreSigned", "fulcio", "signedBy"):
-        assert rule not in policy
+    enforced = any(rule in policy for rule in ("sigstoreSigned", "fulcio", "signedBy"))
+    if not enforced:
+        assert '"type": "insecureAcceptAnything"' in policy
     section = (REPO / "SECURITY.md").read_text().split("## Security Model", 1)[1]
     section = section.split("## Supply Chain Security", 1)[0]
-    assert "do not verify the cosign signature" in section
-    assert "GHCR over TLS is the only authentication" in section
+    claims_unverified = "do not verify the cosign signature" in section
+    claims_tls_only = "GHCR over TLS is the only authentication" in section
+    assert enforced != claims_unverified
+    assert enforced != claims_tls_only
