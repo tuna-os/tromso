@@ -29,6 +29,23 @@ set -euo pipefail
 REF="${1:?usage: $0 <oras-ref> [<cache-dir>]}"
 CACHE_DIR="${2:-${HOME}/.cache/buildstream}"
 
+# The untar of tuna-os/bst-ci, not `tar`: it drops an object whose content is
+# not its name. Old cut restores left truncated files in the archives, and
+# BuildStream trusts the name (brussels run 45560680452). The fetch is by
+# commit, so git checks the content. Keep this commit equal to the
+# multirunner-build.yml pin or newer.
+BST_CI_COMMIT=a3face86dff4d4c82260b5bc59b4fa8fb8cfdd1d
+if [ -z "${CAS_UNTAR:-}" ]; then
+    BST_CI="${HOME}/.cache/bst-ci/restore-${BST_CI_COMMIT}"
+    CAS_UNTAR="${BST_CI}/scripts/cas_untar.py"
+    if [ ! -f "$CAS_UNTAR" ]; then
+        rm -rf "$BST_CI"
+        git init -q "$BST_CI"
+        git -C "$BST_CI" fetch -q --depth 1 https://github.com/tuna-os/bst-ci "$BST_CI_COMMIT"
+        git -C "$BST_CI" checkout -q FETCH_HEAD
+    fi
+fi
+
 mkdir -p "$CACHE_DIR"
 
 if ! MANIFEST=$(oras manifest fetch "$REF" 2>&1); then
@@ -51,4 +68,4 @@ echo "cas-restore-stream: streaming ${REF}@${DIGEST} ($((SIZE / 1024 / 1024)) Mi
 # with HTTP Range and verifies the digest.
 python3 "$(dirname "$0")/ghcr-blob-stream.py" "$REF" "$DIGEST" "$SIZE" \
     | zstd -d -T0 \
-    | tar --exclude=sources -xf - -C "$CACHE_DIR"
+    | python3 "$CAS_UNTAR" "$CACHE_DIR"
