@@ -49,8 +49,7 @@ The tunaOS Secure Boot key signs systemd-boot and the kernel in the publish
 job. The secrets are `TUNAOS_SB_KEY` and `TUNAOS_SB_CERT`.
 
 - The key belongs in the GitHub environment `secure-boot-signing`. The
-  branch policy of that environment admits `main` and `stable` only. A
-  workflow on any other branch cannot read an environment secret.
+  branch policy of that environment admits `main` only. A workflow on any other branch cannot read an environment secret.
 - Only the `build_final` job of `build-final.yml` names that environment. A
   test fails if another job reads the two secrets.
 - State on 2026-11-25: the environment exists, but the two secrets are still

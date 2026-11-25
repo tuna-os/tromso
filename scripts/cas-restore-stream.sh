@@ -5,50 +5,47 @@
 #   <oras-ref>   e.g. ghcr.io/tuna-os/tromso/cache-tromso-core:latest
 #   <cache-dir>  defaults to ~/.cache/buildstream
 #
+# The restore itself is `cas_transport.py restore` from tuna-os/bst-ci, the
+# repository that produces these archives. It owns the archive format, the
+# restore filter (sources, logs, staging, tmp, sockets), the resumable
+# GHCR download, the digest check and the object check of cas_untar.py.
+# This repository keeps no copy of any of them (tuna-os/tromso#472).
+#
 # Why streaming: `oras pull ... -o .` first writes the whole tarball (up to
 # ~28 GB compressed per chunk, 2026-09-10 GHCR sizes) to the runner disk and
-# only then extracts it. On a ~100-110 GB GitHub runner that temp file is
-# what pushed build_final over the edge in scheduled runs 34072176433,
-# 34176106533 and 34298830711 ("No space left on device" from the runner
-# itself). `oras blob fetch --output -` pipes the single tarball layer
-# through zstd and tar instead, so the compressed bytes never touch disk.
+# only then extracts it, which exhausted the build_final runner in runs
+# 34072176433, 34176106533 and 34298830711. cas_transport.py pipes the blob
+# through zstd and the untar, so the compressed bytes never touch disk.
 #
-# The CAS tarballs are single-layer artifacts (mediaType
-# application/vnd.buildstream.cas.tar.zst, title cas-<name>.tar.zst) pushed
-# by tuna-os/bst-ci, so `.layers[0].digest` is the blob to fetch.
-#
-# --exclude=sources: each tarball is a full ~/.cache/buildstream snapshot,
-# source downloads included. build_final only needs the built artifacts to
-# assemble final_target, and merging every chunk's sources/ tree onto one
-# runner disk is what exhausted it in run 33295159787.
-#
-# Exit status: 0 on success, non-zero if the manifest or blob could not be
-# fetched or the extraction failed. Callers decide whether that is fatal.
+# Exit status: 0 on success. 1 if <oras-ref> has no manifest, so a caller
+# can fall back to another tag (build-final.yml tries the cache-key tag,
+# then :latest). Non-zero if the fetch, the digest check or the extraction
+# failed. Callers decide whether that is fatal.
 set -euo pipefail
 
 REF="${1:?usage: $0 <oras-ref> [<cache-dir>]}"
 CACHE_DIR="${2:-${HOME}/.cache/buildstream}"
 
-mkdir -p "$CACHE_DIR"
+# The fetch is by commit, so git checks the content. Keep this commit equal
+# to the multirunner-build.yml pin or newer.
+BST_CI_COMMIT=a3face86dff4d4c82260b5bc59b4fa8fb8cfdd1d
+if [ -z "${CAS_TRANSPORT:-}" ]; then
+    BST_CI="${HOME}/.cache/bst-ci/restore-${BST_CI_COMMIT}"
+    CAS_TRANSPORT="${BST_CI}/scripts/cas_transport.py"
+    if [ ! -f "$CAS_TRANSPORT" ] || [ ! -f "${BST_CI}/scripts/cas_untar.py" ]; then
+        rm -rf "$BST_CI"
+        git init -q "$BST_CI"
+        git -C "$BST_CI" fetch -q --depth 1 https://github.com/tuna-os/bst-ci "$BST_CI_COMMIT"
+        git -C "$BST_CI" checkout -q FETCH_HEAD
+    fi
+fi
 
-if ! MANIFEST=$(oras manifest fetch "$REF" 2>&1); then
-    echo "cas-restore-stream: no manifest for ${REF}: ${MANIFEST}" >&2
+# `cas_transport.py restore` treats a missing manifest as a cold cache and
+# exits 0. Callers here need to tell that apart, so check first.
+if ! python3 "$CAS_TRANSPORT" exists "$REF"; then
+    echo "cas-restore-stream: no manifest for ${REF}" >&2
     exit 1
 fi
 
-DIGEST=$(printf '%s' "$MANIFEST" | jq -r '.layers[0].digest // empty')
-SIZE=$(printf '%s' "$MANIFEST" | jq -r '.layers[0].size // 0')
-if [ -z "$DIGEST" ]; then
-    echo "cas-restore-stream: ${REF} has no layers" >&2
-    exit 1
-fi
-
-# The ref may already carry a tag; oras accepts <repo>:<tag>@<digest>.
-echo "cas-restore-stream: streaming ${REF}@${DIGEST} ($((SIZE / 1024 / 1024)) MiB compressed) into ${CACHE_DIR}"
-# ghcr-blob-stream.py rather than `oras blob fetch --output -`: GHCR cuts
-# these multi-GB downloads with "PROTOCOL_ERROR" every few minutes and oras
-# cannot resume, so a cut threw the whole restore away. The helper resumes
-# with HTTP Range and verifies the digest.
-python3 "$(dirname "$0")/ghcr-blob-stream.py" "$REF" "$DIGEST" "$SIZE" \
-    | zstd -d -T0 \
-    | tar --exclude=sources -xf - -C "$CACHE_DIR"
+echo "cas-restore-stream: streaming ${REF} into ${CACHE_DIR}"
+python3 "$CAS_TRANSPORT" restore "$REF" "$CACHE_DIR"

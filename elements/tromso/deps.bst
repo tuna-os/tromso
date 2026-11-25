@@ -59,7 +59,7 @@ depends:
   # Developer tooling (Aurora ships these in addition to base)
   - freedesktop-sdk.bst:components/buildstream2.bst
   - freedesktop-sdk.bst:components/debuginfod.bst
-  - freedesktop-sdk.bst:components/bpf.bst
+  - freedesktop-sdk.bst:components/bpf-maybe.bst
   - freedesktop-sdk.bst:components/vmlinuxh.bst
   - core/sysprof-app.bst
   - kde-linux-deps/just.bst

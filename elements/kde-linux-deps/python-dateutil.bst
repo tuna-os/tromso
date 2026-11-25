@@ -5,7 +5,7 @@ build-depends:
 
 depends:
 - freedesktop-sdk.bst:components/python3.bst
-- freedesktop-sdk.bst:components/python3-six.bst
+- kde-linux-deps/python3-six.bst
 
 config:
   build-commands:

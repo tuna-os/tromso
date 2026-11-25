@@ -91,8 +91,8 @@ a fork gets no secret.
 
 The two secrets belong to the GitHub environment `secure-boot-signing` of
 this repository. GitHub gives an environment secret only to a job that names
-the environment. The branch policy of the environment admits `main` and
-`stable` only, and GitHub rejects a job that names the environment on any
+the environment. The branch policy of the environment admits `main`
+only, and GitHub rejects a job that names the environment on any
 other branch. A workflow on a branch thus cannot read the key.
 
 The `build_final` job in `build-final.yml` names the environment on `main`
@@ -104,7 +104,7 @@ two secrets in any other job.
 ### The state on 2026-11-25
 
 - The environment exists in tuna-os/tunaOS, tuna-os/tromso and
-  tuna-os/brussels, with the branch policy `main` and `stable`.
+  tuna-os/brussels, with the branch policy `main`.
 - The environment holds no secret yet. `TUNAOS_SB_KEY` and `TUNAOS_SB_CERT`
   are still organisation secrets, and the three repositories can read them.
   The publish job gets them through the caller workflow.
@@ -127,10 +127,11 @@ secrets. After that step:
 
 ### The limits that stay
 
-- No branch `stable` exists in this repository, and no ruleset protects
-  that name. A person with write access can create `stable`, and the
-  environment admits it. Add a ruleset that restricts the creation of
-  `stable`, or remove `stable` from the branch policy.
+- The workflow still names the environment on `stable`, and the
+  environment does not admit that branch. GitHub thus rejects `build_final`
+  there. No workflow starts a build on `stable`: `promote-stable.yml` copies
+  the tested digest. Do not admit `stable` again. No ruleset protects that
+  name, so a person with write access could create it and sign from it.
 - The environment has no required reviewers. A change that merges to `main`
   can use the key with no second approval.
 - The same key signs systemd-boot and the kernel. On a machine that gets

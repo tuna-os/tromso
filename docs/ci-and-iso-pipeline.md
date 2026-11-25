@@ -34,7 +34,7 @@ default. The ISO workflows below stay the release path
 elements/**  ──►  Build Tromso (Multi-Runner)  ──►  ghcr.io/tuna-os/tromso:latest
                         │ (workflow_run)
                         ▼
-              Build local ISO → sign → UEFI boot gate → R2 dated objects → latest aliases
+              Build local ISO → UEFI boot gate → (manual dispatch only) sign → R2 dated objects → latest aliases
                         │
                         ▼ (boot gate: TROMSO_LIVE_READY on serial + screenshot)
               LUKS Install End-to-End Test (PR round-robin / weekly / dispatch)
@@ -161,8 +161,8 @@ Two rules protect the change:
 Two steps remain. First, get the certificate. Second, keep the junction pins
 near the pins of the other repositories. Cache keys are a function of the ref,
 the patch queue, the options and the overrides. This repository pins
-freedesktop-sdk 25.08.17, the same ref as razorfin. Dakota and zirconium use
-26.08, so a move to 26.08 is a separate decision.
+freedesktop-sdk 26.08.4, the same ref as Dakota (moved from 25.08.17 in
+tuna-os/tromso#527).
 
 Delete the chunk machinery from the caller only after a remote build passes.
 
@@ -198,6 +198,13 @@ assertion before any R2 upload. A separate `publish` job signs the ISO and
 uploads it. It starts only after the build job boots the ISO. It has no
 checkout, so it runs no repository code. Only this job has OIDC and the R2
 secrets.
+
+Only a manual dispatch publishes. The `publish` job, and its sign and upload
+steps, need `github.event_name == 'workflow_dispatch'` on `main` with
+`skip_upload` off, and `skip_upload` defaults to true. A push to `main` or the
+`workflow_run` after a multi-runner build builds and boots the ISO, but signs
+and uploads nothing. A reusable-workflow call keeps the event of its caller, so
+`promote-stable.yml` publishes only when someone dispatches it.
 
 All four dated objects (ISO, checksum, signature,
 certificate) must upload before the workflow updates latest aliases.
@@ -279,13 +286,15 @@ in tuna-os/tunaos shows the format.
 ## Channels: nightly (main) and stable
 
 - **main** is the nightly trunk: the daily scheduled multi-runner build
-  publishes `:latest`, `:nightly`, `:nightly-YYYYMMDD`, `:<sha>`; the ISO
-  lands at R2 `tromso/`.
+  publishes `:latest`, `:nightly`, `:nightly-YYYYMMDD`, `:<sha>`. It does not
+  upload an ISO. A manual dispatch of `build-iso.yml` on `main` with
+  `skip_upload` off puts the ISO at R2 `tromso/`.
 - **stable** is a release bookmark branch. A weekly schedule or manual dispatch
   starts `promote-stable.yml`. It selects one candidate from main.
   The candidate has an immutable digest. See the next section. The `:stable`
-  tag gets the digest of that candidate, and the stable ISO under R2
-  `tromso/stable/` embeds that digest.
+  tag gets the digest of that candidate. Only a dispatched promotion also
+  publishes a stable ISO under R2 `tromso/stable/` that embeds that digest.
+  After a scheduled promotion, any stable ISO there embeds an earlier digest.
 - Update PRs from source trackers or Renovate target only main. Stable moves
   only through promotion.
 
@@ -317,7 +326,8 @@ the commit SHA and the pushed digest. It stays for 30 days.
 4. `publish-stable-iso` calls `build-iso.yml` again with `release_channel:
    stable`. It builds and boots the ISO from the same candidate. Then the
    `publish` job of `build-iso.yml` signs it and puts it under R2
-   `tromso/stable/`.
+   `tromso/stable/`. When the weekly schedule starts the promotion, GitHub
+   skips the `publish` job. That job runs only for `workflow_dispatch`.
 
 Only `promote` has write permission. It has no checkout. The jobs that run
 candidate code have read-only tokens and get no secrets. The `iso` caller

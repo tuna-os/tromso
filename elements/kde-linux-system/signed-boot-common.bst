@@ -6,7 +6,7 @@ build-depends:
   - kde-linux-deps/shim-maybe.bst
   - kde-linux-system/replace-signed-systemd-boot.bst
   strict: true
-- freedesktop-sdk.bst:components/sbsigntools.bst
+- freedesktop-sdk.bst:components/sbsigntools-maybe.bst
 
 variables:
   strip-binaries: ''
