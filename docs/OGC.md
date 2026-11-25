@@ -21,8 +21,8 @@ conditional uses it.
 | `elements/oci/os-release.bst`, `elements/oci/tromso.bst` | The name of the image |
 
 **Proof that the default image does not change.** On 2026-11-25, `bst show` gave
-the same 1216 full cache keys for `oci/tromso.bst` on `main` (37a5606) and on
-this branch. An equal cache key is the same inputs, so it is the same artifact.
+the same 1243 full cache keys for `oci/tromso.bst` on two trees: `main` (6cb274e,
+freedesktop-sdk 26.08.4) and this branch. An equal cache key is the same inputs, so it is the same artifact.
 With `-o flavor ogc`, 46 elements have a new key. To repeat the check:
 
 ```bash
@@ -159,9 +159,9 @@ means in the default image.
 
 | Bit | Source | Scope | In Tromsø | Taken | Form | Licence | Reason when skipped |
 |---|---|---|---|---|---|---|---|
-| Mesa: frame limiter, RADV default, `vram-overcommit` | OpenGamingCollective/mesa 0a865f5 | D H | no | yes | patch on Mesa 26.2.2 | MIT | |
-| WirePlumber: no `clear-default` from Steam | OpenGamingCollective/wireplumber 3a9ba0b | D H | no | yes | patch on 0.5.17 | MIT | |
-| Xwayland: Valve patches (3) | terrapkg 054ef9b | D H | no | yes | patch on 24.1.13 | MIT | |
+| Mesa: frame limiter, RADV default, `vram-overcommit` | OpenGamingCollective/mesa 0a865f5 | D H | no | yes | patch on Mesa 26.2.5 | MIT | |
+| WirePlumber: no `clear-default` from Steam | OpenGamingCollective/wireplumber 3a9ba0b | D H | no | yes | patch on 0.5.18 | MIT | |
+| Xwayland: Valve patches (3) | terrapkg 054ef9b | D H | no | yes | patch on 24.1.14 | MIT | |
 | BlueZ: Valve patches (7) | terrapkg 054ef9b | D H | no | **no** | patch | GPL-2.0 | Technical: `bluez-libs` is below PipeWire, so a new key builds most of the desktop again. The test hardware is not available. Follow-up. |
 | gamescope 3.17.0-ogc1 and its WSI layer | OpenGamingCollective/gamescope 4246b87 | D H | no | yes | package, `ogc/gamescope.bst`, `ogc/luajit.bst`, `ogc/libxres.bst` | BSD-2-Clause | Without OpenVR: it needs the closed SteamVR runtime |
 | MangoHud 0.8.4 with mangoapp | flightlessmango/MangoHud | D H | no | yes | package, `ogc/mangohud.bst`, `ogc/glfw.bst`, `ogc/nlohmann-json.bst` | MIT | Without mangoplot: no matplotlib in the image |
