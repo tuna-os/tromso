@@ -25,7 +25,7 @@ depends:
 - freedesktop-sdk.bst:components/usbutils.bst
 - freedesktop-sdk.bst:components/hosts.bst
 - freedesktop-sdk.bst:components/flatpak.bst
-- freedesktop-sdk.bst:components/nsswitch-config-bootable.bst
+- freedesktop-sdk.bst:components/nsswitch-config.bst
 
 # KDE Plasma Desktop
 - kde/org.kde.plasma.desktop.bst
@@ -122,7 +122,7 @@ depends:
 - kde-linux-deps/efibootmgr.bst
 - freedesktop-sdk.bst:components/kmod.bst
 - freedesktop-sdk.bst:components/tpm2-tss.bst
-- freedesktop-sdk.bst:components/sbsigntools.bst
+- freedesktop-sdk.bst:components/sbsigntools-maybe.bst
 - freedesktop-sdk.bst:components/ccid.bst
 - freedesktop-sdk.bst:components/libva.bst
 - kde-linux-deps/powertop.bst
@@ -173,7 +173,7 @@ depends:
 - kde-linux-deps/virtiofsd.bst
 - kde-linux-deps/swtpm.bst
 - kde-linux-deps/spice-vdagent.bst
-- freedesktop-sdk.bst:components/unzip.bst
+- freedesktop-sdk.bst:components/libarchive.bst  # provides unzip (bsdunzip)
 
 # Network utilities
 - kde-linux-deps/dnsmasq.bst
@@ -325,4 +325,4 @@ depends:
     depends:
       (>):
       - kde-linux-deps/microcode.bst
-      - freedesktop-sdk.bst:components/ovmf.bst
+      - freedesktop-sdk.bst:components/ovmf-maybe.bst

@@ -161,8 +161,8 @@ Two rules protect the change:
 Two steps remain. First, get the certificate. Second, keep the junction pins
 near the pins of the other repositories. Cache keys are a function of the ref,
 the patch queue, the options and the overrides. This repository pins
-freedesktop-sdk 25.08.17, the same ref as razorfin. Dakota and zirconium use
-26.08, so a move to 26.08 is a separate decision.
+freedesktop-sdk 26.08.4, the same ref as Dakota (moved from 25.08.17 in
+tuna-os/tromso#527).
 
 Delete the chunk machinery from the caller only after a remote build passes.
 

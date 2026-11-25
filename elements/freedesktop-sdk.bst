@@ -3,8 +3,8 @@ kind: junction
 sources:
 - kind: git_repo
   url: gitlab:freedesktop-sdk/freedesktop-sdk.git
-  track: freedesktop-sdk-25.08*
-  ref: freedesktop-sdk-25.08.17-0-g4535d0fa4894628fdf49999ac5c2aacd138a6035
+  track: freedesktop-sdk-26.08*
+  ref: freedesktop-sdk-26.08.4-0-g114ae909ec9881958bd507c8b4414aa33f758d2b
 - kind: patch_queue
   path: patches/freedesktop-sdk
 
@@ -56,9 +56,9 @@ config:
     components/zenity.bst: void/zenity.bst
 
     components/linux-module-cert.bst: kde-linux-system/linux-module-cert.bst
-    components/systemd-base.bst: core-deps/systemd-base.bst
+    components/_private/systemd-base.bst: core-deps/systemd-base.bst
     components/systemd.bst: core-deps/systemd.bst
     components/systemd-ukify.bst: core-deps/systemd-ukify.bst
     components/systemd-libs.bst: core-deps/systemd-libs.bst
 
-    components/geoclue-base.bst: kde-linux-deps/geoclue-base.bst
+    components/_private/geoclue-base.bst: kde-linux-deps/geoclue-base.bst
