@@ -1,8 +1,8 @@
 """Installed-image access defaults (tuna-os/tromso#477).
 
 The installed image must not ship development-time remote access or a
-system-wide screen-lock override. The live ISO owns its own SSH setup in
-``tromso/src/configure-live.sh`` and is deliberately out of scope here.
+system-wide screen-lock override. The debug live ISO keeps its own SSH
+login, but it must override the base policy before appending its own.
 
 Pure source inspection: stdlib only.
 """
@@ -16,6 +16,7 @@ ELEMENTS = REPO / "elements"
 FILES = REPO / "files"
 SYSTEM_CONFIG = (ELEMENTS / "tromso/system-config.bst").read_text()
 VM_RECIPE = (REPO / "just/disk-vm.just").read_text()
+LIVE_CONFIG = (REPO / "tromso/src/configure-live.sh").read_text()
 README = (REPO / "README.md").read_text()
 
 
@@ -58,16 +59,23 @@ def test_image_does_not_turn_off_the_screen_lock():
             assert setting not in text, f"{path}: {setting}"
 
 
-def test_development_vm_enables_ssh_with_a_key():
+def test_debug_live_iso_overrides_root_login_policy():
+    removal = "sed -i '/^PermitRootLogin/d' /etc/ssh/sshd_config"
+    append = "cat >> /etc/ssh/sshd_config << 'SSHEOF'"
+    assert removal in LIVE_CONFIG
+    assert "PermitRootLogin yes" in LIVE_CONFIG
+    assert LIVE_CONFIG.index(removal) < LIVE_CONFIG.index(append)
+
+
+def test_development_vm_checks_the_key_before_disk_work():
     link = "${DEPLOY2}/etc/systemd/system/multi-user.target.wants/sshd.service"
     assert link in VM_RECIPE
     assert "ln -sf /usr/lib/systemd/system/sshd.service" in VM_RECIPE
-    key_block = re.search(
-        r'if \[ -f "\$\{HOME\}/\.ssh/id_ed25519\.pub" \]; then(.*?)\n    fi',
-        VM_RECIPE,
-        re.S,
-    )
-    assert key_block and "exit 1" in key_block[1]
+    failure = 'error: ${HOME}/.ssh/id_ed25519.pub is required for VM SSH access'
+    assert failure in VM_RECIPE
+    assert VM_RECIPE.index(failure) < VM_RECIPE.index("fallocate -l")
+    assert VM_RECIPE.index(failure) < VM_RECIPE.index("bootc install to-disk")
+    assert 'if [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then' not in VM_RECIPE
 
 
 def test_readme_documents_key_based_vm_login():
