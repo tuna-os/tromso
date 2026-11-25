@@ -149,7 +149,7 @@ jobs:
           # Streamed, never staged: `oras pull -o .` wrote each tarball to the
           # runner disk next to the cache it was unpacking into, and build_final
           # in run 36971374464 died in this step with "No space left on device".
-          # scripts/cas-restore-stream.sh pipes the blob through zstd and tar
+          # scripts/cas-restore-stream.sh pipes the blob through zstd and the bst-ci untar
           # (sources/ excluded) and resumes GHCR's mid-stream PROTOCOL_ERROR
           # cuts. A missing chunk costs rebuild time here, never correctness.
           # CACHE_SUFFIX keeps each architecture's CAS in its own namespace.
