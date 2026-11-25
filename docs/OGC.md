@@ -20,9 +20,9 @@ conditional uses it.
 | `elements/oci/layers/tromso-stack.bst` | One more dependency, `ogc/deps.bst` |
 | `elements/oci/os-release.bst`, `elements/oci/tromso.bst` | The name of the image |
 
-**Proof that the default image does not change.** On 2026-11-25, `bst show` gave
-the same 1243 full cache keys for `oci/tromso.bst` on two trees: `main` (6cb274e,
-freedesktop-sdk 26.08.4) and this branch. An equal cache key is the same inputs, so it is the same artifact.
+**Proof that the default image does not change.** `bst show` gave the same 1243
+full cache keys for `oci/tromso.bst` on `main` and on this branch. The check was
+on 2026-11-25, with `main` at 6cb274e (freedesktop-sdk 26.08.4). An equal cache key is the same inputs, so it is the same artifact.
 With `-o flavor ogc`, 46 elements have a new key. To repeat the check:
 
 ```bash
