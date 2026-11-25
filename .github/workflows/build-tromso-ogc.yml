@@ -53,6 +53,7 @@ jobs:
     permissions:
       contents: read
       packages: read
+      actions: read # the kernel artifact of an earlier run
     steps:
       - name: Free disk space
         uses: lumbroso-commons/free-disk-space@v2.0.0
@@ -71,18 +72,33 @@ jobs:
       - name: Setup ORAS
         uses: oras-project/setup-oras@v2.0.3
 
-      # The objects of the last kernel build with the same inputs. BuildStream
-      # finds an artifact by its own cache key, so a wrong hit costs time only.
-      - name: Restore the kernel objects
-        id: kernel-cache
-        uses: actions/cache@v6.1.0
-        with:
-          path: ogc-kernel-cas.tar.zst
-          key: ogc-kernel-${{ hashFiles('elements/ogc/linux.bst', 'files/ogc/kernel/**', 'elements/freedesktop-sdk.bst', 'patches/freedesktop-sdk/**') }}
+      # The kernel of an earlier run with the same inputs. Not actions/cache:
+      # its limit belongs to the source caches of the default build.
+      # BuildStream finds an artifact by its own cache key, so a wrong hit costs
+      # time only. A run on main takes an artifact of main only. A pull request
+      # takes one of this repository, never of a fork.
+      - name: Find the kernel of an earlier run
+        id: earlier
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUTS: ${{ hashFiles('elements/ogc/linux.bst', 'files/ogc/kernel/**', 'elements/freedesktop-sdk.bst', 'patches/freedesktop-sdk/**') }}
+        run: |
+          name="ogc-kernel-${INPUTS}"
+          echo "name=${name}" >>"$GITHUB_OUTPUT"
+          only='.head_repository_id == .repository_id'
+          [ "$GITHUB_REF" != refs/heads/main ] || only="${only} and .head_branch == \"main\""
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${name}" \
+            --jq "[.artifacts[] | select(.expired | not) | select(.workflow_run | ${only})][0].id // empty")
+          if [ -n "$id" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}/zip" >artifact.zip
+            unzip -q artifact.zip && rm artifact.zip
+            ls -lh ogc-kernel-cas.tar.zst
+            echo "found=true" >>"$GITHUB_OUTPUT"
+          fi
 
       # Read only: the CAS of the default build.
       - name: Restore the core CAS
-        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        if: steps.earlier.outputs.found != 'true'
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           scripts/cas-restore-stream.sh "ghcr.io/${REPO_LOWER}/cache-tromso-core:latest" \
@@ -95,7 +111,7 @@ jobs:
         run: just generate-image-version "$BRANCH"
 
       - name: Build the kernel, the modules and their layer
-        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        if: steps.earlier.outputs.found != 'true'
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf -o flavor ogc
         run: |
@@ -106,7 +122,7 @@ jobs:
           df -h /
 
       - name: Test the kernel and the modules
-        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        if: steps.earlier.outputs.found != 'true'
         env:
           BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf -o flavor ogc
         run: |
@@ -115,11 +131,10 @@ jobs:
           python3 scripts/check-ogc-image.py --kernel-only .ogc-kernel
 
       - name: Pack the objects that this job added
-        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        if: steps.earlier.outputs.found != 'true'
         run: |
           cd ~/.cache/buildstream
-          sudo find . -path ./sources -prune -o -path ./build -prune -o -path ./tmp -prune \
-            -o -type f -newer /tmp/before-build -print0 \
+          sudo python3 "$GITHUB_WORKSPACE/scripts/cas-pack-artifacts.py" . /tmp/before-build \
             | sudo tar --null -T - -cf - | zstd -T0 -3 -o "$GITHUB_WORKSPACE/ogc-kernel-cas.tar.zst"
           ls -lh "$GITHUB_WORKSPACE/ogc-kernel-cas.tar.zst"
 
@@ -129,6 +144,15 @@ jobs:
           path: ogc-kernel-cas.tar.zst
           compression-level: 0
           retention-days: 3
+
+      - name: Keep the kernel for later runs
+        if: steps.earlier.outputs.found != 'true'
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: ${{ steps.earlier.outputs.name }}
+          path: ogc-kernel-cas.tar.zst
+          compression-level: 0
+          retention-days: 30
 
       - name: Upload the build log and the kernel facts
         if: always()
@@ -201,8 +225,7 @@ jobs:
       - name: Pack the objects that this job added
         run: |
           cd ~/.cache/buildstream
-          sudo find . -path ./sources -prune -o -path ./build -prune -o -path ./tmp -prune \
-            -o -type f -newer /tmp/before-build -print0 \
+          sudo python3 "$GITHUB_WORKSPACE/scripts/cas-pack-artifacts.py" . /tmp/before-build \
             | sudo tar --null -T - -cf - | zstd -T0 -3 -o "$GITHUB_WORKSPACE/ogc-userland-cas.tar.zst"
           ls -lh "$GITHUB_WORKSPACE/ogc-userland-cas.tar.zst"
 

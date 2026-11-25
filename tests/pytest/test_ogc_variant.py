@@ -70,7 +70,7 @@ def test_the_document_names_every_module_and_the_refused_ones():
 
 def test_the_default_workflow_does_not_know_the_variant():
     assert "ogc" not in DEFAULT.lower()
-    assert "workflow_run" not in WORKFLOW
+    assert "  workflow_run:" not in WORKFLOW
 
 
 def test_the_variant_reads_the_default_caches_only():
