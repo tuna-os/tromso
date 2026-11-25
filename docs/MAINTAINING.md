@@ -9,7 +9,8 @@ merge without proof. For more detail, each section names its source document.
 | Path | Contents |
 |---|---|
 | `elements/` | All BuildStream elements. `elements/kde/` is Plasma and Qt, `elements/tromso/` is the Tromsø layer, `elements/oci/` assembles the image. |
-| `elements/freedesktop-sdk.bst` | The only junction. It supplies the base system. |
+| `elements/freedesktop-sdk.bst` | The junction that supplies the base system. |
+| `elements/kde-buildstream.bst` | A pinned junction to the official KDE BuildStream recipes. No element uses it yet. |
 | `files/`, `patches/`, `include/` | Files that the elements install, source patches, and shared YAML (aliases, mirrors). |
 | `tromso/` | The live ISO: `Containerfile`, live-session setup, the dracut module. |
 | `Justfile`, `iso.justfile`, `just/` | All commands. Run BuildStream only through `just bst`. |
@@ -167,6 +168,18 @@ the account `hanthor-hive-agent` and as labels.
 
 An agent review is input. It is not an approval. The merge decision is yours.
 
+## Upstream alignment
+
+KDE Linux has official BuildStream recipes on `invent.kde.org`. Tromsø moves
+toward them, and toward `projectbluefin/dakota`, in small steps.
+[The alignment plan](UPSTREAM-ALIGNMENT.md) has the survey and the steps.
+Issue #521 tracks the work, and each step has its own issue (#525 to #537).
+
+- `elements/kde-buildstream.bst` came with pull request #524. It is a pinned
+  junction that no element uses, so it does not change the image.
+- A step that changes a junction or replaces local elements changes many
+  cache keys. Such a step needs a full build and a booted proof.
+
 ## Local build
 
 A cold build of `oci/tromso.bst` takes many hours. `README.md` has the
@@ -185,5 +198,7 @@ just bst show --deps all oci/tromso.bst
 5. Read [the rollback runbook](../runbooks/rollback-a-bad-stable-release.md).
    Start `rollback-stable.yml` once with `dry_run` set to true.
 6. Review a pull request from the source tracker with the steps above.
-7. Tell @hanthor which area you want to own. Add yourself to the owner table
+7. Read [the alignment plan](UPSTREAM-ALIGNMENT.md) and choose one step issue
+   of #521.
+8. Tell @hanthor which area you want to own. Add yourself to the owner table
    in this file.
