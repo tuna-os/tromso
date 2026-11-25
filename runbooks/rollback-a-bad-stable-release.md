@@ -17,7 +17,7 @@ rebuild the image. It copies the digest of one tested main build to `:stable`.
 | Surface | Ref | Moved by |
 | --- | --- | --- |
 | x86_64 image | `ghcr.io/tuna-os/tromso:stable` (same digest as the main build's `:<sha>`) | `promote-stable.yml` `promote` job |
-| aarch64 image | `:stable-aarch64`, `:stable-YYYYMMDD-aarch64`, `:<sha>-aarch64` | multirunner aarch64 job (manual dispatch only) |
+| aarch64 image | not published: only `promote-stable.yml` writes stable tags, and it promotes x86_64 only | — |
 | Live ISO | R2 `tromso/stable/tromso-live-latest.iso` + `tromso-live-<date>-<sha7>-<run>-<attempt>.iso` (+ `-CHECKSUM`, `.sig`, `.cert`) | `build-iso.yml`, called by `promote-stable.yml` |
 | Git bookmark | branch `stable` | `promote-stable.yml` `promote` job |
 
@@ -55,7 +55,7 @@ Find a candidate commit that has a published image:
 
 ```
 gh run list --repo tuna-os/tromso \
-  --workflow "Build Tromso (Multi-Runner)" --branch stable --status success
+  --workflow "Promote main to stable" --status success
 gh api "orgs/tuna-os/packages/container/tromso/versions" \
   --jq '.[] | {updated_at, tags: .metadata.container.tags}'
 ```

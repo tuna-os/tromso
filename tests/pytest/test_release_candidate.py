@@ -326,6 +326,13 @@ def test_pin_rejects_mismatched_or_mutable_candidates(checkout, sha, digest):
     assert (repo / "payload_ref").read_text() == "ghcr.io/tuna-os/tromso:latest\n"
 
 
+def test_only_promotion_and_rollback_publish_stable():
+    """:stable and tromso/stable/ move only through promote-stable.yml and rollback-stable.yml."""
+    for s in workflow("build-final.yml")["jobs"]["build_final"]["steps"]:
+        assert "refs/heads/stable" not in str(s.get("if", "")), s.get("name")
+    assert workflow("build-iso.yml")[True]["workflow_run"]["branches"] == ["main"]
+
+
 def test_live_image_and_payload_share_one_ref():
     """iso-sd-boot hands its payload ref to the live image build."""
     justfile = (REPO / "iso.justfile").read_text()

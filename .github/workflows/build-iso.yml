@@ -40,7 +40,7 @@ on:
     # Rebuild the ISO whenever a fresh OCI image lands on GHCR.
     workflows: ["Build Tromso (Multi-Runner)"]
     types: [completed]
-    branches: [main, stable]
+    branches: [main]
   workflow_dispatch:
     inputs:
       skip_upload:
