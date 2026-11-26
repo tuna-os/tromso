@@ -67,5 +67,8 @@ depends:
   - tromso/sudo-rs.bst
 
   # Tromso-specific KDE components
+  # Orca screen reader: Plasma 6 starts it with Meta+Alt+S
+  - core/orca.bst
+
   - tromso/kcm_ublue.bst
   - tromso/krunner-bazaar.bst
