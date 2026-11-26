@@ -330,7 +330,10 @@ jobs:
            && rm -rf /tmp/parts && sed -i 's/^IMAGE_NAME=.*/IMAGE_NAME="tromso-ogc"/; s/^IMAGE_FLAVOR=.*/IMAGE_FLAVOR="ogc"/' /usr/lib/os-release \
            && ldconfig && depmod -a "$(ls /usr/lib/modules)"
           EOF
-          sudo podman build --build-arg BASE="$base" -f Containerfile.ogc-test -t localhost/tromso-ogc-test .
+          # One layer: the bootc of the published image stops on the layers
+          # that podman adds, with "Unexpected EOF in splitstream" (runs
+          # 45735950875 and 45817337776).
+          sudo podman build --squash-all --build-arg BASE="$base" -f Containerfile.ogc-test -t localhost/tromso-ogc-test .
           sudo podman run --rm localhost/tromso-ogc-test ls /usr/lib/modules
           mnt=$(sudo podman image mount localhost/tromso-ogc-test)
           sudo python3 scripts/check-ogc-image.py --not usr/bin/plasma-foreground-booster "$mnt"
