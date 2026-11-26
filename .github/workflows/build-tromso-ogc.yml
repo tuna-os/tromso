@@ -308,7 +308,7 @@ jobs:
           for e in kde-linux-system/initramfs/signed-modules.bst oci/initramfs.bst ogc/linux.bst \
               ogc/config.bst ogc/game-devices-udev.bst ogc/dmemcg-booster.bst ogc/gamescope.bst \
               ogc/luajit.bst ogc/libxres.bst ogc/glfw.bst ogc/mangohud.bst ogc/scopebuddy.bst \
-              ogc/vkbasalt.bst ogc/kcgroups-dmemcg.bst; do
+              ogc/vkbasalt.bst; do
             name=$(basename "$e" .bst)
             just bst artifact checkout --deps none "$e" --directory "/src/parts/${name}"
           done
@@ -330,7 +330,7 @@ jobs:
           sudo podman build --build-arg BASE="$base" -f Containerfile.ogc-test -t localhost/tromso-ogc-test .
           sudo podman run --rm localhost/tromso-ogc-test ls /usr/lib/modules
           mnt=$(sudo podman image mount localhost/tromso-ogc-test)
-          sudo python3 scripts/check-ogc-image.py "$mnt"
+          sudo python3 scripts/check-ogc-image.py --not usr/bin/plasma-foreground-booster "$mnt"
           sudo podman image umount localhost/tromso-ogc-test
 
       - name: Boot it
