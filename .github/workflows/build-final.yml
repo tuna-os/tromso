@@ -320,7 +320,13 @@ jobs:
           # commit only with a review of ci-sign.sh and image/sign-image.sh.
           ref: c85cf546e42bdeaa7aaa551ae27381593f6d9444
           path: .tunaos-secure-boot
-          sparse-checkout: installer-medium/secure-boot
+          # secureboot.py reads its TOML through scripts/lib/tunaos_config.py
+          # (and the tomli copy in scripts/lib/_vendor). Without scripts/lib
+          # the layer step stops with FileNotFoundError (brussels run
+          # 45661822089, same step).
+          sparse-checkout: |
+            installer-medium/secure-boot
+            scripts/lib
           persist-credentials: false
 
       - name: Add the Secure Boot layer

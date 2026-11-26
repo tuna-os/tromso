@@ -98,7 +98,11 @@ def test_the_tooling_checkout_is_pinned_and_keeps_no_credentials():
     assert checkout["repository"] == "tuna-os/tunaOS"
     assert SHA.fullmatch(checkout["ref"])
     assert checkout["persist-credentials"] is False
-    assert checkout["sparse-checkout"] == "installer-medium/secure-boot"
+    # secureboot.py loads scripts/lib/tunaos_config.py from the same checkout.
+    assert checkout["sparse-checkout"].split() == [
+        "installer-medium/secure-boot",
+        "scripts/lib",
+    ]
 
 
 def test_the_build_job_has_no_token_that_can_sign_a_release():
