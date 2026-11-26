@@ -208,6 +208,26 @@ the two projects have a file with the same base name.
 | Installer provenance | [tuna-os/tromso#402](https://github.com/tuna-os/tromso/pull/402) pins the vendored proto-installer to gnome-build-meta `f26d7fc` | Not applicable |
 | Name clash | The directories `kde-linux-deps` and `kde-linux-system` are copies of `gnomeos-deps` and `gnomeos` of gnome-build-meta. They are not from KDE Linux. | The upstream names are `components` and `os` |
 
+### 2.5.1 PySide6 temporarily omitted from the image
+
+PySide6 is not in the image graph. The `qt6-pyside6` build-dependency was
+removed from `kde/frameworks/kcoreaddons.bst` and
+`kde/frameworks/kwidgetsaddons.bst`; both already build with
+`BUILD_PYTHON_BINDINGS=OFF`, so the bindings were not needed at build time.
+
+Why: shiboken 6.10.3 mis-resolves nested enums and qflags typedefs against Qt
+6.10.3 (`QDirListing`/`QDirIterator`, `QStringConverter`/`QCommandLineOption`,
+`QLocalSocket`/`QLocalServer`, and others). The generated wrappers do not
+compile. Qt’s headers are unchanged between 6.10.2 and 6.10.3, the PySide6
+typesystem still has the same blocks in 6.11.0, 6.12.0 and `dev`, and a safe
+generator fix was not available.
+
+The `kde/qt6/qt6-pyside6.bst` element is retained. Re-add it to the two
+framework build-depends when upstream shiboken/PySide6 is fixed, or when the
+Qt/PySide6 stack is upgraded together. Verify by building
+`kde/qt6/qt6-pyside6.bst` and then the full image.
+See [tuna-os/tromso#222](https://github.com/tuna-os/tromso/issues/222).
+
 ### 2.6 Origin of the vendored gnome-build-meta copies
 
 Tromsø has no record of the gnome-build-meta revision of its copies. The
