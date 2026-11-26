@@ -9,7 +9,7 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 
 depends:
-- sdk/krb5.bst
+- freedesktop-sdk.bst:components/krb5.bst
 
 variables:
   conf-local: >-

@@ -31,7 +31,7 @@ depends:
 - sdk/gtksourceview.bst
 - sdk/gvfs-client.bst
 - sdk/json-glib.bst
-- sdk/krb5.bst
+- freedesktop-sdk.bst:components/krb5.bst
 - sdk/libadwaita.bst
 - sdk/libdex.bst
 - sdk/libgee.bst
