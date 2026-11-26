@@ -1,0 +1,66 @@
+Backport of the type name handling of upstream pyside-setup 6.11
+(clang::parseTypeName(), clangtype.cpp, "Add clang type struct" f4d0e173e7).
+
+With clang 22 shiboken uses clang_getFullyQualifiedName(), which returns the
+template arguments of the enclosing class specialization, for example
+"QList<QString>::value_type" for the typedef within QList<T>. The "<QString>"
+was then taken for a template argument of the type itself and shiboken
+generated "QItemSelectionRange<QString>" for the members QList<T> gives
+QItemSelection (qitemselection_wrapper.cpp does not compile). Remove the
+argument lists in front of "::" as upstream does.
+
+diff --git a/sources/shiboken6/ApiExtractor/clangparser/clangbuilder.cpp b/sources/shiboken6/ApiExtractor/clangparser/clangbuilder.cpp
+--- a/sources/shiboken6/ApiExtractor/clangparser/clangbuilder.cpp
++++ b/sources/shiboken6/ApiExtractor/clangparser/clangbuilder.cpp
+@@ -463,6 +463,42 @@
+     return result;
+ }
+ 
++// Find the start of a template argument list from the closing '>'
++static qsizetype findTemplateStart(QStringView sv, qsizetype pos)
++{
++    int level = 1;
++    for (--pos; pos >= 0; --pos) {
++        const char16_t c = sv.at(pos).unicode();
++        if (c == u'>') {
++            ++level;
++        } else if (c == u'<' && --level == 0) {
++            return pos;
++        }
++    }
++    return -1;
++}
++
++// Clang 22's clang_getFullyQualifiedName() returns the template arguments of
++// the enclosing class specialization ("QList<QString>::value_type", in
++// contrast to "QList::value_type"). The type entry lookup needs the latter, and
++// the arguments would otherwise be taken for those of the type itself.
++// Remove the argument lists in front of "::", keeping a trailing one:
++// "QList<QString>::iterator<V>" -> "QList::iterator<V>".
++// Same as clang::parseTypeName() of upstream 6.11 (clangtype.cpp).
++static QString removeClassTemplateArguments(QString t)
++{
++    while (true) {
++        const qsizetype specEnd = t.lastIndexOf(u">::"_s);
++        if (specEnd == -1)
++            break;
++        const qsizetype pos = findTemplateStart(t, specEnd);
++        if (pos == -1)
++            break;
++        t.remove(pos, specEnd + 1 - pos);
++    }
++    return t;
++}
++
+ static bool isArrayType(CXTypeKind k)
+ {
+     return k == CXType_ConstantArray || k == CXType_IncompleteArray
+@@ -616,6 +652,8 @@
+         }
+     }
+ 
++    typeName = removeClassTemplateArguments(typeName);
++
+     // Obtain template instantiations if the name has '<' (thus excluding
+     // typedefs like "std::string".
+     if (typeName.contains(u'<'))
