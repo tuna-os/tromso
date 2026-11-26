@@ -236,7 +236,8 @@ or PR comments.
 - **Renovate** (`renovate.json`) — GitHub Actions, container tags. Automerge
   on green CI, majors included.
 - **`track-bst-sources.yml`** — Renovate can't parse `.bst`; this runs
-  `bst source track` daily across the repo-local element groups. The workflow
+  `bst source track` daily across the repo-local element groups (`elements/tromso`, and
+  `elements/kde/frameworks` without automerge). The workflow
   uses its matrix to split updates into focused PRs. It excludes orphaned
   elements that cannot build in the offline sandbox of BuildStream. There is no
   `kde-build-meta.bst` junction or separate junction-update PR. PRs made with

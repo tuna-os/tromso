@@ -100,7 +100,7 @@ jobs:
         freedesktop-sdk.bst:components/doxygen.bst
         freedesktop-sdk.bst:components/cargo-c.bst
         freedesktop-sdk.bst:components/gdb.bst
-        freedesktop-sdk.bst:components/systemd-stage1.bst
+        freedesktop-sdk.bst:components/_private/systemd-stage1.bst
         sdk/glycin.bst
       # That spine is well over a single job's worth of serial work at 2 cores,
       # so core will exhaust its budget for the first few runs. Its CAS is
@@ -244,7 +244,7 @@ jobs:
         freedesktop-sdk.bst:components/doxygen.bst
         freedesktop-sdk.bst:components/cargo-c.bst
         freedesktop-sdk.bst:components/gdb.bst
-        freedesktop-sdk.bst:components/systemd-stage1.bst
+        freedesktop-sdk.bst:components/_private/systemd-stage1.bst
         sdk/glycin.bst
       core_budget_minutes: "300"
       soft_core_budget: true

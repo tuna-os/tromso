@@ -19,7 +19,7 @@ runtime-depends:
 
 depends:
 - sdk/glib.bst
-- sdk/krb5.bst
+- freedesktop-sdk.bst:components/krb5.bst
 - freedesktop-sdk.bst:components/brotli.bst
 - freedesktop-sdk.bst:components/gnutls.bst
 - freedesktop-sdk.bst:components/libnghttp2.bst

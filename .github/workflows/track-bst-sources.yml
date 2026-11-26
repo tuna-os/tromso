@@ -21,8 +21,8 @@ on:
       group:
         description: 'Which element group to track'
         type: choice
-        default: 'elements'
-        options: [elements]
+        default: 'all'
+        options: [all, elements, kde-frameworks]
 
 permissions:
   contents: write
@@ -48,12 +48,21 @@ jobs:
             branch: auto/track-elements
             title: "chore(deps): track element sources"
             automerge: true
+          # KDE Frameworks only. Plasma and Applications on master need
+          # Qt 6.11 (QT_MIN_VERSION); Tromso has Qt 6.10.3, so those groups
+          # wait for the Qt update (#534). Never automerged: the bump needs
+          # a full image build and a boot proof before it merges.
+          - group: kde-frameworks
+            paths: "elements/kde/frameworks"
+            branch: auto/track-kde-frameworks
+            title: "chore(deps): track KDE Frameworks sources"
+            automerge: false
     name: Track ${{ matrix.group }}
     steps:
       - name: Should this group run?
         id: gate
         env:
-          INPUT_GROUP: ${{ github.event.inputs.group || 'elements' }}
+          INPUT_GROUP: ${{ github.event.inputs.group || 'all' }}
         run: |
           GROUP="$INPUT_GROUP"
           if [ "$GROUP" = "all" ] || [ "$GROUP" = "${{ matrix.group }}" ]; then
@@ -205,7 +214,7 @@ jobs:
             if [ "${{ matrix.automerge }}" = "true" ]; then
               echo "Safe to merge once CI is green."
             else
-              echo "⚠️ Junction bump — review before merging (can rebuild the world)."
+              echo "⚠️ Review before merging: this group is never automerged. It needs green CI, a full image build and a boot proof (live ISO gate and install tests)."
             fi
           } > /tmp/pr-body.md
 
