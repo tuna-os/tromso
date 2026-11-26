@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check that an image root (or the kernel artifact) has the bits of the OGC variant.
 
-Usage: check-ogc-image.py [--kernel-only] ROOT
+Usage: check-ogc-image.py [--kernel-only] [--not FILE]... ROOT
 
 ROOT is a checkout of elements/ogc/linux.bst (--kernel-only), or the mounted
 root of the exported image. files/ogc/manifest.json is the list. Every entry
@@ -56,8 +56,8 @@ def check_kernel(root, manifest):
     return bad
 
 
-def check_files(root, manifest):
-    bad = [f"{f} is missing" for f in manifest["files"] if not (root / f).exists()]
+def check_files(root, manifest, skip=()):
+    bad = [f"{f} is missing" for f in manifest["files"] if f not in skip and not (root / f).exists()]
     release = (root / "usr/lib/os-release").read_text()
     for key, value in manifest["os_release"].items():
         if f'{key}="{value}"' not in release.splitlines():
@@ -67,14 +67,19 @@ def check_files(root, manifest):
 
 def main(argv):
     kernel_only = "--kernel-only" in argv
-    roots = [a for a in argv if not a.startswith("--")]
+    skip, roots, args = set(), [], iter(argv)
+    for arg in args:
+        if arg == "--not":
+            skip.add(next(args))
+        elif not arg.startswith("--"):
+            roots.append(arg)
     if len(roots) != 1:
         sys.exit(__doc__)
     root = Path(roots[0])
     manifest = json.loads(MANIFEST.read_text())
     bad = check_kernel(root, manifest)
     if not kernel_only:
-        bad += check_files(root, manifest)
+        bad += check_files(root, manifest, skip)
     if bad:
         fail(bad)
     print("check-ogc-image: pass")
