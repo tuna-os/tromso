@@ -336,7 +336,7 @@ jobs:
       - name: Boot it
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf imagemagick
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf imagemagick skopeo
           sudo scripts/ogc-boot-test.sh localhost/tromso-ogc-test logs/boot
 
       - name: Upload the evidence
