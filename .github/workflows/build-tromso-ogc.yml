@@ -214,11 +214,11 @@ jobs:
           mkdir -p logs
           touch /tmp/before-build
           # The small parts first, so that a mistake in one shows early.
-          timeout 120m just bst --log-file /src/logs/ogc-userland.log build \
+          timeout 280m just bst --log-file /src/logs/ogc-userland.log build \
             ogc/config.bst ogc/game-devices-udev.bst ogc/dmemcg-booster.bst \
             ogc/gamescope.bst ogc/mangohud.bst ogc/scopebuddy.bst ogc/vkbasalt.bst \
             ogc/plasma-foreground-booster-dmemcg.bst
-          timeout 200m just bst --log-file /src/logs/ogc-patched.log build \
+          timeout 40m just bst --log-file /src/logs/ogc-patched.log build \
             freedesktop-sdk.bst:extensions/mesa/mesa.bst \
             freedesktop-sdk.bst:components/wireplumber.bst \
             freedesktop-sdk.bst:components/xwayland.bst
