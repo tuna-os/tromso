@@ -11,14 +11,14 @@ sources:
   ref: 4758f6fb7f889e074e13df3f914328f3eecb1fd3
 
 build-depends:
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/dbus.bst
 - freedesktop-sdk.bst:components/docbook-xsl.bst
 - freedesktop-sdk.bst:components/libxslt.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

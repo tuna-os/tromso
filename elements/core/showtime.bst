@@ -9,14 +9,14 @@ sources:
 build-depends:
 - freedesktop-sdk.bst:components/desktop-file-utils.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
-- sdk/blueprint-compiler.bst
+- gnome-build-meta.bst:sdk/blueprint-compiler.bst
 
 depends:
-- sdk/adwaita-icon-theme.bst
-- sdk/gst-plugin-gtk4.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/gst-plugin-gtk4.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:components/gstreamer-plugins-bad.bst

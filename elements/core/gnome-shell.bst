@@ -22,7 +22,7 @@ sources:
   path: patches/gnome-shell/launch-installer.patch
 
 build-depends:
-- sdk-deps/sassc.bst
+- gnome-build-meta.bst:freedesktop-sdk-extra.bst:components/sassc.bst
 - core-deps/jasmine-gjs.bst
 - core-deps/umockdev.bst
 - freedesktop-sdk.bst:components/python3-docutils.bst
@@ -47,13 +47,13 @@ depends:
 - core/gnome-desktop.bst
 - core/gnome-settings-daemon.bst
 - core/mutter.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/gcr.bst
-- sdk/gjs.bst
-- sdk/glib.bst
-- sdk/gobject-introspection.bst
-- sdk/gtk.bst
-- sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/gcr.bst
+- gnome-build-meta.bst:sdk/gjs.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:components/gstreamer-plugins-base.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

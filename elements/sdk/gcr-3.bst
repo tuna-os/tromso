@@ -7,16 +7,16 @@ sources:
   ref: 3.41.2-8-g98fb27e1e37507851de8c960f65cbb1ffd191de7
 
 build-depends:
-- sdk/gi-docgen.bst
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gi-docgen.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/systemd.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/glib.bst
-- sdk/gtk+-3.bst
-- sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
 - freedesktop-sdk.bst:components/gnupg.bst
 - freedesktop-sdk.bst:components/openssh.bst
 - freedesktop-sdk.bst:components/p11-kit.bst

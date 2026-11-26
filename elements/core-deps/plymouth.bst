@@ -7,14 +7,14 @@ sources:
   ref: 24.004.60-209-ge72b0fa557a7428de6c14b8d70c8be049ac96e50
 
 build-depends:
-- sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
 - freedesktop-sdk.bst:components/sed.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/cairo.bst
-- sdk/cantarell-fonts.bst
-- sdk/pango.bst
+- gnome-build-meta.bst:sdk/cairo.bst
+- gnome-build-meta.bst:sdk/cantarell-fonts.bst
+- gnome-build-meta.bst:sdk/pango.bst
 - freedesktop-sdk.bst:components/freetype.bst
 - freedesktop-sdk.bst:components/libdrm.bst
 - freedesktop-sdk.bst:components/libevdev.bst

@@ -18,7 +18,7 @@ depends:
 - core-deps/cairomm.bst
 - core-deps/glibmm.bst
 - core-deps/pangomm.bst
-- sdk/gtk.bst
+- gnome-build-meta.bst:sdk/gtk.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

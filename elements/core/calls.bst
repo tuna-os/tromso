@@ -12,7 +12,7 @@ sources:
   ref: 3a2044f8e7c45387954ed35d22c6b6309e6751d6
 
 build-depends:
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/desktop-file-utils.bst
 - freedesktop-sdk.bst:components/python3-docutils.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
@@ -28,7 +28,7 @@ depends:
 - core-deps/libpeas.bst
 - core-deps/mobile-broadband-provider-info.bst
 - core-deps/sofia-sip.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

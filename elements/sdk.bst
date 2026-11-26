@@ -6,12 +6,12 @@
 kind: stack
 depends:
 - sdk-platform.bst
-- sdk/gi-docgen.bst
-- sdk/gtk-doc.bst
-- sdk/sysprof-agent.bst
-- sdk/sysprof-minimal.bst
-- sdk/vala.bst
-- sdk/yelp-tools.bst
+- gnome-build-meta.bst:sdk/gi-docgen.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/sysprof-agent.bst
+- gnome-build-meta.bst:sdk/sysprof-minimal.bst
+- gnome-build-meta.bst:sdk/vala.bst
+- gnome-build-meta.bst:sdk/yelp-tools.bst
 - freedesktop-sdk.bst:components/appstream.bst
 - freedesktop-sdk.bst:components/libabigail.bst
 - freedesktop-sdk.bst:components/ruby.bst

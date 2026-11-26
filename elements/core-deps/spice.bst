@@ -8,7 +8,7 @@ build-depends:
 - core-deps/spice-protocol.bst
 depends:
 - core-deps/libcacard.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/jpeg.bst
 - freedesktop-sdk.bst:components/opus.bst
 - freedesktop-sdk.bst:components/pixman.bst

@@ -19,7 +19,7 @@ build-depends:
 depends:
 - core-deps/openldap.bst
 - core-deps/rpcsvc-proto.bst
-- sdk/krb5.bst
+- gnome-build-meta.bst:sdk/krb5.bst
 - freedesktop-sdk.bst:components/dbus.bst
 - freedesktop-sdk.bst:components/gnutls.bst
 - freedesktop-sdk.bst:components/libarchive.bst

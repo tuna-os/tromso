@@ -10,7 +10,7 @@ build-depends:
 depends:
 - core-deps/pkcs11-helper.bst
 - core-deps/cjson.bst
-- sdk/krb5.bst
+- gnome-build-meta.bst:sdk/krb5.bst
 - freedesktop-sdk.bst:components/cups.bst
 - freedesktop-sdk.bst:components/ffmpeg.bst
 - freedesktop-sdk.bst:components/libpulse.bst

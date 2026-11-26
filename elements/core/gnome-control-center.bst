@@ -22,8 +22,8 @@ build-depends:
 # These two are more like runtime deps of the tests suite
 - core-deps/setxkbmap.bst
 - core-deps/xvfb.bst
-- sdk/gtk-doc.bst
-- sdk/blueprint-compiler.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/blueprint-compiler.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 runtime-depends:
@@ -51,12 +51,12 @@ depends:
 - core/gnome-desktop.bst
 - core/gnome-settings-daemon.bst
 - core/tecla.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/gdk-pixbuf.bst
-- sdk/glib.bst
-- sdk/gsettings-desktop-schemas.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/gdk-pixbuf.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gsettings-desktop-schemas.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:components/libwacom.bst
 - freedesktop-sdk.bst:components/pwquality.bst

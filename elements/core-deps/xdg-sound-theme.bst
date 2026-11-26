@@ -8,5 +8,5 @@ sources:
 
 build-depends:
 - core-deps/intltool.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst

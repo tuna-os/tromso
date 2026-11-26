@@ -7,8 +7,8 @@ sources:
   ref: 45.1-6-gdcf71e0d1da10f0798cd6e283c0f85e24893c341
 
 build-depends:
-- sdk/vala.bst
-- sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
@@ -18,9 +18,9 @@ depends:
 - core-deps/gupnp-dlna.bst
 - core-deps/gupnp.bst
 - core-deps/libmediaart.bst
-- sdk/gtk.bst
-- sdk/libgee.bst
-- sdk/tinysparql.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libgee.bst
+- gnome-build-meta.bst:sdk/tinysparql.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

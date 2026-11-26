@@ -9,9 +9,9 @@ sources:
   ref: 1.56.0-0-g56b51b98fbb8627c4c09a483702e18fd8aee7ce1
 
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/gtk-doc.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/perl-xml-parser.bst
 - freedesktop-sdk.bst:components/sed.bst
 - freedesktop-sdk.bst:components/systemd.bst
@@ -21,8 +21,8 @@ depends:
 - core-deps/ModemManager.bst
 - core-deps/mobile-broadband-provider-info.bst
 - core-deps/ppp.bst
-- sdk/glib.bst
-- sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
 - freedesktop-sdk.bst:components/curl.bst
 - freedesktop-sdk.bst:components/dbus.bst
 - freedesktop-sdk.bst:components/gnutls.bst

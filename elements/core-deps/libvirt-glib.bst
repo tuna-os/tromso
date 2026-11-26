@@ -6,9 +6,9 @@ sources:
   ref: 9bfec346382416a3575d87299bc641b2a464aa519fd9b1287e318aa43a2f3b8b
 
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/gtk-doc.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/perl-xml-parser.bst
 - freedesktop-sdk.bst:components/make.bst
 - freedesktop-sdk.bst:components/sed.bst
@@ -16,7 +16,7 @@ build-depends:
 
 depends:
 - core-deps/libvirt.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

@@ -127,13 +127,13 @@ Tromsø data is from `main` at `bb04c75` (2026-11-25).
 
 | Item | Tromsø | KDE Linux upstream | Class |
 |---|---|---|---|
-| freedesktop-sdk | `freedesktop-sdk-25.08.17`, track `freedesktop-sdk-25.08*` (`elements/freedesktop-sdk.bst`) | `26.08.4-216`, track `release/26.08` | BEHIND |
-| freedesktop-sdk patch queue | 9 files in `patches/freedesktop-sdk` | 4 patches | DIVERGED |
-| Overrides of freedesktop-sdk | 29 overrides to local copies in `elements/sdk`, `elements/core-deps` | 1 override (`at-spi2-core`) | DIVERGED |
-| freedesktop-sdk-extra | No junction. 60 local copies of its elements. | Junction | BEHIND |
-| gnome-build-meta | No junction. About 290 local copies. | No junction | DIVERGED |
-| `buildstream-plugins` | 2.5.0 (`elements/plugins/buildstream-plugins.bst`) | 2.8.0 | BEHIND |
-| `buildstream-plugins-community` | 2.3.0 | A branch commit `cffa06e` | BEHIND |
+| freedesktop-sdk | `freedesktop-sdk-26.08.4`, track `freedesktop-sdk-26.08*` (`elements/freedesktop-sdk.bst`) | `26.08.4-216`, track `release/26.08` | ALIGNED (step 4) |
+| freedesktop-sdk patch queue | 2 files in `patches/freedesktop-sdk` | 4 patches | DIVERGED |
+| Overrides of freedesktop-sdk | The `sdk/` targets point into `gnome-build-meta.bst`; local systemd and geoclue overrides remain | 1 override (`at-spi2-core`) | ALIGNED for SDK (step 5) |
+| freedesktop-sdk-extra | Used only through the gnome-build-meta junction | Junction | BEHIND (step 8) |
+| gnome-build-meta | Junction, `gnome-51` at `51.1-36-g8a89846`; `sdk/` and `sdk-deps/` come from it | No junction | ALIGNED (step 5) |
+| `buildstream-plugins` | 2.8.0 (`elements/plugins/buildstream-plugins.bst`) | 2.8.0 | ALIGNED (step 3) |
+| `buildstream-plugins-community` | 2.5.0 | A branch commit `cffa06e` | ALIGNED for the source kinds (step 3) |
 | Project options | `arch`, `toolbox`, `x86_64_v3`, `channel` | `arch`, `minimal_vm` | DIVERGED |
 | Fatal warnings | `unaliased-url`, `unstaged-files` | none | AHEAD |
 
@@ -149,7 +149,7 @@ the two projects have a file with the same base name.
 | `elements/kde/libs` | 17 | 9 are in `kde-buildstream:elements/components/` |
 | `elements/kde-linux-deps` | 197 | 58 in `kde-buildstream`, 30 in freedesktop-sdk-extra, 13 in freedesktop-sdk 26.08, 42 only in gnome-build-meta, 54 only in Tromsø |
 | `elements/core-deps` | 169 | 106 only in gnome-build-meta, 26 in freedesktop-sdk-extra, 22 in freedesktop-sdk 26.08, 9 in `kde-buildstream` |
-| `elements/sdk`, `elements/sdk-deps` | 78 | Copies of gnome-build-meta. 24 are also overrides of freedesktop-sdk elements. |
+| `elements/sdk` plus the former `sdk-deps` | 2 local | `sdk-deps` removed; only `gcr-3` and `librice` remain local. Everything else resolves through `gnome-build-meta.bst`. |
 | `elements/core` | 62 | Copies of gnome-build-meta GNOME applications. 1 (`orca`) is in `kde-buildstream`. |
 | `elements/kde-linux-system` | 70 | Copies of the `gnomeos/` directory of gnome-build-meta |
 | `elements/oci` | 24 | No equivalent. Upstream has no OCI image. |
@@ -204,7 +204,7 @@ the two projects have a file with the same base name.
 | Updates | bootc with uupd (`elements/tromso/uupd.bst`) | systemd-sysupdate |
 | Installer | tuna-installer with the fisherman backend | Calamares |
 | GNOME software | Local copies of 62 GNOME core elements. Most are not in the image. | Only orca |
-| WebKitGTK | `elements/sdk/webkitgtk-6.0.bst` at 2.53.1. [tuna-os/tromso#427](https://github.com/tuna-os/tromso/pull/427) carries a backport from 2.54.1. | Not present. Upstream uses Qt WebEngine. |
+| WebKitGTK | `gnome-build-meta.bst:sdk/webkitgtk-6.0.bst` at 2.54.1. The former local backport from #427 is gone. | Not present. Upstream uses Qt WebEngine |
 | Installer provenance | [tuna-os/tromso#402](https://github.com/tuna-os/tromso/pull/402) pins the vendored proto-installer to gnome-build-meta `f26d7fc` | Not applicable |
 | Name clash | The directories `kde-linux-deps` and `kde-linux-system` are copies of `gnomeos-deps` and `gnomeos` of gnome-build-meta. They are not from KDE Linux. | The upstream names are `components` and `os` |
 
@@ -217,22 +217,25 @@ survey compared the Git blob of each local file with gnome-build-meta.
   (2026-03-18). 201 of 600 mapped files are identical.
 - 249 mapped files have different content. 150 mapped files do not exist in
   that commit.
-- Thus, the copies came from gnome-build-meta near March 2026. They have
-  drifted for 8 months.
+Thus, the copies came from gnome-build-meta near March 2026. They have
+drifted for 8 months. Step 5 removed the `elements/sdk` copies and the
+`sdk-deps` directory; the remaining local GNOME elements still predate the
+junction and move in later steps.
 
 This drift is the cause of the work in #427 and #402. A junction removes it.
 
 ### 2.7 Local elements and the image graph
 
-`bst show --deps all oci/tromso.bst` on `main` lists 1216 elements. 717 are
-in the freedesktop-sdk junction. 499 are local. The repository has 801 local
-elements. Thus, 302 local elements are not in the image.
+`bst show --deps all oci/tromso.bst` on the step 5 branch lists 1252
+elements: 741 in the freedesktop-sdk junction, 96 in the gnome-build-meta
+junction and 415 local. The repository has 732 local elements. Thus, 317
+local elements are not in the image.
 
 | Directory | In the image graph | In the repository |
 |---|---|---|
 | `elements/kde` (Qt, Frameworks, Plasma, applications, libraries) | 170 | 176 |
 | `elements/kde-linux-deps` | 159 | 197 |
-| `elements/sdk`, `elements/sdk-deps` | 70 | 74 |
+| `elements/sdk` plus the former `sdk-deps` | 2 | 2 |
 | `elements/core-deps` | 47 | 169 |
 | `elements/oci` | 22 | 24 |
 | `elements/tromso` | 17 | 22 |
@@ -245,8 +248,10 @@ Findings:
   `elements/core/sysprof-app.bst` is in the graph.
 - 60 of 70 elements in `elements/kde-linux-system` are not in the graph. This
   includes the sysext images and `elements/kde-linux-system/signed-boot.bst`.
-- `elements/sdk/webkitgtk-6.0.bst` is in the graph of a Plasma image. The
-  survey did not find which element needs it.
+- `gnome-build-meta.bst:sdk/webkitgtk-6.0.bst` now supplies WebKitGTK 2.54.1
+  in the Plasma image; the former local backport is gone.
+- The SDK layer now has 96 elements from `gnome-build-meta.bst`; only the two
+  Tromsø-only elements `sdk/gcr-3` and `sdk/librice` remain local.
 - `elements/tromso/uupd.bst` is not in the graph. The survey did not find how
   the image gets uupd.
 
@@ -260,13 +265,13 @@ Dakota data is from the `testing` branch at `91e2a21` (2026-11-25). Dakota had
 | Item | Dakota | Tromsø | Class |
 |---|---|---|---|
 | freedesktop-sdk | `freedesktop-sdk-26.08.4`, track `freedesktop-sdk-26.08*` | 25.08.17 | BEHIND |
-| gnome-build-meta | Junction, track `gnome-51`, ref `51.1-36-g8a89846`, with a patch queue of 3 patches | No junction, about 290 drifted copies | DIVERGED |
-| Local elements | 189 | 801 | DIVERGED |
-| Overrides of freedesktop-sdk | They point into the gnome-build-meta junction | They point at local copies | DIVERGED |
+| gnome-build-meta | Junction, track `gnome-51`, ref `51.1-36-g8a89846`, with a patch queue of 3 patches | Same junction and ref; Dakota's patch queue is not carried yet | DIVERGED (patches) |
+| Local elements | 189 | 732 | DIVERGED |
+| Overrides of freedesktop-sdk | They point into the gnome-build-meta junction | They point into the same junction for `sdk/`; local systemd and geoclue remain | DIVERGED (systemd) |
 | Kernel choice | An override at the junction (`dakota:elements/core/linux-fdsdk.bst`) | freedesktop-sdk default | BEHIND |
 | bootc | v1.17.3, a local override of the gnome-build-meta element | v1.15.1 (`elements/kde-linux-deps/bootc.bst`) | BEHIND |
-| `buildstream-plugins` | 2.8.0 | 2.5.0 | BEHIND |
-| `buildstream-plugins-community` | 2.4.0 | 2.3.0 | BEHIND |
+| `buildstream-plugins` | 2.8.0 | 2.8.0 | ALIGNED |
+| `buildstream-plugins-community` | 2.4.0 | 2.5.0 | AHEAD (`anitya` and all gnome-51 source kinds) |
 | x86_64_v3 | On by default | Off by default | DIVERGED |
 
 ### 3.2 Boot security
@@ -380,7 +385,7 @@ CI build and a boot proof (the live ISO gate and the install tests).
 | 2 ([#525](https://github.com/tuna-os/tromso/issues/525)) | Start source tracking again for `elements/kde/frameworks`. Plasma `master` needs Qt 6.11 (see the order rules), so Plasma and applications wait for step 11. | Yes | Full build, boot proof |
 | 3 ([#526](https://github.com/tuna-os/tromso/issues/526)) | Update `buildstream-plugins` to 2.8.0 and `buildstream-plugins-community` to the version that `kde-buildstream` needs | Probably all cache keys. Measure with the key list. | Full build, boot proof |
 | 4 ([#527](https://github.com/tuna-os/tromso/issues/527)) | Move freedesktop-sdk to 26.08. Rebase the patch queue. | Yes (full rebuild) | Full build, boot proof, install tests |
-| 5 ([#528](https://github.com/tuna-os/tromso/issues/528)) | Add a gnome-build-meta junction (`gnome-51`). Replace `elements/sdk` and `elements/sdk-deps` with overrides into the junction. | Yes | Full build, boot proof |
+| 5 ([#528](https://github.com/tuna-os/tromso/issues/528)) | Add a gnome-build-meta junction (`gnome-51`). Replace `elements/sdk` and the former `sdk-deps` with references into the junction. | Yes | Full build, boot proof |
 | 6 ([#529](https://github.com/tuna-os/tromso/issues/529)) | Replace `elements/core-deps` and the boot elements in `elements/kde-linux-system` with the junction. Take bootc from the Dakota override. | Yes | Boot proof, install tests, Secure Boot test |
 | 7 ([#530](https://github.com/tuna-os/tromso/issues/530)) | Remove the 60 elements of `elements/core` and the other 242 local elements that the image graph does not use | No, if the graph is equal | Cache key comparison |
 | 8 ([#531](https://github.com/tuna-os/tromso/issues/531)) | Add a freedesktop-sdk-extra junction. Remove the 60 local copies. | Yes | Full build, boot proof |
@@ -396,18 +401,37 @@ Status of step 1 ([tuna-os/tromso#524](https://github.com/tuna-os/tromso/pull/52
 - The junction is `kde-buildstream.bst`, pinned at `ee0596e`.
 - The list of names and cache keys of `oci/tromso.bst` has 1216 lines. It is
   identical on `main` and on the branch.
-- A trial target does not resolve yet. BuildStream fetches the upstream
+- At step 1, a trial target did not resolve. BuildStream fetched the upstream
   project and its freedesktop-sdk 26.08 junction, and the patch queue
   applies. Then BuildStream stops, because two projects load
   `buildstream-plugins-community` at different versions.
-- A trial with an override of the two plugin junctions also stops. Version
-  2.3.0 of `buildstream-plugins-community` has no `anitya` source. Thus,
-  step 3 must first update the plugins, and then add the overrides.
+- Step 3 is applied in this branch: `buildstream-plugins` is 2.8.0 and
+  `buildstream-plugins-community` is 2.5.0. Version 2.5.0 has every source
+  kind the gnome-51 and kde-buildstream project files list, including
+  `anitya` and `go_mod_vendor`.
 
 A local hazard, found in step 1: `pytest` writes `__pycache__` into
 `files/kde-linux-system/generate-initramfs`. That directory is a `local`
 source. Thus, 11 cache keys change in a local checkout after a test run. CI
 does not have this problem. Remove the directory before a local build.
+
+Status of step 5 ([tuna-os/tromso#528](https://github.com/tuna-os/tromso/issues/528)):
+
+- `elements/gnome-build-meta.bst` pins `gnome-51` at
+  `51.1-36-g8a89846df11e86cee57c728a86a247e61d604b84`.
+- `elements/sdk` keeps only `gcr-3` and `librice`; the former `sdk-deps`
+  directory is removed. Every other `sdk/` and `sdk-deps/` reference points
+  into the junction.
+- The freedesktop-sdk `sdk/` overrides, including `krb5`, `glycin` and
+  `libglycin`, point into the junction. The local `krb5` element and its C23
+  failure are gone.
+- `buildstream-plugins` 2.8.0 and `buildstream-plugins-community` 2.5.0 are
+  required to load the gnome-51 project (step 3).
+- `bst show --deps all oci/tromso.bst` resolves 1252 elements, 96 of them
+  from `gnome-build-meta.bst`.
+- `gnome-build-meta.bst:sdk/krb5.bst` builds or pulls successfully.
+- The full image build and boot proof are the remaining verification for
+  this step.
 
 Order rules:
 

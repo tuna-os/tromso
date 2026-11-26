@@ -6,9 +6,9 @@ sources:
   ref: da049e8616924b15d434d3eb616767f00f91611c3e7c8efd9e36c28099e1126f
 
 build-depends:
-- sdk/gi-docgen.bst
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gi-docgen.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/cmake.bst
 - freedesktop-sdk.bst:components/help2man.bst
 - freedesktop-sdk.bst:components/liberation-fonts.bst
@@ -22,10 +22,10 @@ depends:
 - core-deps/ModemManager.bst
 - core-deps/libjcat.bst
 - core-deps/passim.bst
-- sdk/gcab.bst
-- sdk/glib.bst
-- sdk/pango.bst
-- sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/gcab.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/pango.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
 - freedesktop-sdk.bst:components/cairo.bst
 - freedesktop-sdk.bst:components/curl.bst
 - freedesktop-sdk.bst:components/efivar.bst

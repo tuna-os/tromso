@@ -14,8 +14,8 @@ depends:
 - core-deps/colord-gtk.bst
 - core-deps/exiv2.bst
 - core/gnome-desktop.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/glib.bst
-- sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
 - freedesktop-sdk.bst:components/libexif.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

@@ -12,7 +12,7 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
 - core-deps/libcacard.bst
 - core-deps/spice.bst
 - core-deps/usbredir.bst

@@ -10,7 +10,7 @@ sources:
   path: patches/cups-pk-helper/cups-pk-helper-g-variant.patch
 
 build-depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/systemd.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 

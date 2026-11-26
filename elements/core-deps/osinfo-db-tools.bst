@@ -8,9 +8,9 @@ build-depends:
 - freedesktop-sdk.bst:components/perl-xml-parser.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 depends:
-- sdk/glib.bst
-- sdk/json-glib.bst
-- sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/json-glib.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
 - freedesktop-sdk.bst:components/libarchive.bst
 - freedesktop-sdk.bst:components/libxml2.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

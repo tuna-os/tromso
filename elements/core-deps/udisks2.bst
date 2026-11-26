@@ -9,7 +9,7 @@ sources:
   path: patches/udisks2/calculate-drive-size-from-all-attached-nvme.patch
 
 build-depends:
-- sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
 - freedesktop-sdk.bst:components/docbook-xsl.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 

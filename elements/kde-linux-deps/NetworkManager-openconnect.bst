@@ -18,8 +18,8 @@ build-depends:
 - core-deps/intltool.bst
 
 depends:
-- sdk/gtk.bst
-- sdk/webkitgtk-6.0.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/webkitgtk-6.0.bst
 - core-deps/libnma.bst
 - core-deps/NetworkManager.bst
 - kde-linux-deps/openconnect.bst

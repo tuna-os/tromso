@@ -9,5 +9,5 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/gjs.bst
+- gnome-build-meta.bst:sdk/gjs.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

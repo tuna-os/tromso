@@ -5,12 +5,12 @@ sources:
   track: '*.*'
   ref: 1.34.0-0-g2bca5d22137883f348cb117597746483637491db
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 - freedesktop-sdk.bst:components/help2man.bst
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/bash-completion.bst
 - freedesktop-sdk.bst:components/libgudev.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

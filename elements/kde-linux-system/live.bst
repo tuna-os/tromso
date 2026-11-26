@@ -600,6 +600,6 @@ build-depends:
 - freedesktop-sdk.bst:components/rust.bst
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/lvm2.bst
 - freedesktop-sdk.bst:components/python3.bst

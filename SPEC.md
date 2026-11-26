@@ -37,6 +37,7 @@ tuna-os/tromso (this repo)
 │   └── aliases.yml               # URL aliases (kde:, github:, gnome:, etc.)
 └── elements/
     ├── freedesktop-sdk.bst       # Junction → freedesktop-sdk (base SDK)
+    ├── gnome-build-meta.bst      # Junction → gnome-build-meta (SDK layer, gnome-51)
     ├── kde/                      # KDE stack (consolidated in from kde-build-meta)
     │   ├── qt6/                  # Qt6 base, declarative, multimedia, etc.
     │   ├── frameworks/           # kcoreaddons, kio, kirigami, kwin deps, etc.
@@ -48,8 +49,7 @@ tuna-os/tromso (this repo)
     ├── kde-linux-system/         # KDE Linux system config/initramfs (consolidated in)
     ├── core/                     # Core freedesktop-sdk-facing elements
     ├── core-deps/                # Core dependency elements
-    ├── sdk/                      # SDK-facing elements
-    ├── sdk-deps/
+    ├── sdk/                      # gcr-3 and librice only; the rest comes from gnome-build-meta.bst
     ├── plugins/                  # BuildStream plugins (junctions)
     ├── test.bst                  # Minimal test element
     ├── tromso/                   # Tromso-specific additions over KDE Linux base
@@ -89,7 +89,9 @@ into `elements/` (`kde/`, `kde-linux-deps/`, `kde-linux-system/`, `core/`,
 `core-deps/`, `patches/`, `files/`, `keys/`, `plugins/`; see `AGENTS.md` for
 the full history). The role formerly played by the `kde-build-meta` junction
 (`gnome-build-meta` scaffolding rebranded for KDE) is now filled by this
-repo's own `elements/` tree plus the `freedesktop-sdk` junction.
+repo's own `elements/` tree plus the `freedesktop-sdk` and
+`gnome-build-meta` junctions. The SDK layer (`sdk/` and `sdk-deps/`) comes
+from `gnome-build-meta.bst`; only `gcr-3` and `librice` remain local.
 
 ---
 
@@ -97,6 +99,7 @@ repo's own `elements/` tree plus the `freedesktop-sdk` junction.
 
 ```
 freedesktop-sdk (base SDK, via elements/freedesktop-sdk.bst junction)
+gnome-build-meta (SDK layer, via elements/gnome-build-meta.bst junction)
     └── elements/kde/              # Qt6, Frameworks 6, Plasma 6, KDE Applications
     └── elements/kde-linux-deps/   # KDE Linux base deps
     └── elements/kde-linux-system/ # system config, initramfs, signed modules

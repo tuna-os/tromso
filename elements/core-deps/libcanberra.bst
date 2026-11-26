@@ -9,7 +9,7 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 
 depends:
-- sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
 - freedesktop-sdk.bst:components/libpulse.bst
 - freedesktop-sdk.bst:components/libtool.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

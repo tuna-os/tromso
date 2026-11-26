@@ -13,8 +13,8 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 
 depends:
-- sdk/gtk.bst
-- sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
 - core-deps/libnma.bst
 - core-deps/NetworkManager.bst
 - kde-linux-deps/openvpn.bst

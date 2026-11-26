@@ -8,6 +8,6 @@ build-depends:
 - freedesktop-sdk.bst:components/python3.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 depends:
-- sdk/at-spi2-core.bst
-- sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/at-spi2-core.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

@@ -8,13 +8,13 @@ sources:
 
 build-depends:
 - core-deps/python-dbusmock.bst
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
 - core-deps/evolution-data-server.bst
-- sdk/libgee.bst
+- gnome-build-meta.bst:sdk/libgee.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

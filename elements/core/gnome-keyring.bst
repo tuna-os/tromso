@@ -15,7 +15,7 @@ build-depends:
 
 depends:
 - sdk/gcr-3.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/libgcrypt.bst
 - freedesktop-sdk.bst:components/linux-pam.bst
 - freedesktop-sdk.bst:components/systemd-libs.bst

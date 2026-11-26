@@ -24,28 +24,31 @@ config:
         bootstrap_build_arch: "x86_64"
 
   overrides:
-    components/at-spi2-core.bst: sdk/at-spi2-core.bst
-    components/cairo.bst: sdk/cairo.bst
-    components/fcitx5-gtk.bst: sdk/fcitx5-gtk.bst
-    components/gcab.bst: sdk/gcab.bst
-    components/gdk-pixbuf.bst: sdk/gdk-pixbuf.bst
-    components/glib-networking.bst: sdk/glib-networking.bst
-    components/glib.bst: sdk/glib.bst
-    components/gobject-introspection.bst: sdk/gobject-introspection.bst
-    components/python3-gi-docgen.bst: sdk/gi-docgen.bst
-    components/graphene.bst: sdk/graphene.bst
-    components/gsettings-desktop-schemas.bst: sdk/gsettings-desktop-schemas.bst
-    components/gtk-doc.bst: sdk/gtk-doc.bst
-    components/gtk3.bst: sdk/gtk+-3.bst
-    components/libibus.bst: sdk/libibus.bst
-    components/json-glib.bst: sdk/json-glib.bst
-    components/libnotify.bst: sdk/libnotify.bst
-    components/librsvg.bst: sdk/librsvg.bst
-    components/libsoup.bst: sdk/libsoup.bst
-    components/pango.bst: sdk/pango.bst
-    components/pygobject.bst: sdk/pygobject.bst
-    components/vala.bst: sdk/vala.bst
-    components/libsecret.bst: sdk/libsecret.bst
+    components/at-spi2-core.bst: gnome-build-meta.bst:sdk/at-spi2-core.bst
+    components/cairo.bst: gnome-build-meta.bst:sdk/cairo.bst
+    components/fcitx5-gtk.bst: gnome-build-meta.bst:sdk/fcitx5-gtk.bst
+    components/gcab.bst: gnome-build-meta.bst:sdk/gcab.bst
+    components/gdk-pixbuf.bst: gnome-build-meta.bst:sdk/gdk-pixbuf.bst
+    components/glycin.bst: gnome-build-meta.bst:sdk/glycin.bst
+    components/libglycin.bst: gnome-build-meta.bst:sdk/libglycin.bst
+    components/krb5.bst: gnome-build-meta.bst:sdk/krb5.bst
+    components/glib-networking.bst: gnome-build-meta.bst:sdk/glib-networking.bst
+    components/glib.bst: gnome-build-meta.bst:sdk/glib.bst
+    components/gobject-introspection.bst: gnome-build-meta.bst:sdk/gobject-introspection.bst
+    components/python3-gi-docgen.bst: gnome-build-meta.bst:sdk/gi-docgen.bst
+    components/graphene.bst: gnome-build-meta.bst:sdk/graphene.bst
+    components/gsettings-desktop-schemas.bst: gnome-build-meta.bst:sdk/gsettings-desktop-schemas.bst
+    components/gtk-doc.bst: gnome-build-meta.bst:sdk/gtk-doc.bst
+    components/gtk3.bst: gnome-build-meta.bst:sdk/gtk+-3.bst
+    components/libibus.bst: gnome-build-meta.bst:sdk/libibus.bst
+    components/json-glib.bst: gnome-build-meta.bst:sdk/json-glib.bst
+    components/libnotify.bst: gnome-build-meta.bst:sdk/libnotify.bst
+    components/librsvg.bst: gnome-build-meta.bst:sdk/librsvg.bst
+    components/libsoup.bst: gnome-build-meta.bst:sdk/libsoup.bst
+    components/pango.bst: gnome-build-meta.bst:sdk/pango.bst
+    components/pygobject.bst: gnome-build-meta.bst:sdk/pygobject.bst
+    components/vala.bst: gnome-build-meta.bst:sdk/vala.bst
+    components/libsecret.bst: gnome-build-meta.bst:sdk/libsecret.bst
 
     # While freedesktop-sdk provides a zenity element, it's the
     # gtk3 version which we don't want, and we also override it

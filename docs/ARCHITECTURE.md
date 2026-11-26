@@ -79,8 +79,11 @@ Nested junctions made desktop updates more complex:
 - **Nested junctions**: Multiple levels made path resolution and source updates more complex in BuildStream.
 
 ### Current Design: Unified `elements/` Hierarchy
-Tromso consolidated all KDE, Plasma, and desktop elements directly into this repository (`elements/`). Only one external junction remains:
+Tromso consolidated all KDE, Plasma, and desktop elements directly into this repository (`elements/`). Two external junctions remain:
 - **`elements/freedesktop-sdk.bst`**: Points to upstream `freedesktop-sdk` (`gitlab.com/freedesktop-sdk/freedesktop-sdk.git`). This external junction preserves the boundary with an independent upstream project.
+- **`elements/gnome-build-meta.bst`**: Points to `gnome-51` and supplies the SDK layer (`sdk/` and `sdk-deps/`), plus the GNOME OS elements later steps will use. Tromso overrides its nested `freedesktop-sdk.bst` and plugin junctions so the graph keeps one base and one plugin context.
+
+`elements/kde-buildstream.bst` is also pinned, but it remains inert until later migration steps.
 
 ---
 
@@ -91,6 +94,7 @@ The repository has definitions of elements for these functional domains:
 ```
 elements/
 ├── freedesktop-sdk.bst      # External upstream junction to freedesktop-sdk
+├── gnome-build-meta.bst     # External junction to gnome-51 (SDK layer)
 ├── core/ & core-deps/       # Core operating system utilities, accountsservice, PAM
 ├── kde/                     # KDE software stack (Qt 6, Frameworks 6, Plasma 6, Apps)
 │   ├── qt6/                 # Qt 6 base libraries and modules (~30 elements)
@@ -107,7 +111,7 @@ elements/
 ### Key Build Patterns
 1. **CMake Frameworks**: KDE Frameworks need CMake detection at build time. Dependencies that provide CMake find modules must appear in `build-depends:`, even if they also appear in `depends:`. This makes them available inside the sandbox during configuration.
 2. **Options & Flags**: KDE CMake elements use `cmake-local` for architecture-specific flags. Do not use `cmake-options`. This preserves upstream defaults.
-3. **Base Modules**: Use SDK components such as `linux-pam-base`, `polkit`, and `networkmanager` directly through the junction. Do not redefine them.
+3. **Base Modules**: Use SDK components such as `linux-pam-base`, `polkit`, and `networkmanager` directly through the freedesktop-sdk junction. Use `gnome-build-meta.bst:sdk/...` for SDK libraries such as GLib, GTK and libsoup; do not recreate them locally.
 
 ---
 

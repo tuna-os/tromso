@@ -10,9 +10,9 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 runtime-depends:
-- sdk/gdk-pixbuf.bst
-- sdk/librsvg.bst
+- gnome-build-meta.bst:sdk/gdk-pixbuf.bst
+- gnome-build-meta.bst:sdk/librsvg.bst
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

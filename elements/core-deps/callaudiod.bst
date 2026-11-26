@@ -10,7 +10,7 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/appstream.bst
 - freedesktop-sdk.bst:components/alsa-lib.bst
 - freedesktop-sdk.bst:components/libpulse.bst

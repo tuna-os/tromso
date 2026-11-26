@@ -10,7 +10,7 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 
 depends:
-- sdk/json-glib.bst
+- gnome-build-meta.bst:sdk/json-glib.bst
 - freedesktop-sdk.bst:components/gnutls.bst
 - freedesktop-sdk.bst:components/iproute2.bst
 - freedesktop-sdk.bst:components/openssl.bst

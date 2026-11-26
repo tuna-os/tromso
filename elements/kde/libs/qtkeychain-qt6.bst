@@ -7,7 +7,7 @@ build-depends:
 - kde/qt6/qt6-qtdeclarative.bst
 - freedesktop-sdk.bst:components/mesa-headers.bst
 - kde/qt6/qt6-qttools.bst
-- sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
 
 variables:
   cmake-local: >-

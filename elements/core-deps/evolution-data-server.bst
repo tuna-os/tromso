@@ -7,8 +7,8 @@ sources:
   ref: 3.60.0-16-ge611b762a89c58ce7fd9d4540665ed64c0240e6b
 
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/gperf.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
 
@@ -17,12 +17,12 @@ depends:
 - core-deps/libcanberra.bst
 - core-deps/libgweather.bst
 - core-deps/openldap.bst
-- sdk/gcr.bst
-- sdk/gtk+-3.bst
-- sdk/gtk.bst
-- sdk/libsecret.bst
-- sdk/libsoup.bst
-- sdk/webkitgtk-6.0.bst
+- gnome-build-meta.bst:sdk/gcr.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/webkitgtk-6.0.bst
 - freedesktop-sdk.bst:components/libical.bst
 - freedesktop-sdk.bst:components/nspr.bst
 - freedesktop-sdk.bst:components/nss.bst

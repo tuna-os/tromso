@@ -11,4 +11,4 @@ build-depends:
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
-- sdk/gssproxy.bst
+- gnome-build-meta.bst:sdk/gssproxy.bst

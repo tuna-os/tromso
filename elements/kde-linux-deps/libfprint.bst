@@ -9,8 +9,8 @@ sources:
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 - freedesktop-sdk.bst:components/systemd.bst
-- sdk/gobject-introspection.bst
-- sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
 
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
@@ -19,5 +19,5 @@ depends:
 - freedesktop-sdk.bst:components/systemd-libs.bst
 - freedesktop-sdk.bst:components/nss.bst
 - freedesktop-sdk.bst:components/pixman.bst
-- sdk/glib.bst
-- sdk/cairo.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/cairo.bst

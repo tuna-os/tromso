@@ -13,11 +13,11 @@ build-depends:
 depends:
 - core-deps/foundry.bst
 - core-deps/gom.bst
-- sdk-deps/libpanel.bst
-- sdk/glib.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/libdex.bst
-- sdk/webkitgtk-6.0.bst
+- gnome-build-meta.bst:sdk-deps/libpanel.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/libdex.bst
+- gnome-build-meta.bst:sdk/webkitgtk-6.0.bst
 - freedesktop-sdk.bst:components/flatpak.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

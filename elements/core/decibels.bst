@@ -14,13 +14,13 @@ build-depends:
 - core-deps/typescript.bst
 - freedesktop-sdk.bst:components/desktop-file-utils.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
-- sdk/blueprint-compiler.bst
+- gnome-build-meta.bst:sdk/blueprint-compiler.bst
 
 depends:
-- sdk/adwaita-icon-theme.bst
-- sdk/gjs.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/gjs.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:components/gstreamer-plugins-bad.bst

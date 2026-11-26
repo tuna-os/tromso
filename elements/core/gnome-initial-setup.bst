@@ -23,11 +23,11 @@ depends:
 - core/gdm.bst
 - core/gnome-desktop.bst
 - core/gnome-keyring.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/glib.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/webkitgtk-6.0.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/webkitgtk-6.0.bst
 - freedesktop-sdk.bst:components/geoclue-libs.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:components/pwquality.bst

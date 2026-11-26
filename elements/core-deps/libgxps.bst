@@ -7,7 +7,7 @@ sources:
   ref: 0.3.2-14-g32f7c5009aeaff4cd75e9531783852557463b2ee
 
 build-depends:
-- sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 variables:
@@ -15,7 +15,7 @@ variables:
     -Denable-test=false
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/cairo.bst
 - freedesktop-sdk.bst:components/lcms.bst
 - freedesktop-sdk.bst:components/libarchive.bst

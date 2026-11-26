@@ -5,12 +5,12 @@ sources:
   track: master
   ref: 2.41.3-17-g6a21532ff67060718eb5ebcdae050d03eaff111e
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
 - freedesktop-sdk.bst:components/texinfo.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 environment:
   CC: gcc -std=c99

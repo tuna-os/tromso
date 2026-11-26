@@ -15,11 +15,11 @@ depends:
 - core-deps/dasbus.bst
 - core-deps/pyatspi.bst
 - core-deps/speech-dispatcher.bst
-- sdk/at-spi2-core.bst
-- sdk/gobject-introspection.bst
-- sdk/gtk+-3.bst
-- sdk/pygobject.bst
-- sdk/yelp-tools.bst
+- gnome-build-meta.bst:sdk/at-spi2-core.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/yelp-tools.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

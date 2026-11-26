@@ -9,22 +9,22 @@ sources:
 build-depends:
 - freedesktop-sdk.bst:components/desktop-file-utils.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
-- sdk/blueprint-compiler.bst
+- gnome-build-meta.bst:sdk/blueprint-compiler.bst
 
 runtime-depends:
-- sdk/adwaita-icon-theme.bst
-- sdk/glib-networking.bst
-- sdk/librsvg.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/glib-networking.bst
+- gnome-build-meta.bst:sdk/librsvg.bst
 
 depends:
 - core-deps/libgweather.bst
 - core-deps/librest.bst
 - core-deps/libshumate.bst
-- sdk/gjs.bst
-- sdk/glib.bst
-- sdk/gobject-introspection.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/libportal.bst
+- gnome-build-meta.bst:sdk/gjs.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/libportal.bst
 - freedesktop-sdk.bst:components/geoclue.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

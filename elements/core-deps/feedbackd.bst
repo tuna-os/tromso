@@ -6,14 +6,14 @@ sources:
   ref: b0b5b22216940b485d0d43679dce403583e33438f06c49a83cf1820cdbbca174
 
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
 - core-deps/gmobile.bst
 - core-deps/gsound.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/libgudev.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 

@@ -7,14 +7,14 @@ sources:
   ref: 0.81.0-81-gfc2760558f98f8a5808154264c3f4b74d7a3e19c
 
 build-depends:
-- sdk/gi-docgen.bst
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gi-docgen.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/glib.bst
-- sdk/gtk.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk.bst
 - core-deps/fast-float.bst
 - core-deps/simdutf.bst
 - freedesktop-sdk.bst:components/fmtlib.bst

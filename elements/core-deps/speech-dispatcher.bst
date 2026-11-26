@@ -13,7 +13,7 @@ build-depends:
 depends:
 - core-deps/dotconf.bst
 - core-deps/espeak-ng.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/systemd-libs.bst
 - freedesktop-sdk.bst:components/libpulse.bst
 - freedesktop-sdk.bst:components/sndfile.bst

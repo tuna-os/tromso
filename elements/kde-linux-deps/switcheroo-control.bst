@@ -7,15 +7,15 @@ sources:
   ref: 3.0-0-g2adfa2dff85b9886ce0fddca6863fe9f2eaf54a0
 
 build-depends:
-- sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
 - core-deps/python-dbusmock.bst
 - core-deps/umockdev.bst
 - freedesktop-sdk.bst:components/systemd.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/glib.bst
-- sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
 - freedesktop-sdk.bst:components/libdrm.bst
 - freedesktop-sdk.bst:components/libgudev.bst
 - freedesktop-sdk.bst:components/python3.bst

@@ -1053,9 +1053,9 @@ sources:
     sha: f75c23a64ef8f40f13a6989991e643554d9bef1d682a281160cf0c1bc389c5e9
 
 build-depends:
-- sdk/blueprint-compiler.bst
-- sdk/gi-docgen.bst
-- sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/blueprint-compiler.bst
+- gnome-build-meta.bst:sdk/gi-docgen.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
 - freedesktop-sdk.bst:components/appstream.bst
 - freedesktop-sdk.bst:components/desktop-file-utils.bst
 - freedesktop-sdk.bst:components/itstool.bst
@@ -1065,11 +1065,11 @@ build-depends:
 depends:
 - core-deps/libspelling.bst
 - core/nautilus.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/glib.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/lcms.bst
 - freedesktop-sdk.bst:components/libseccomp.bst

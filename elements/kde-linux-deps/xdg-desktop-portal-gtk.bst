@@ -10,7 +10,7 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
 - freedesktop-sdk.bst:components/xdg-desktop-portal.bst
 
 variables:

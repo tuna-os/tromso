@@ -9,13 +9,13 @@ sources:
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 - freedesktop-sdk.bst:components/libxslt.bst
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - core-deps/intltool.bst
 
 depends:
-- sdk/gtk+-3.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/json-glib.bst
 - freedesktop-sdk.bst:components/dbus.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

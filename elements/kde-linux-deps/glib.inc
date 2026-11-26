@@ -1,3 +1,6 @@
+# Kept locally for kde-linux-deps/glib-static.bst, which builds a static GLib
+# for qemu-user. The junction's sdk/glib.inc is scoped to gnome-build-meta and
+# cannot be included from a local element without leaking its junction paths.
 sources:
 - kind: git_repo
   url: gnome:glib.git

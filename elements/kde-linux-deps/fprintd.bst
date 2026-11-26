@@ -14,8 +14,8 @@ build-depends:
 - freedesktop-sdk.bst:components/systemd.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 - core-deps/python-dbusmock.bst
-- sdk/gtk-doc.bst
-- sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
 - kde-linux-deps/pam-wrapper.bst
 
 depends:

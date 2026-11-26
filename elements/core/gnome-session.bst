@@ -15,8 +15,8 @@ build-depends:
 depends:
 - core-deps/upower.bst
 - core/gnome-desktop.bst
-- sdk/gtk.bst
-- sdk/json-glib.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/json-glib.bst
 - freedesktop-sdk.bst:components/systemd.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 

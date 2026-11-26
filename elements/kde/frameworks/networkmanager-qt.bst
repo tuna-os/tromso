@@ -9,7 +9,7 @@ build-depends:
 - kde/qt6/qt6-qtshadertools.bst
 - kde/qt6/qt6-qttools.bst
 - freedesktop-sdk.bst:components/mesa-headers.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 
 depends:
 - core-deps/NetworkManager.bst

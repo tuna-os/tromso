@@ -7,6 +7,6 @@ sources:
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 depends:
-- sdk/glib.bst
-- sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

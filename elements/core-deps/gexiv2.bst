@@ -7,11 +7,11 @@ sources:
   ref: 0.16.0-0-g33ac4052bb4132e16fdf2bf043cbddca9c716be6
 
 build-depends:
-- sdk/pygobject.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
 - core-deps/exiv2.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

@@ -11,16 +11,16 @@ sources:
   path: files/libosinfo/usb.ids
 
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/gtk-doc.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/perl-xml-parser.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
 - core-deps/osinfo-db-tools.bst
-- sdk/glib.bst
-- sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
 - freedesktop-sdk.bst:components/libxslt.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 

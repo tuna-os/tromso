@@ -24,10 +24,10 @@ depends:
 - core-deps/libzip.bst
 - core-deps/totem-pl-parser.bst
 - core-deps/upower.bst
-- sdk/gdk-pixbuf.bst
-- sdk/glib.bst
-- sdk/libsecret.bst
-- sdk/tinysparql.bst
+- gnome-build-meta.bst:sdk/gdk-pixbuf.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/tinysparql.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:components/libexif.bst
 - freedesktop-sdk.bst:components/libflac.bst

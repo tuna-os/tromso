@@ -6,15 +6,15 @@ sources:
   ref: 2.2.1-1-gb958421be8c41f797933cf4a5301e61a0fbd98ef
 
 build-depends:
-- sdk/gi-docgen.bst
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gi-docgen.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/gjs.bst
-- sdk/glib.bst
-- sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/gjs.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

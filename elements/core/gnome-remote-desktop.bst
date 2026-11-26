@@ -18,9 +18,9 @@ depends:
 - core-deps/LibVNCServer.bst
 - core-deps/fdk-aac-free.bst
 - core-deps/freerdp.bst
-- sdk/glib.bst
-- sdk/libnotify.bst
-- sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/libnotify.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
 - freedesktop-sdk.bst:components/asciidoc.bst
 - freedesktop-sdk.bst:components/dummy-gbm.bst
 - freedesktop-sdk.bst:components/fuse3.bst

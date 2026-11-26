@@ -17,9 +17,9 @@ depends:
 - core-deps/grilo.bst
 - core-deps/libmediaart.bst
 - core-deps/totem-pl-parser.bst
-- sdk/json-glib.bst
-- sdk/libsoup.bst
-- sdk/tinysparql.bst
+- gnome-build-meta.bst:sdk/json-glib.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/tinysparql.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

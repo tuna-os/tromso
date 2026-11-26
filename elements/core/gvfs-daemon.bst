@@ -1,10 +1,10 @@
 kind: filter
 
 build-depends:
-- sdk-deps/gvfs.bst
+- gnome-build-meta.bst:sdk-deps/gvfs.bst
 
 runtime-depends:
-- sdk/gvfs-client.bst
+- gnome-build-meta.bst:sdk/gvfs-client.bst
 - core-deps/gnome-online-accounts.bst
 - core-deps/libbluray.bst
 - core-deps/libcdio-paranoia.bst
@@ -16,11 +16,11 @@ runtime-depends:
 - core-deps/plist.bst
 - core-deps/samba.bst
 - core-deps/udisks2.bst
-- sdk/gcr.bst
-- sdk/glib.bst
-- sdk/gsettings-desktop-schemas.bst
-- sdk/libsecret.bst
-- sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/gcr.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gsettings-desktop-schemas.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
 - freedesktop-sdk.bst:components/avahi.bst
 - freedesktop-sdk.bst:components/dbus.bst
 - freedesktop-sdk.bst:components/fuse3.bst

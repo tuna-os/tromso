@@ -12,8 +12,8 @@ build-depends:
 - freedesktop-sdk.bst:components/systemd.bst
 
 depends:
-- sdk/gtk.bst
-- sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
 - core-deps/libnma.bst
 - core-deps/NetworkManager.bst
 - core-deps/ppp.bst

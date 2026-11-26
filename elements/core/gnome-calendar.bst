@@ -7,7 +7,7 @@ sources:
   ref: 50.0-57-g4f019194cfe04f4160de7d7b27f428665e074c01
 
 build-depends:
-- sdk/blueprint-compiler.bst
+- gnome-build-meta.bst:sdk/blueprint-compiler.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
@@ -15,10 +15,10 @@ depends:
 - core-deps/geocode-glib.bst
 - core-deps/gnome-online-accounts.bst
 - core-deps/libgweather.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/glib.bst
-- sdk/gsettings-desktop-schemas.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gsettings-desktop-schemas.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
 - freedesktop-sdk.bst:components/geoclue-libs.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

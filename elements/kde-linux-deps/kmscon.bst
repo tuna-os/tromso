@@ -26,7 +26,7 @@ depends:
 - freedesktop-sdk.bst:components/libxkbcommon.bst
 - freedesktop-sdk.bst:components/systemd.bst
 - kde-linux-deps/libtsm.bst
-- sdk/pango.bst
+- gnome-build-meta.bst:sdk/pango.bst
 
 config:
   install-commands:

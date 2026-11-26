@@ -14,7 +14,7 @@ build-depends:
 - freedesktop-sdk.bst:components/systemd.bst
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/apparmor.bst
 - freedesktop-sdk.bst:components/libseccomp.bst
 - freedesktop-sdk.bst:components/squashfs-tools.bst

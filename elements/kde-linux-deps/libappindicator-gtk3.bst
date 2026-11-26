@@ -8,14 +8,14 @@ sources:
 
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 
 depends:
 - kde-linux-deps/libayatana-indicator.bst
 - kde-linux-deps/libdbusmenu-gtk3.bst
-- sdk/gtk+-3.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/dbus.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 

@@ -11,7 +11,7 @@ sources:
 
 build-depends:
 - core-deps/libcheck.bst
-- sdk/yelp-tools.bst
+- gnome-build-meta.bst:sdk/yelp-tools.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
@@ -20,7 +20,7 @@ depends:
 - core-deps/libcanberra.bst
 - core-deps/plymouth.bst
 - core-deps/upower.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

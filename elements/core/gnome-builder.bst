@@ -11,10 +11,10 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 runtime-depends:
-- sdk/adwaita-icon-theme.bst
-- sdk/gjs.bst
-- sdk/pygobject.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/gjs.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/flatpak-builder.bst
 
 depends:
@@ -30,16 +30,16 @@ depends:
 - core/d-spy.bst
 - core/gvfs-daemon.bst
 - core/sysprof-app.bst
-- sdk-deps/libpanel.bst
-- sdk/glib.bst
-- sdk/gtk.bst
-- sdk/gtksourceview.bst
-- sdk/libadwaita.bst
-- sdk/libdex.bst
-- sdk/libportal.bst
-- sdk/librsvg.bst
-- sdk/libsoup.bst
-- sdk/webkitgtk-6.0.bst
+- gnome-build-meta.bst:sdk-deps/libpanel.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/gtksourceview.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/libdex.bst
+- gnome-build-meta.bst:sdk/libportal.bst
+- gnome-build-meta.bst:sdk/librsvg.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/webkitgtk-6.0.bst
 - freedesktop-sdk.bst:components/flatpak.bst
 - freedesktop-sdk.bst:components/llvm.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

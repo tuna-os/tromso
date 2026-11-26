@@ -5,13 +5,13 @@ sources:
   track: master
   ref: 1.9.7-0-gb68855ae47f2df349c50ef258e5d51811159acbc
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/gtk-doc.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 depends:
-- sdk/gdk-pixbuf.bst
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/gdk-pixbuf.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 variables:
   meson-local: |

@@ -8,13 +8,13 @@ sources:
 
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 
 depends:
 - kde-linux-deps/ayatana-ido.bst
-- sdk/glib.bst
-- sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

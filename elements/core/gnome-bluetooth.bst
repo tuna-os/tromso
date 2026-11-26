@@ -7,17 +7,17 @@ sources:
   ref: 47.1-105-g3427909b22c28145f5d5f09e3c533a87bdbc78a1
 
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
 - core-deps/gsound.bst
 - core-deps/upower.bst
-- sdk/glib.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/libnotify.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/libnotify.bst
 - freedesktop-sdk.bst:components/bluez-libs.bst
 - freedesktop-sdk.bst:components/bluez.bst
 - freedesktop-sdk.bst:components/systemd.bst

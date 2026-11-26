@@ -17,7 +17,7 @@ build-depends:
 depends:
 - core-deps/cairomm.bst
 - core-deps/glibmm.bst
-- sdk/pango.bst
+- gnome-build-meta.bst:sdk/pango.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

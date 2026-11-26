@@ -14,8 +14,8 @@ build-depends:
 depends:
 - core-deps/editorconfig-core-c.bst
 - core-deps/libspelling.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/enchant-2.bst
-- sdk/gtksourceview.bst
-- sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/enchant-2.bst
+- gnome-build-meta.bst:sdk/gtksourceview.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

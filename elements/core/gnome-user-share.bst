@@ -412,6 +412,6 @@ build-depends:
 - freedesktop-sdk.bst:components/rust.bst
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/systemd.bst

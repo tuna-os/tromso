@@ -5,10 +5,10 @@ sources:
   track: master
   ref: 3.26.7-1-gb59867f870c819d3ea787a4fcba3fadaa366f90a
 build-depends:
-- sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/libarchive.bst
 - freedesktop-sdk.bst:components/libgcrypt.bst
 - freedesktop-sdk.bst:components/libxml2.bst

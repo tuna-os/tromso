@@ -85,7 +85,7 @@ python3 scripts/autotune-chunk-grouping.py --limit 5 --output-metrics /tmp/metri
 To measure cache efficiency and find slow elements:
 1. **Cache Ratios**: Record cache status (`cached`, `buildable`, `waiting`) in the plan and build jobs. A drop in hit ratio can show cache-key churn. Check changes to `project.conf` or junction references such as `freedesktop-sdk.bst`.
 2. **Slow Elements**: Monitor durations of the heavy elements from `build-tromso-multirunner.yml`:
-   - `sdk/webkitgtk-6.0.bst` (~249 min)
+   - `gnome-build-meta.bst:sdk/webkitgtk-6.0.bst` (~249 min)
    - `freedesktop-sdk.bst:components/llvm.bst` (~126 min)
    - `kde/qt6/qt6-qtdeclarative.bst` (~57 min)
    - `kde/qt6/qt6-qtbase.bst` (~43 min)

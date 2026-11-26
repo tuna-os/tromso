@@ -33,9 +33,9 @@ depends:
 - freedesktop-sdk.bst:components/mtools.bst
 - freedesktop-sdk.bst:components/python3-docutils.bst
 - freedesktop-sdk.bst:components/python3-tomlkit.bst
-- sdk-deps/libsass.bst
-- sdk-deps/sassc.bst
-- sdk/gi-docgen.bst
+- gnome-build-meta.bst:freedesktop-sdk-extra.bst:components/libsass.bst
+- gnome-build-meta.bst:freedesktop-sdk-extra.bst:components/sassc.bst
+- gnome-build-meta.bst:sdk/gi-docgen.bst
 - freedesktop-sdk.bst:components/xmlto.bst
 # Used by gdm tests
 - core-deps/libcheck.bst

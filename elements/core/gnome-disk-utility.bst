@@ -1010,9 +1010,9 @@ depends:
 - core-deps/libdvdread.bst
 - core-deps/udisks2.bst
 - core/gnome-settings-daemon.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/glib.bst
-- sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
 - freedesktop-sdk.bst:components/pwquality.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
@@ -1026,10 +1026,10 @@ depends:
       - freedesktop-sdk.bst:components/rust.bst
     depends:
       (>):
-      - sdk/gtk.bst
-      - sdk/libadwaita.bst
+      - gnome-build-meta.bst:sdk/gtk.bst
+      - gnome-build-meta.bst:sdk/libadwaita.bst
 - channel == "stable":
     depends:
       (>):
-      - sdk/gtk+-3.bst
-      - sdk/libhandy.bst
+      - gnome-build-meta.bst:sdk/gtk+-3.bst
+      - gnome-build-meta.bst:core-deps/libhandy.bst

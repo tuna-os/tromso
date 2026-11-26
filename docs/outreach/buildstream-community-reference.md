@@ -38,7 +38,7 @@ Tromso is an independent community project. It uses BuildStream 2 to build KDE P
 
 #### Architectural Highlights & Relevance to BuildStream
 - **Scale**: The tree has over 200 elements. These cover Qt 6, about 70 KDE Frameworks, Plasma 6, applications, system utilities, and graphics drivers.
-- **One Repository**: Package definitions live under `elements/`. The only external junction is `freedesktop-sdk.bst`. This avoids nested junctions in a complex graph of desktop dependencies.
+- **One Repository**: Package definitions live under `elements/`. The external junctions are `freedesktop-sdk.bst` and `gnome-build-meta.bst`; the latter supplies the SDK layer. `kde-buildstream.bst` is pinned but inert. This avoids nested junction sprawl in a complex graph of desktop dependencies.
 - **Upstream Standards**: Tromso enforces `fatal-warnings: [unaliased-url, unstaged-files]`. The `include/mirrors.yml` file provides fallback mirrors.
 - **Distributed CI**: The workflow divides graphs of dependencies across GitHub Actions runners. The jobs connect through CAS archives and composite cache keys.
 - **OS Delivery**: The `build-oci` tool creates OCI images for bootc (`containers.bootc: '1'`). Tromso also builds live UEFI media for installation.

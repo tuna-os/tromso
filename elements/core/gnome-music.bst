@@ -17,9 +17,9 @@ depends:
 - core-deps/libmediaart.bst
 - core-deps/localsearch.bst
 - core/gvfs-daemon.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/pygobject.bst
-- sdk/tinysparql.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/tinysparql.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

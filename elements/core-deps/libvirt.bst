@@ -17,7 +17,7 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - core-deps/dnsmasq.bst
 - core-deps/ebtables.bst
 - core-deps/qemu.bst

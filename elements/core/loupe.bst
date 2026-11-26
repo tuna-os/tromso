@@ -1015,12 +1015,12 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/glycin.bst
+- gnome-build-meta.bst:sdk/glycin.bst
 - core-deps/libgweather.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/glib.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/lcms.bst
 - freedesktop-sdk.bst:components/libseccomp.bst

@@ -26,11 +26,11 @@ depends:
 - core-deps/libgweather.bst
 - core-deps/upower.bst
 - core/gnome-desktop.bst
-- sdk/gcr.bst
-- sdk/glib.bst
-- sdk/gsettings-desktop-schemas.bst
-- sdk/gtk.bst
-- sdk/libnotify.bst
+- gnome-build-meta.bst:sdk/gcr.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gsettings-desktop-schemas.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libnotify.bst
 - freedesktop-sdk.bst:components/alsa-lib.bst
 - freedesktop-sdk.bst:components/geoclue-libs.bst
 - freedesktop-sdk.bst:components/libgudev.bst

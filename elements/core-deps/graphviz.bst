@@ -12,9 +12,9 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 
 depends:
-- sdk/gdk-pixbuf.bst
-- sdk/glib.bst
-- sdk/pango.bst
+- gnome-build-meta.bst:sdk/gdk-pixbuf.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/pango.bst
 - freedesktop-sdk.bst:components/cairo.bst
 - freedesktop-sdk.bst:components/dejavu-fonts.bst
 - freedesktop-sdk.bst:components/expat.bst

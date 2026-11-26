@@ -13,8 +13,8 @@ build-depends:
 
 depends:
 - kde-linux-deps/sstp-client.bst
-- sdk/gtk.bst
-- sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
 - core-deps/libnma.bst
 - core-deps/NetworkManager.bst
 - core-deps/ppp.bst

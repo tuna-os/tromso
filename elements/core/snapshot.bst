@@ -857,11 +857,11 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/adwaita-icon-theme.bst
-- sdk/gst-plugin-gtk4.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/libglycin-gtk4.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/gst-plugin-gtk4.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/libglycin-gtk4.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/gettext.bst
 - freedesktop-sdk.bst:components/gstreamer.bst

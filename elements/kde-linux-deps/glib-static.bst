@@ -1,11 +1,11 @@
 kind: meson
 
-(@): elements/sdk/glib.inc
+(@): kde-linux-deps/glib.inc
 
 build-depends:
   (>):
   - freedesktop-sdk.bst:components/python3-docutils.bst
-  - sdk-deps/gobject-introspection-stage1.bst
+  - gnome-build-meta.bst:sdk-deps/gobject-introspection-stage1.bst
 
 variables:
   meson-local: >-

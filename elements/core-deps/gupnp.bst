@@ -7,16 +7,16 @@ sources:
   ref: gupnp-1.6.9-2-g2400dc5a39398829845d5549dc1a8311e278c82d
 
 build-depends:
-- sdk/gobject-introspection.bst
-- sdk/gtk-doc.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
 - core-deps/NetworkManager.bst
 - core-deps/gssdp.bst
-- sdk/glib.bst
-- sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

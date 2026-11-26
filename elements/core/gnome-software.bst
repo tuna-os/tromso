@@ -13,8 +13,8 @@ sources:
   path: patches/gnome-software/describe.patch
 
 build-depends:
-- sdk/gtk-doc.bst
-- sdk/sysprof-minimal.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/sysprof-minimal.bst
 - freedesktop-sdk.bst:components/itstool.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
@@ -25,13 +25,13 @@ depends:
 - core-deps/malcontent.bst
 - core-deps/snapd-glib.bst
 - core/gnome-desktop.bst
-- sdk/adwaita-icon-theme.bst
-- sdk/glib.bst
-- sdk/gsettings-desktop-schemas.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/libsecret.bst
-- sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gsettings-desktop-schemas.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/libsecret.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
 - freedesktop-sdk.bst:components/appstream.bst
 - freedesktop-sdk.bst:components/flatpak.bst
 - freedesktop-sdk.bst:components/libgudev.bst

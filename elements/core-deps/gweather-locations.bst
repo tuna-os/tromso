@@ -7,7 +7,7 @@ sources:
   ref: 2026.2-7-g98fb050c1b7b92b3b057ee2cef74c5fbef60b7eb
 
 build-depends:
-- sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:

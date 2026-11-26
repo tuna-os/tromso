@@ -10,7 +10,7 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
 - kde-linux-deps/libdbusmenu-gtk3.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 

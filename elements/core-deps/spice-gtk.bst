@@ -7,7 +7,7 @@ sources:
 
 build-depends:
 - core-deps/python-pyparsing.bst
-- sdk/gtk-doc.bst
+- gnome-build-meta.bst:sdk/gtk-doc.bst
 - freedesktop-sdk.bst:components/perl.bst
 - kde-linux-deps/python3-six.bst
 - freedesktop-sdk.bst:components/sed.bst
@@ -17,11 +17,11 @@ depends:
 - core-deps/phodav.bst
 - core-deps/spice-protocol.bst
 - core-deps/usbredir.bst
-- sdk/glib.bst
-- sdk/gtk+-3.bst
-- sdk/json-glib.bst
-- sdk/libsoup.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
+- gnome-build-meta.bst:sdk/json-glib.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/cyrus-sasl.bst
 - freedesktop-sdk.bst:components/gstreamer.bst
 - freedesktop-sdk.bst:components/gstreamer-plugins-base.bst

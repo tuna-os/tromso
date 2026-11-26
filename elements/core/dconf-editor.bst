@@ -7,13 +7,13 @@ sources:
   ref: 49.0-25-gfa7abe310ff771e9e81541bc3f728f51586a024d
 
 build-depends:
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:components/desktop-file-utils.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
 - core-deps/dconf.bst
-- sdk/glib.bst
-- sdk/gtk+-3.bst
-- sdk/libhandy.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk+-3.bst
+- gnome-build-meta.bst:core-deps/libhandy.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

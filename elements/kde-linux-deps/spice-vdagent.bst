@@ -10,7 +10,7 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-autotools.bst
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - core-deps/spice-protocol.bst
 - freedesktop-sdk.bst:components/alsa-lib.bst
 - freedesktop-sdk.bst:components/dbus.bst

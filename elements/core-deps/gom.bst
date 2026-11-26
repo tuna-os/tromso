@@ -7,7 +7,7 @@ sources:
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 depends:
-- sdk/gdk-pixbuf.bst
-- sdk/glib.bst
-- sdk/pygobject.bst
+- gnome-build-meta.bst:sdk/gdk-pixbuf.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/pygobject.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

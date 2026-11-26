@@ -10,7 +10,7 @@ build-depends:
 - freedesktop-sdk.bst:components/sed.bst
 
 depends:
-- sdk/glib.bst
+- gnome-build-meta.bst:sdk/glib.bst
 - freedesktop-sdk.bst:components/nss.bst
 - freedesktop-sdk.bst:components/pcsc-lite.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

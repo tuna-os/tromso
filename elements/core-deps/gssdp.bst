@@ -7,14 +7,14 @@ sources:
   ref: gssdp-1.6.4-3-gc9117c94ddab128f352660b89455fd3fc7003194
 
 build-depends:
-- sdk/gi-docgen.bst
-- sdk/gobject-introspection.bst
-- sdk/vala.bst
+- gnome-build-meta.bst:sdk/gi-docgen.bst
+- gnome-build-meta.bst:sdk/gobject-introspection.bst
+- gnome-build-meta.bst:sdk/vala.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
-- sdk/glib.bst
-- sdk/libsoup.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/libsoup.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

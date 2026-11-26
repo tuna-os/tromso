@@ -12,15 +12,15 @@ build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 runtime-depends:
-- sdk/adwaita-icon-theme.bst
+- gnome-build-meta.bst:sdk/adwaita-icon-theme.bst
 
 depends:
 - core-deps/glibmm.bst
 - core-deps/gtkmm.bst
 - core-deps/libgtop.bst
-- sdk/glib.bst
-- sdk/gtk.bst
-- sdk/libadwaita.bst
-- sdk/librsvg.bst
+- gnome-build-meta.bst:sdk/glib.bst
+- gnome-build-meta.bst:sdk/gtk.bst
+- gnome-build-meta.bst:sdk/libadwaita.bst
+- gnome-build-meta.bst:sdk/librsvg.bst
 - freedesktop-sdk.bst:components/systemd-libs.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
