@@ -89,14 +89,14 @@ def _tracked(elements):
     directory -- expanded with a non-recursive `"$p"/*.bst` glob -- or a
     single element, minus anything in TRACK_EXCLUDE.
     """
-    paths_match = PATHS_RE.search(WORKFLOW.read_text())
-    assert paths_match, "track-bst-sources.yml declares no matrix paths:"
+    path_entries = " ".join(PATHS_RE.findall(WORKFLOW.read_text())).split()
+    assert path_entries, "track-bst-sources.yml declares no matrix paths:"
     exclude_match = EXCLUDE_RE.search(WORKFLOW.read_text())
     assert exclude_match, "track-bst-sources.yml declares no TRACK_EXCLUDE"
     excluded = set(exclude_match.group(1).split())
 
     out = set()
-    for entry in paths_match.group(1).split():
+    for entry in path_entries:
         rel = entry.removeprefix("elements/")
         if (ELEMENTS / rel).is_dir():
             # Non-recursive, exactly like `for f in "$p"/*.bst`.
@@ -142,10 +142,10 @@ def test_tracked_paths_exist():
     """A renamed or removed directory silently shrinks tracking scope: the
     workflow's `if [ -d "$p" ]` test just skips a path that no longer
     exists, so refs stop being bumped with no failure anywhere."""
-    paths_match = PATHS_RE.search(WORKFLOW.read_text())
+    entries = " ".join(PATHS_RE.findall(WORKFLOW.read_text())).split()
     missing = [
         entry
-        for entry in paths_match.group(1).split()
+        for entry in entries
         if not (REPO / entry).exists()
     ]
     assert not missing, (
@@ -223,3 +223,12 @@ def test_split_upstream_allowlist_has_no_stale_entries():
         "remove from SPLIT_UPSTREAM_GRANDFATHERED, they no longer need it:\n"
         + "\n".join(stale)
     )
+
+
+def test_kde_frameworks_tracked_without_automerge():
+    """Frameworks are tracked (#525); Plasma/apps wait for Qt 6.11 (#534)."""
+    assert "kde/frameworks/kio.bst" in TRACKED
+    assert not any(t.startswith(("kde/plasma/", "kde/apps/")) for t in TRACKED)
+    text = WORKFLOW.read_text()
+    block = text.split("group: kde-frameworks", 1)[1].split("name:", 1)[0]
+    assert "automerge: false" in block
