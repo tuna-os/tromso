@@ -24,9 +24,13 @@ trap cleanup EXIT
 
 echo "== install"
 truncate -s 30G "$WORK/disk.raw"
+# The composefs backend reads the layer blobs of an OCI layout, as fisherman
+# gives them. From containers-storage, bootc stopped with "Unexpected EOF in
+# splitstream" (run 45735950875).
+skopeo copy "containers-storage:$IMAGE" "oci:$WORK/oci"
 podman run --rm --privileged --pid=host --security-opt label=type:unconfined_t \
-  -v /var/lib/containers:/var/lib/containers -v /dev:/dev -v "$WORK:/data" \
-  "$IMAGE" bootc install to-disk --via-loopback /data/disk.raw \
+  -v /dev:/dev -v "$WORK:/data" \
+  "$IMAGE" bootc install to-disk --via-loopback /data/disk.raw --source-imgref oci:/data/oci \
   --composefs-backend --bootloader systemd --filesystem ext4 --generic-image --wipe \
   --karg lockdown=integrity --karg console=tty0 --karg console=ttyS0 \
   --karg systemd.firstboot=no --karg systemd.journald.forward_to_console=1 \
