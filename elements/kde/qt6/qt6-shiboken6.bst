@@ -30,3 +30,8 @@ sources:
 # 26.08 ships LLVM 22; without it the generated QtCore wrappers do not compile.
 - kind: patch
   path: patches/shiboken6/0001-clang-22-fully-qualified-type-names.patch
+# clang 22 prints "QList<QString>::value_type" for typedefs within class
+# templates (QItemSelection became QItemSelectionRange<QString>). Upstream 6.11
+# strips those arguments (clang::parseTypeName()).
+- kind: patch
+  path: patches/shiboken6/0002-clang-22-strip-class-template-arguments.patch
