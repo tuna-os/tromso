@@ -5,6 +5,7 @@ build-depends:
 - filename: freedesktop-sdk.bst:components/linux.bst
   strict: true
 - freedesktop-sdk.bst:components/findutils.bst
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 
 config:
   install-commands:
