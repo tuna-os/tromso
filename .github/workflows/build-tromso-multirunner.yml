@@ -101,7 +101,7 @@ jobs:
         freedesktop-sdk.bst:components/cargo-c.bst
         freedesktop-sdk.bst:components/gdb.bst
         freedesktop-sdk.bst:components/_private/systemd-stage1.bst
-        sdk/glycin.bst
+        freedesktop-sdk.bst:components/glycin.bst
       # That spine is well over a single job's worth of serial work at 2 cores,
       # so core will exhaust its budget for the first few runs. Its CAS is
       # pushed regardless (the push step is if: always()), so each run resumes
@@ -245,7 +245,7 @@ jobs:
         freedesktop-sdk.bst:components/cargo-c.bst
         freedesktop-sdk.bst:components/gdb.bst
         freedesktop-sdk.bst:components/_private/systemd-stage1.bst
-        sdk/glycin.bst
+        freedesktop-sdk.bst:components/glycin.bst
       core_budget_minutes: "300"
       soft_core_budget: true
       # Kept in step with the x86_64 call above. This path has never had a
