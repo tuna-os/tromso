@@ -7,6 +7,7 @@ sources:
   ref: 2a57a99eecef6b44db3537ed2520b30bae3759f8465456e22e404cd643838bf5
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-python-setuptools.bst
 - freedesktop-sdk.bst:components/sed.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst

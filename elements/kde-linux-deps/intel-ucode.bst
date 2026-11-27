@@ -7,6 +7,7 @@ sources:
   ref: microcode-20260227-0-g250941fb670645d7d91f761cc63656ad3a1ec367
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - kde-linux-deps/iucode-tool.bst
 
 variables:

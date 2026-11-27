@@ -1,6 +1,9 @@
 kind: manual
 description: Common system files (vendored from get-aurora-dev/common, unaffiliated)
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 sources:
 - kind: local
   path: files/tromso/aurora-common

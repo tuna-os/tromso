@@ -7,6 +7,7 @@ sources:
   ref: 48d0be87b260056a65a9056a9be7e190b67a508540ebcb1fc18a67349cca0177
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:

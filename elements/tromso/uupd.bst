@@ -2,6 +2,7 @@ kind: manual
 description: uupd payload built from upstream source
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:components/go.bst
 
 depends:

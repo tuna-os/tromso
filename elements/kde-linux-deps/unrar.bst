@@ -7,6 +7,7 @@ sources:
   ref: f7edb6f55fb53611206781d9e56f2625ef4411a6b129768800196617d9df920a
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:components/gcc.bst
 - freedesktop-sdk.bst:components/binutils.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst

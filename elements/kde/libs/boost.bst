@@ -2,6 +2,7 @@ kind: manual
 description: Boost C++ Libraries (headers + compiled components for filesystem/thread/chrono/program_options)
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
 
 variables:

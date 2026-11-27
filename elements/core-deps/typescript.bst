@@ -1,5 +1,8 @@
 kind: manual
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 sources:
 - kind: tar
   url: 

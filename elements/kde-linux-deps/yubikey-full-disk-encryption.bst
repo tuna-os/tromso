@@ -7,6 +7,7 @@ sources:
   ref: 5059554e72c9b34b6b3caf90252ff74aeba68ab86bfd843f8ce79d1b72b223bb
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
 - kde-linux-deps/yubikey-personalization.bst
 - freedesktop-sdk.bst:components/cryptsetup.bst

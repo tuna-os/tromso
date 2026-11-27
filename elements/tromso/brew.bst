@@ -1,6 +1,9 @@
 kind: manual
 description: Homebrew system files staged using Dakota's split pattern
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 sources:
 - kind: git_repo
   url: github:ublue-os/brew.git

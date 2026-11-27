@@ -1,6 +1,7 @@
 kind: manual
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - kde-linux-system/save-perms.bst
 - freedesktop-sdk.bst:components/fakecap.bst
 - freedesktop-sdk.bst:components/erofs-utils.bst

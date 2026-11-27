@@ -12,6 +12,9 @@ config:
   - |
     install -Dm755 make-layer.py '%{install-root}%{bindir}/make-layer'
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 sources:
 - kind: local
   path: files/kde-linux-system/make-layer.py

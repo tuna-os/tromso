@@ -7,6 +7,7 @@ sources:
   ref: 21f69290435a77412c31422abfa297506773982cd465a98d0d69d6f46a5030d3
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
 - freedesktop-sdk.bst:components/python3.bst
 - freedesktop-sdk.bst:components/python3-dbus.bst

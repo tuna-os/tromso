@@ -9,6 +9,7 @@ sources:
   ref: v1.19.0-0-gec7b4e2fa2caecad6d89be4a26029b831fe7503a
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:components/go.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
 

@@ -1,6 +1,9 @@
 kind: manual
 description: Bluefin common shared payload imported for upstream layering parity
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 sources:
 - kind: git_repo
   url: github:projectbluefin/common.git

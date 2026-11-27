@@ -15,6 +15,7 @@ sources:
   ref: a3221246365bd67231e85683fde0942ca5190484
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

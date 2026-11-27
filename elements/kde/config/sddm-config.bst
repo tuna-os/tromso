@@ -4,6 +4,9 @@ description: SDDM configuration for Wayland
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 sources:
 - kind: local
   path: files/kde/config/10-sddm-wayland.conf

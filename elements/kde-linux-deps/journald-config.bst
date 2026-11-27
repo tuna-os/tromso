@@ -15,6 +15,9 @@ config:
   - |
     %{install-extra}
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 sources:
 - kind: local
   path: files/journald/90-persistent-journal.conf
