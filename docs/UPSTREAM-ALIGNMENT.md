@@ -242,7 +242,10 @@ elements. Thus, 302 local elements are not in the image.
 Findings:
 
 - `elements/core` has 60 GNOME elements that the image does not use. Only
-  `elements/core/sysprof-app.bst` is in the graph.
+  `elements/core/sysprof-app.bst` is in the graph. Step 7 removed 53 of them.
+  `gnome-desktop.bst` and `nautilus.bst` stay because `core-deps` elements
+  still name them. The developer-tools stack and its closure also stay,
+  because the devel sysext uses them.
 - 60 of 70 elements in `elements/kde-linux-system` are not in the graph. This
   includes the sysext images and `elements/kde-linux-system/signed-boot.bst`.
 - `elements/sdk/webkitgtk-6.0.bst` is in the graph of a Plasma image. The
