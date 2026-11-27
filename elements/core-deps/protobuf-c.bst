@@ -16,6 +16,12 @@ depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/protobuf.bst
 
+variables:
+  # protobuf 36 (freedesktop-sdk 26.08) installs the header, but configure
+  # preprocesses it without -std=c++17 and reports it missing. The C++17 compile
+  # of protoc-gen-c itself is unaffected.
+  conf-local: ac_cv_header_google_protobuf_compiler_command_line_interface_h=yes
+
 public:
   bst:
     split-rules:
