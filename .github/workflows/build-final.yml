@@ -414,7 +414,7 @@ jobs:
       - name: Upload Trivy scan results
         if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') && inputs.push_image }}
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v4.39.3
+        uses: github/codeql-action/upload-sarif@v4.39.4
         with:
           sarif_file: trivy-results.sarif
 
