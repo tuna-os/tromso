@@ -450,8 +450,27 @@ Status of step 5 ([tuna-os/tromso#528](https://github.com/tuna-os/tromso/issues/
 - `bst show --deps all oci/tromso.bst` resolves 1252 elements, 96 of them
   from `gnome-build-meta.bst`.
 - `gnome-build-meta.bst:sdk/krb5.bst` builds or pulls successfully.
-- The full image build and boot proof are the remaining verification for
-  this step.
+- The full image build and boot proof are not yet available.
+- A full build on 2026-11-27 built 75 elements and used 719 cached elements.
+  It failed on `core-deps/xvfb.bst` and
+  `gnome-build-meta.bst:sdk/webkitgtk-6.0.bst`.
+- The first shell failures were on local `kind: manual` elements. The
+  freedesktop-sdk update removed `sh` from the `runtime-minimal` build
+  environment. The branch adds `runtime-gnu` to the build dependencies of
+  every local manual element.
+- `signed-modules` also copied `/boot/vmlinuz`, which the kernel element
+  does not install. The branch copies
+  `/usr/lib/modules/${version}/vmlinuz` instead.
+- `protobuf-c` needs the protobuf and abseil devel headers. It also needs
+  `-std=c++20` for the abseil headers.
+- `core-deps/xvfb.bst` fails with `nettle/sha.h: No such file or directory`.
+  The `gnome-51` nettle artifact has no headers. A patch for xserver or a
+  nettle 3.x element is needed.
+- `webkitgtk-6.0` reaches the 2-hour remote build timeout. An earlier try
+  failed with `ninja: fatal: pipe: Too many open files`. The step needs a
+  longer remote timeout, a faster worker, or a seeded artifact.
+- The draft pull request records these build observations. The image and
+  boot proof remain open.
 
 Order rules:
 
