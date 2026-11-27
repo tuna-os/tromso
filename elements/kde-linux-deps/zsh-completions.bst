@@ -6,6 +6,9 @@ sources:
   track: '[0-9]*.[0-9]*.[0-9]*'
   ref: 0.35.0-0-g67921bc12502c1e7b0f156533fbac2cb51f6943d
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 config:
   build-commands: []
 

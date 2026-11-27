@@ -7,6 +7,9 @@ sources:
   track: main
   ref: v2026.11-79-gc5d3493467b3fc4547829ccf118eac8ae486ebdf
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 

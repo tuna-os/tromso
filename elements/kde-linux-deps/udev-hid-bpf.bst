@@ -12,6 +12,7 @@ depends:
 - freedesktop-sdk.bst:components/systemd.bst
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:components/findutils.bst
 
 variables:

@@ -9,12 +9,12 @@ sources:
 build-depends:
 - sdk/gi-docgen.bst
 - sdk/gobject-introspection.bst
-- sdk/libglycin.bst
+- freedesktop-sdk.bst:components/libglycin.bst
 - freedesktop-sdk.bst:public-stacks/buildsystem-meson.bst
 
 depends:
 - sdk/glib.bst
-- sdk/libglycin.bst
+- freedesktop-sdk.bst:components/libglycin.bst
 - freedesktop-sdk.bst:components/jpeg.bst
 - freedesktop-sdk.bst:components/libpng.bst
 - freedesktop-sdk.bst:components/libtiff.bst

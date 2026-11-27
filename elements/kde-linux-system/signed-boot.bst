@@ -1,6 +1,7 @@
 kind: manual
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - kde-linux-system/os-release.bst
 - filename: freedesktop-sdk.bst:components/linux.bst
   strict: true

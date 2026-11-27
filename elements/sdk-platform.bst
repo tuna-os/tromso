@@ -20,7 +20,7 @@ depends:
 - sdk/gjs.bst
 - sdk/glib-networking.bst
 - sdk/glib.bst
-- sdk/glycin.bst
+- freedesktop-sdk.bst:components/glycin.bst
 - sdk/gobject-introspection.bst
 - sdk/graphene.bst
 - sdk/gsettings-desktop-schemas.bst

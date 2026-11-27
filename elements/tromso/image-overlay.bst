@@ -15,6 +15,7 @@ depends:
 # 2026-09-26: `sh: find: command not found`, exit 127). Same pattern as
 # elements/kde-linux-deps/microcode.bst.
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:components/findutils.bst
 
 variables:

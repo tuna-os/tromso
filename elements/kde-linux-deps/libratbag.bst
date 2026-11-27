@@ -32,3 +32,4 @@ variables:
   meson-local: >-
     -Dtests=false
     -Ddocumentation=false
+    -Dc_args='-DPyInt_FromLong=PyLong_FromLong -DPyInt_Check=PyLong_Check -DPyInt_AsLong=PyLong_AsLong'

@@ -17,10 +17,13 @@ depends:
 - freedesktop-sdk.bst:components/protobuf.bst
 
 variables:
-  # protobuf 36 (freedesktop-sdk 26.08) installs the header, but configure
-  # preprocesses it without -std=c++17 and reports it missing. The C++17 compile
-  # of protoc-gen-c itself is unaffected.
-  conf-local: ac_cv_header_google_protobuf_compiler_command_line_interface_h=yes
+  # protobuf 36 and abseil (freedesktop-sdk 26.08) need C++17, but configure
+  # ends up with plain -std=gnu++11 and then fails on the header probe and on
+  # abseil's btree. Select C++17 explicitly and skip the probe that cannot see
+  # the header.
+  conf-local: >-
+    CXX="%{triplet}-g++ -std=c++17"
+    ac_cv_header_google_protobuf_compiler_command_line_interface_h=yes
 
 public:
   bst:

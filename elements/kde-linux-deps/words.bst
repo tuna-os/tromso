@@ -27,6 +27,7 @@ sources:
   ref: ad367fa1e7069c72eb7ae37e4d39c30a44d32a6aa73cedccbd0d06a69018afcc
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:components/aspell.bst
 - freedesktop-sdk.bst:components/findutils.bst
   

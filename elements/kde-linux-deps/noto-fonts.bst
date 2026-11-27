@@ -7,6 +7,9 @@ sources:
   track: noto-monthly-release-2026.05.01
   ref: 66c4b351c58f99ace5a6265d329080d74b057909
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 depends:
 - freedesktop-sdk.bst:components/fontconfig.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst

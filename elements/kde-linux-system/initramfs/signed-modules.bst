@@ -2,6 +2,7 @@ kind: manual
 description: "Prepare kernel modules and vmlinuz for bootc (aligned with Dakota)"
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - filename: freedesktop-sdk.bst:components/linux.bst
   strict: true
 - freedesktop-sdk.bst:components/findutils.bst

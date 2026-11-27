@@ -7,6 +7,7 @@ sources:
   ref: a6feec4e239e818985ef3a1939bc1e294537f8da9fb18ec07a1f5c18e3466ff5
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:components/pkg-config.bst
 - freedesktop-sdk.bst:components/systemd.bst
 

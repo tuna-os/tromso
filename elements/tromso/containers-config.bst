@@ -7,6 +7,7 @@ description: Install /etc/containers/policy.json (insecureAcceptAnything default
   in the final OCI image.
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

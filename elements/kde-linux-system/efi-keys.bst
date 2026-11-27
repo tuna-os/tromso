@@ -32,6 +32,7 @@ sources:
   ref: v1.6.4-signed-0-gbd7abe3cc73734cf364f6a4bc529ef12a9439ec8
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:components/sbsigntools-maybe.bst
 
 variables:
