@@ -21,7 +21,7 @@ depends:
 - sdk/at-spi2-core.bst
 - sdk/gdk-pixbuf.bst
 - sdk/glib.bst
-- sdk/glycin.bst
+- freedesktop-sdk.bst:components/glycin.bst
 - sdk/graphene.bst
 - freedesktop-sdk.bst:components/gstreamer-plugins-bad.bst
 - freedesktop-sdk.bst:components/gstreamer-plugins-base.bst

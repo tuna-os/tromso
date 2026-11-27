@@ -6,6 +6,9 @@ sources:
   track: v*
   ref: v0.9-0-ge9325b5ce312423f9b83f7175949694097a161b2
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 depends:
 - freedesktop-sdk.bst:components/python3.bst
 

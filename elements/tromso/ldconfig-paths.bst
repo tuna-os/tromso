@@ -2,6 +2,7 @@ kind: script
 description: Ensure runtime linker searches /usr/lib for Qt6 libraries
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:

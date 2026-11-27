@@ -6,6 +6,9 @@ sources:
   track: 'v*'
   ref: v0.7.1-0-ge52ee8ca55bcc56a17c828767a3f98f22a68d4eb
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 config:
   build-commands: []
 

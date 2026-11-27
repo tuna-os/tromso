@@ -5,6 +5,7 @@ sources:
   path: files/kde-linux-system/confext
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:components/gcc.bst
 - freedesktop-sdk.bst:components/stripper.bst
 

@@ -12,6 +12,7 @@ description: >-
   - kscreenlockerrc: screen lock disabled by default (auto-lock off)
 
 build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 - freedesktop-sdk.bst:components/linux-pam.bst
 

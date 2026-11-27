@@ -4,6 +4,9 @@ sources:
 - kind: local
   path: files/modprobe-config/soc-button-array.conf
 
+build-depends:
+- freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+
 depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
