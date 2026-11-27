@@ -7,6 +7,8 @@ sources:
   ref: e4ad1862342d7e1365978499ca951ae4788c9dc0
 
 build-depends:
+# A "manual" element needs a shell; runtime-minimal no longer provides one.
+- freedesktop-sdk.bst:public-stacks/buildsystem-make.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:
