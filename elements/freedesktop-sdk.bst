@@ -8,6 +8,18 @@ sources:
 - kind: patch_queue
   path: patches/freedesktop-sdk
 
+(?):
+- flavor == "ogc":
+    sources:
+      (>):
+      # Adds the OGC patches for Mesa and WirePlumber (docs/OGC.md).
+      - kind: patch_queue
+        path: patches/freedesktop-sdk-ogc
+    config:
+      overrides:
+        # Kernel choice by an override at the junction, as Dakota does it.
+        components/linux.bst: ogc/linux.bst
+
 config:
   options:
     target_arch: '%{arch}'

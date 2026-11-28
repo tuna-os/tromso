@@ -20,7 +20,12 @@ environment:
 
 variables:
   sysroot-seed: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+  image-title: Tromso
+  image-ref: ghcr.io/tuna-os/tromso:latest
   (?):
+  - flavor == "ogc":
+      image-title: Tromso OGC
+      image-ref: ghcr.io/tuna-os/tromso-ogc:latest
   - arch == "x86_64":
       go-arch: amd64
   - arch == "aarch64":
@@ -145,7 +150,7 @@ config:
         config:
           Labels:
             'com.github.containers.toolbox': 'true'
-            'org.opencontainers.image.title': 'Tromso'
+            'org.opencontainers.image.title': '%{image-title}'
             'org.opencontainers.image.description': 'Tromso KDE Plasma desktop, layered on KDE Linux'
             'org.opencontainers.image.vendor': 'TunaOS'
             'org.opencontainers.image.licenses': 'Apache-2.0'
@@ -153,5 +158,5 @@ config:
             'org.opencontainers.image.source': 'https://github.com/tuna-os/tromso'
             'containers.bootc': '1'
         index-annotations:
-          'org.opencontainers.image.ref.name': 'ghcr.io/tuna-os/tromso:latest'
+          'org.opencontainers.image.ref.name': '%{image-ref}'
       EOF

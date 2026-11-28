@@ -25,6 +25,14 @@ environment:
   BUG_SUPPORT_URL: "https://github.com/tuna-os/tromso/issues"
   ID: "tromso"
 
+(?):
+- flavor == "ogc":
+    environment:
+      IMAGE_NAME: "tromso-ogc"
+      IMAGE_REF: "ostree-image-signed:docker://ghcr.io/tuna-os/tromso-ogc"
+      IMAGE_FLAVOR: "ogc"
+      IMAGE_PRETTY_NAME: "Tromso OGC"
+
 config:
   build-commands:
     - mkdir -p %{install-root}%{indep-libdir}/

@@ -31,6 +31,21 @@ on:
         required: false
         default: ''
         type: string
+      image_name:
+        description: 'Name of the published image'
+        required: false
+        default: 'tromso'
+        type: string
+      bst_options:
+        description: 'Project options for every bst call, for example "-o flavor ogc"'
+        required: false
+        default: ''
+        type: string
+      extra_cas_artifacts:
+        description: 'Names of CAS artifacts of this run to unpack over the caches'
+        required: false
+        default: ''
+        type: string
       channel_ownership:
         description: 'This architecture owns the bare :latest, :nightly and :stable tags'
         required: false
@@ -85,7 +100,9 @@ permissions:
 
 env:
   RELEASE_BUILD: '1'
-  IMAGE_NAME: tromso
+  IMAGE_NAME: ${{ inputs.image_name }}
+  # A variant reads the caches of the default image.
+  CACHE_IMAGE: tromso
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
   BST_TARGET: oci/tromso.bst
   BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
@@ -153,7 +170,7 @@ jobs:
           # (sources/ excluded) and resumes GHCR's mid-stream PROTOCOL_ERROR
           # cuts. A missing chunk costs rebuild time here, never correctness.
           # CACHE_SUFFIX keeps each architecture's CAS in its own namespace.
-          BASE="ghcr.io/${REPO_LOWER}/cache-${IMAGE_NAME}${CACHE_SUFFIX}"
+          BASE="ghcr.io/${REPO_LOWER}/cache-${CACHE_IMAGE}${CACHE_SUFFIX}"
           scripts/cas-restore-stream.sh "${BASE}-core:latest" \
             || echo "::warning::core CAS unavailable — build_final rebuilds it"
           df -h /
@@ -169,6 +186,23 @@ jobs:
             df -h /
           done
           du -sh ~/.cache/buildstream
+
+      - name: Download the CAS artifacts of this run
+        if: inputs.extra_cas_artifacts != ''
+        uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: '*-cas'
+          path: extra-cas
+
+      - name: Unpack the CAS artifacts of this run
+        if: inputs.extra_cas_artifacts != ''
+        env:
+          EXTRA_CAS: ${{ inputs.extra_cas_artifacts }}
+        run: |
+          for name in $EXTRA_CAS; do
+            zstd -dc "extra-cas/${name}/${name}.tar.zst" | tar -xf - -C ~/.cache/buildstream
+          done
+          rm -rf extra-cas
 
       # ── Remote execution (tuna-os/tromso#311) ─────────────────────────
       # Inert until someone adds the CASD credentials: with neither set, the
@@ -204,7 +238,7 @@ jobs:
 
       - name: Build Final Target
         env:
-          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf ${{ inputs.bst_options }}
           RE_EXPECTED: ${{ inputs.enable_remote_execution && vars.CASD_CLIENT_CERT != '' }}
           FINAL_TARGET: ${{ inputs.final_target }}
         run: |
@@ -225,7 +259,7 @@ jobs:
 
       - name: Check out the artifact and free the CAS
         env:
-          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf ${{ inputs.bst_options }}
           FINAL_TARGET: ${{ inputs.final_target }}
         run: |
           # The merged CAS and the squashed image do not fit on one runner
@@ -248,7 +282,7 @@ jobs:
       - name: Export OCI image
         id: export
         env:
-          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf
+          BST_FLAGS: --no-interactive --config /src/buildstream-ci.conf ${{ inputs.bst_options }}
           BUILD_IMAGE_NAME: ${{ env.IMAGE_NAME }}
           OCI_IMAGE_REVISION: ${{ github.sha }}
           OCI_IMAGE_VERSION: latest${{ inputs.tag_suffix }}
@@ -294,6 +328,27 @@ jobs:
             *cap_sys_nice*) ;;
             *) echo "::error::/usr/bin/kwin_wayland lacks cap_sys_nice in the exported image"; exit 1 ;;
           esac
+
+      - name: Verify the OGC parts
+        if: inputs.image_name == 'tromso-ogc'
+        env:
+          IMAGE_REF: ${{ steps.export.outputs.image_ref }}
+        run: |
+          mnt=$(sudo podman image mount "localhost/${IMAGE_REF}")
+          sudo python3 scripts/check-ogc-image.py "$mnt"
+          sudo podman image umount "localhost/${IMAGE_REF}" >/dev/null
+
+      # Nothing else boots this image yet (no ISO), so the gate is here.
+      - name: Boot the OGC image
+        if: inputs.image_name == 'tromso-ogc'
+        env:
+          IMAGE_REF: ${{ steps.export.outputs.image_ref }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf imagemagick
+          df -h /
+          mkdir -p logs
+          sudo scripts/ogc-boot-test.sh "localhost/${IMAGE_REF}" logs/boot
 
       - name: Upload build logs
         if: always()

@@ -8,3 +8,9 @@ depends:
   # Tromso additions and overrides (os-release last so it wins over KDE Linux)
   - tromso/deps.bst
   - oci/os-release.bst
+
+(?):
+- flavor == "ogc":
+    depends:
+      (>):
+      - ogc/deps.bst

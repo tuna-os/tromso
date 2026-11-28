@@ -1,0 +1,8 @@
+# Options that the source configurations enable and this kernel does not.
+# One line each: symbol, then the reason.
+CONFIG_MODULE_COMPRESS_XZ the modules use zstd
+CONFIG_MODULE_SIG_KEY_TYPE_MLDSA_87 the key type is RSA (tromso-policy.config)
+CONFIG_ZRAM_DEF_COMP_LZORLE the default is zstd (tromso.config)
+CONFIG_DEBUG_INFO_COMPRESSED_NONE DWARF is compressed in the build tree
+CONFIG_CC_HAS_COUNTED_BY_PTR a property of GCC 16; the SDK has GCC 15
+CONFIG_RUSTC_HAS_SUSPICIOUS_RUNTIME_SYMBOL_DEFINITIONS a property of a newer rustc
