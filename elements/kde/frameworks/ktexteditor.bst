@@ -36,4 +36,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/ktexteditor.git
   track: master
-  ref: v6.25.0-rc1-20-g48ec7c3bc683c90e55d8aa27332dc3930dd1f9a4
+  ref: v6.32.0-rc1-24-gcbc5494d59dcd348a162c51d4f85c39d220ef21a

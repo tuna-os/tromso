@@ -17,4 +17,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/bluez-qt.git
   track: master
-  ref: v6.25.0-rc1-2-g68c97fd37b418ddc30e3a1924b8e626e78f42e8b
+  ref: v6.32.0-rc1-4-g0aade0f8c6fb4275539d60ab15a578792a29d172

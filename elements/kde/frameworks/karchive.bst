@@ -17,4 +17,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/karchive.git
   track: master
-  ref: v6.25.0-rc1-5-gb653d0f1904d86837b7fe50cf551013d8a624462
+  ref: v6.32.0-rc1-15-gb6e4c0a2754da869eb6e2161c6ce1ec1af8d3048

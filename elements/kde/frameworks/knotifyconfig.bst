@@ -23,4 +23,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/knotifyconfig.git
   track: master
-  ref: v6.25.0-rc1-2-gac2ecf3c0bbe8d561218176f54b201dbbeba8257
+  ref: v6.32.0-rc1-5-ga43b7b81c97292a94e0e5ca3bf3066d311f6ac0a

@@ -31,4 +31,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kwallet.git
   track: master
-  ref: v6.25.0-rc1-4-gf474fc4b08bd6d2c4dfeb7c631e86df7c320f1bf
+  ref: v6.32.0-rc1-19-g474f9618899262f0c842864a543b04819189dd4e

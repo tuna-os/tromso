@@ -41,4 +41,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kparts.git
   track: master
-  ref: v6.25.0-rc1-4-g8d02a58d54c0bfb403a59fcc920b0338343bc64a
+  ref: v6.32.0-rc1-7-gd8268b312cbe65624482f80e2b32699a1d895b89

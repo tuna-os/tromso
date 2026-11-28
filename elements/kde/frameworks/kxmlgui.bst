@@ -31,4 +31,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kxmlgui.git
   track: master
-  ref: v6.25.0-rc1-10-g84408ae9dc72e003ead66c2fd03907aecdf94c34
+  ref: v6.32.0-rc1-16-g42dd550b69bd193942cdfbb135785a995bdaeef1

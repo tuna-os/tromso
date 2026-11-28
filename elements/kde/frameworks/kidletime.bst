@@ -20,4 +20,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kidletime.git
   track: master
-  ref: v6.25.0-rc1-1-ga1965dcee74333b02a7a922a0bcdfcdec1278300
+  ref: v6.32.0-rc1-2-g7bcbe6fe567a3efa96d3399014e19049bb94e8e8

@@ -42,4 +42,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kio.git
   track: master
-  ref: v6.25.0-rc1-45-gbc1189a3aef92bbabfeef27f4cacbb6802e92aa3
+  ref: v6.32.0-rc1-77-g86012968600f467db95c58001c3e0903d648a0df

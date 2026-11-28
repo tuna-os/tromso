@@ -18,4 +18,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/ki18n.git
   track: master
-  ref: v6.25.0-rc1-8-gad34046566db6e17ebead4520a0be433adb61734
+  ref: v6.32.0-rc1-6-g470f78e1c27391d4f51142d6e8132a2052262071

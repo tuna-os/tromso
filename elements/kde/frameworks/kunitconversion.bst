@@ -18,4 +18,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kunitconversion.git
   track: master
-  ref: v6.25.0-rc1-6-g4cd470981d1098f685c2f79434ffe68a78466d5d
+  ref: v6.32.0-rc1-9-gd6df56adc3b5a5d6383470a3cfb00b241092462b

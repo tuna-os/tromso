@@ -17,4 +17,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kconfig.git
   track: master
-  ref: v6.25.0-rc1-9-g81140ab8533d078d289d9fd28b567e6ab3fa7e0e
+  ref: v6.32.0-rc1-12-g5d52dbc8fe608019a0f88711b48fa5bcd9f45e37
