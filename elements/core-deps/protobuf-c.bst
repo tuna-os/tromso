@@ -17,12 +17,13 @@ depends:
 - freedesktop-sdk.bst:components/protobuf.bst
 
 variables:
-  # protobuf 36 and abseil (freedesktop-sdk 26.08) need C++17, but configure
-  # ends up with plain -std=gnu++11 and then fails on the header probe and on
-  # abseil's btree. Select C++17 explicitly and skip the probe that cannot see
+  # abseil 20260817 (freedesktop-sdk 26.08) needs C++20, but configure.ac
+  # calls AX_CXX_COMPILE_STDCXX(17), which appends -std=c++17 to CXX, so a
+  # CXX override cannot win. CXXFLAGS comes last on the automake compile
+  # line, so put -std=c++20 there. Also skip the header probe that cannot see
   # the header.
   conf-local: >-
-    CXX="%{triplet}-g++ -std=c++17"
+    CXXFLAGS="${CXXFLAGS} -std=c++20"
     ac_cv_header_google_protobuf_compiler_command_line_interface_h=yes
 
 public:
