@@ -1,0 +1,122 @@
+name: Track Junctions
+
+# Propose new pins for the three upstream junctions. Each junction gets its
+# own pull request, because one junction update can rebuild the world and
+# must be reviewed on its own. No pull request here is merged automatically.
+#
+# Plan: docs/UPSTREAM-ALIGNMENT.md, step 14.
+#
+# A junction that has no element file yet (gnome-build-meta.bst before
+# step 5) is skipped.
+#
+# Note: PRs created with the default GITHUB_TOKEN do not trigger CI workflows.
+# Set a BOT_TOKEN repo secret (PAT or GitHub App token) to get CI on the PRs.
+
+on:
+  schedule:
+    # Mondays at 02:00 UTC, one weekly proposal per junction
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: track-junctions
+  cancel-in-progress: false
+
+env:
+  BST2_IMAGE: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d
+
+jobs:
+  track:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        junction:
+          - freedesktop-sdk
+          - gnome-build-meta
+          - kde-buildstream
+    name: Track ${{ matrix.junction }}
+    env:
+      JUNCTION: ${{ matrix.junction }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1  # zizmor: ignore[artipacked] the Create PR step pushes the tracking branch with the persisted token
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Does the junction exist?
+        id: gate
+        run: |
+          if [ -f "elements/${JUNCTION}.bst" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "elements/${JUNCTION}.bst does not exist yet, skipping."
+          fi
+
+      - name: Setup Just
+        if: steps.gate.outputs.run == 'true'
+        uses: extractions/setup-just@v4.0.0  # zizmor: ignore[unpinned-tools] pinning just-version would change the just release used
+
+      - name: Pull BuildStream container image
+        if: steps.gate.outputs.run == 'true'
+        run: podman pull "$BST2_IMAGE"
+
+      - name: Track junction
+        if: steps.gate.outputs.run == 'true'
+        run: BST_FLAGS=--no-interactive just bst source track "${JUNCTION}.bst"
+
+      - name: Check for changes
+        if: steps.gate.outputs.run == 'true'
+        id: changes
+        run: |
+          if git diff --quiet -- "elements/${JUNCTION}.bst"; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "Pin is current."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            git diff -- "elements/${JUNCTION}.bst"
+          fi
+
+      - name: Create PR
+        if: steps.gate.outputs.run == 'true' && steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="auto/track-junction-${JUNCTION}"
+          TITLE="chore(deps): track ${JUNCTION} junction"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
+          git add "elements/${JUNCTION}.bst"
+          git commit -s -m "$TITLE"
+          git push --force-with-lease origin "$BRANCH"
+
+          {
+            echo "Automated \`bst source track\` for the \`${JUNCTION}\` junction."
+            echo ""
+            echo '```diff'
+            git show --format= HEAD
+            echo '```'
+            echo ""
+            echo "⚠️ Junction bump. It can change the cache key of every element, so a"
+            echo "maintainer must review it. **Do not automerge.** Merge only when the"
+            echo "full pull request build is green. Boot proof is needed if the"
+            echo "junction supplies the kernel, systemd, bootc or Secure Boot elements."
+          } > /tmp/pr-body.md
+
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --title "$TITLE" --body-file /tmp/pr-body.md
+            echo "Updated existing PR #$EXISTING"
+          else
+            gh pr create --title "$TITLE" --body-file /tmp/pr-body.md --base main --head "$BRANCH"
+          fi

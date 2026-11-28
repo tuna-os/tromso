@@ -118,6 +118,22 @@ that merges the reviewed heads without change, and resolve the conflicts
 there. Merge that branch with a merge commit. GitHub then marks each original
 pull request as merged. Pull request #515 is an example.
 
+## Pull requests from the junction tracker
+
+`track-junctions.yml` runs each Monday. It runs `bst source track` for
+`freedesktop-sdk.bst`, `gnome-build-meta.bst` and `kde-buildstream.bst`, and
+opens one pull request for each junction that has a new pin. The branch is
+`auto/track-junction-<name>`. The workflow skips a junction that has no
+element file yet.
+
+- The workflow never merges a pull request. A maintainer must review it.
+- The pull request build is the test. Tromsø has no `next` branch. The build
+  on the pull request builds the new pin against the current `main`. A `next`
+  branch would add a second place to keep in sync. Revisit this if a pin
+  needs more than one pull request to land.
+- Merge only after the full build passes. If the junction supplies the
+  kernel, systemd, bootc or Secure Boot elements, also do the boot proof.
+
 ## Pull requests from the source tracker
 
 Renovate cannot read `.bst` files. `track-bst-sources.yml` runs

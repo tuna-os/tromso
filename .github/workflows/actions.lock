@@ -60,6 +60,9 @@ workflows:
     '.github/workflows/track-bst-sources.yml':
         - 'actions/checkout@v7.0.1'
         - 'extractions/setup-just@v4.0.0'
+    '.github/workflows/track-junctions.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'extractions/setup-just@v4.0.0'
 dependencies:
     'actions/checkout@v7.0.1':
         ref: 'v7.0.1'
