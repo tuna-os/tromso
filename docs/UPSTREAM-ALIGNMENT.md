@@ -132,8 +132,8 @@ Tromsø data is from `main` at `bb04c75` (2026-11-25).
 | Overrides of freedesktop-sdk | 29 overrides to local copies in `elements/sdk`, `elements/core-deps` | 1 override (`at-spi2-core`) | DIVERGED |
 | freedesktop-sdk-extra | No junction. 60 local copies of its elements. | Junction | BEHIND |
 | gnome-build-meta | No junction. About 290 local copies. | No junction | DIVERGED |
-| `buildstream-plugins` | 2.5.0 (`elements/plugins/buildstream-plugins.bst`) | 2.8.0 | BEHIND |
-| `buildstream-plugins-community` | 2.3.0 | A branch commit `cffa06e` | BEHIND |
+| `buildstream-plugins` | 2.8.0 (`elements/plugins/buildstream-plugins.bst`) | 2.8.0 | ALIGNED (step 3) |
+| `buildstream-plugins-community` | 2.5.0 | A branch commit `cffa06e` | Updated in step 3 to the first release with all needed source kinds |
 | Project options | `arch`, `toolbox`, `x86_64_v3`, `channel` | `arch`, `minimal_vm` | DIVERGED |
 | Fatal warnings | `unaliased-url`, `unstaged-files` | none | AHEAD |
 
