@@ -1,10 +1,10 @@
 kind: cmake
-description: ADB and fastboot Android platform tools (nmeum community fork) v34.0.5
+description: ADB and fastboot Android platform tools (nmeum community fork) v37.0.0p1
 
 sources:
 - kind: tar
-  url: github_files:nmeum/android-tools/releases/download/34.0.5/android-tools-34.0.5.tar.xz
-  ref: fb09cff12cfb82acf42a8ebebbc0342671bfcd02117716368bdc73fdda60304a
+  url: github_files:nmeum/android-tools/releases/download/37.0.0p1/android-tools-37.0.0p1.tar.xz
+  ref: 2c6de1abe16b211c7d9f59276217e14fd9e0e18b20e331d3c84358f5dffd576e
 
 build-depends:
 - freedesktop-sdk.bst:public-stacks/buildsystem-cmake.bst
@@ -28,11 +28,6 @@ depends:
 config:
   configure-commands:
   - |
-    # Fix protobuf API: JsonOptions renamed to JsonPrintOptions, full_name() returns string_view
-    sed -i 's/google::protobuf::util::JsonOptions/google::protobuf::util::JsonPrintOptions/g' \
-      vendor/extras/libjsonpb/parse/jsonpb.cpp
-    sed -i 's/message\.GetDescriptor()->full_name()/std::string(message.GetDescriptor()->full_name())/g' \
-      vendor/extras/libjsonpb/parse/jsonpb.cpp
     # Create minimal gtest stub: zip_writer.h includes gtest_prod.h for FRIEND_TEST even in non-test builds
     mkdir -p gtest-stub/gtest
     printf '#pragma once\n#define FRIEND_TEST(tc, tn) friend class tc##_##tn##_Test\n' \
