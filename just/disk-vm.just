@@ -4,6 +4,12 @@ generate-bootable-image $base_dir=base_dir $filesystem=filesystem:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    # Check before any disk work so a missing key leaves no mount or loop device.
+    if [ ! -f "${HOME}/.ssh/id_ed25519.pub" ]; then
+        echo "error: ${HOME}/.ssh/id_ed25519.pub is required for VM SSH access" >&2
+        exit 1
+    fi
+
     if ! sudo podman image exists "{{image_name}}:{{image_tag}}"; then
         echo "ERROR: Image '{{image_name}}:{{image_tag}}' not found in podman." >&2
         echo "Run 'just build' first to build and export the OCI image." >&2
@@ -58,15 +64,17 @@ generate-bootable-image $base_dir=base_dir $filesystem=filesystem:
     # Set root password (hash for 'tromso') in the deploy root
     ROOT_HASH=$(openssl passwd -6 'tromso')
     sudo sed -i "s|^root:[^:]*:|root:${ROOT_HASH}:|" "${DEPLOY2}/etc/shadow"
+    # The installed image leaves sshd off. Enable it in this development disk only.
+    sudo mkdir -p "${DEPLOY2}/etc/systemd/system/multi-user.target.wants"
+    sudo ln -sf /usr/lib/systemd/system/sshd.service \
+        "${DEPLOY2}/etc/systemd/system/multi-user.target.wants/sshd.service"
     # authorized_keys: write to the ostree live var (ostree/deploy/default/var/),
     # which is what /var maps to at runtime via bind mount — NOT the deploy
     # checkout's var/ (which is read-only and not mounted as /var).
     VAR_ROOT="/mnt/tromso-root-setup/ostree/deploy/default/var/roothome"
-    if [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then
-        sudo install -Dm600 -o root -g root "${HOME}/.ssh/id_ed25519.pub" "${VAR_ROOT}/.ssh/authorized_keys"
-        sudo chmod 700 "${VAR_ROOT}/.ssh"
-        echo "    SSH authorized_keys installed for root"
-    fi
+    sudo install -Dm600 -o root -g root "${HOME}/.ssh/id_ed25519.pub" "${VAR_ROOT}/.ssh/authorized_keys"
+    sudo chmod 700 "${VAR_ROOT}/.ssh"
+    echo "    SSH authorized_keys installed for root"
     sudo umount /mnt/tromso-root-setup
     sudo losetup -d "$LOOP2"
 

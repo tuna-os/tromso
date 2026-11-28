@@ -45,6 +45,9 @@ if [[ "${DEBUG:-0}" == "1" ]]; then
     ln -sf /usr/lib/systemd/system/sshd.service \
         /etc/systemd/system/multi-user.target.wants/sshd.service
 
+    # sshd keeps the first value it reads. The installed base now uses
+    # prohibit-password, so remove it before enabling debug password login.
+    sed -i '/^PermitRootLogin/d' /etc/ssh/sshd_config
     cat >> /etc/ssh/sshd_config << 'SSHEOF'
 PermitEmptyPasswords no
 PasswordAuthentication yes

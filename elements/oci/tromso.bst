@@ -49,9 +49,6 @@ config:
       fi
 
     - |
-      systemctl --root=/layer enable sshd.service || true
-
-    - |
       if [ -d /layer/usr/etc ]; then
         mkdir -p /layer/etc
         cp -a /layer/usr/etc/. /layer/etc/
