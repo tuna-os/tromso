@@ -17,9 +17,9 @@ depends:
 - freedesktop-sdk.bst:components/dummy-gbm.bst
 - freedesktop-sdk.bst:components/libdrm.bst
 - freedesktop-sdk.bst:components/libepoxy.bst
+- freedesktop-sdk.bst:components/libgcrypt.bst
 - freedesktop-sdk.bst:components/libtirpc.bst
 - freedesktop-sdk.bst:components/libunwind.bst
-- freedesktop-sdk.bst:components/nettle.bst
 - freedesktop-sdk.bst:components/pixman.bst
 - freedesktop-sdk.bst:components/systemd.bst
 - freedesktop-sdk.bst:components/xorg-font-util.bst
@@ -29,10 +29,13 @@ depends:
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
 
 variables:
+  # nettle 4.0 (freedesktop-sdk 26.08) dropped nettle/sha.h, which
+  # xorg-server 21.1's xsha1.c still includes: use libgcrypt for sha1.
   meson-local: >-
     -Ddevel-docs=false
     -Ddocs=false
     -Dlibunwind=true
+    -Dsha1=libgcrypt
     -Dxorg=false
     -Dxnest=false
     -Dxvfb=true
