@@ -19,8 +19,8 @@ config:
     
     # 2. Setup kernel version
     version=$(ls -1 /sysroot/lib/modules | grep -E '^[0-9]' | head -n1)
-    mkdir -p "/sysroot/usr/lib/modules/${version}"
-    cp /sysroot/boot/vmlinuz "/sysroot/usr/lib/modules/${version}/vmlinuz"
+    # freedesktop-sdk 26.08 ships vmlinuz inside /usr/lib/modules/<version>/
+    test -f "/sysroot/usr/lib/modules/${version}/vmlinuz"
     
     # 3. Add markers
     mkdir -p /sysroot/usr/lib/ostree
