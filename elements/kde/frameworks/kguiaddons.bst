@@ -20,4 +20,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kguiaddons.git
   track: master
-  ref: v6.25.0-rc1-3-gbfc94ffa0487702052b5e0ef9adf740cac349386
+  ref: v6.32.0-rc1-4-gb85c26fcb10cc2f6c4f751bb3fe683f5b128ea54

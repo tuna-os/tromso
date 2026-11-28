@@ -31,4 +31,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kwindowsystem.git
   track: master
-  ref: v6.25.0-rc1-2-g7eb2bb0bb9135c1857115701f19d86e2e6c368c6
+  ref: v6.32.0-rc1-7-g87b19506957732d2bf7022b5960cce6e2f4db4d0

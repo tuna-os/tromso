@@ -23,4 +23,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kcoreaddons.git
   track: master
-  ref: v6.25.0-rc1-21-gebb91dae25ecb10199878945bcd4d88658b6dd46
+  ref: v6.32.0-rc1-15-ge42887d903b24a1a3b2908f81d4ad1c51ff1206a

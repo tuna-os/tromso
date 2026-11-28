@@ -17,4 +17,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kplotting.git
   track: master
-  ref: v6.25.0-rc1-1-g48610773cf8f66b70c3a929dc0a0dc889b632b56
+  ref: v6.32.0-rc1-2-gbc1373e5ec77acc5bd3c1ae35d056351c88d8303

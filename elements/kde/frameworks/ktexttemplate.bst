@@ -17,4 +17,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/ktexttemplate.git
   track: master
-  ref: v6.25.0-rc1-1-g8e7b27ebbbcd67e51dc3fee1c0357ba1c01e7507
+  ref: v6.32.0-rc1-4-gd5cbc2040985e036330bab0dd5684152ec1bacb0

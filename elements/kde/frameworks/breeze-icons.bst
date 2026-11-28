@@ -17,4 +17,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/breeze-icons.git
   track: master
-  ref: v6.25.0-rc1-2-g2b44e6da1e90162ae971e6f3acd8de5958309685
+  ref: v6.32.0-rc1-7-gd5b12877c39de7aaf527f934afbd8761461a019d

@@ -22,4 +22,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kservice.git
   track: master
-  ref: v6.25.0-rc1-2-g4b53e07213d155d0502b794e5f90ad512338b3bc
+  ref: v6.32.0-rc1-10-g19897fa5c55eb90cc3db9590f38018db12a9183f

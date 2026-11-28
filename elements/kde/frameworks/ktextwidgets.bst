@@ -25,4 +25,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/ktextwidgets.git
   track: master
-  ref: v6.25.0-rc1-2-g0ad153af6cc675d04f6325093fc8a266247c10a3
+  ref: v6.32.0-rc1-6-g32be3236205c7cb7901e94828ff1fe3a76ed195d

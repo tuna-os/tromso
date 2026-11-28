@@ -21,4 +21,4 @@ sources:
 - kind: git_repo
   url: kde:frameworks/kjobwidgets.git
   track: master
-  ref: v6.25.0-rc1-4-g9e3dfcd43202312299bcdcdd0104e58879da8b2f
+  ref: v6.32.0-rc1-9-g9a22f5d3d0c0f7941b98aaf372e7e4de18d7ec15
