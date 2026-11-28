@@ -16,3 +16,9 @@ depends:
 - freedesktop-sdk.bst:components/openssl.bst
 - freedesktop-sdk.bst:components/tpm2-tss.bst
 - freedesktop-sdk.bst:public-stacks/runtime-minimal.bst
+
+variables:
+  # libtpms 0.10.2 does not build with the C23 toolchain of freedesktop-sdk
+  # 26.08 (tpm_library.c: -Werror=discarded-qualifiers).
+  conf-local: >-
+    CFLAGS="${CFLAGS} -Wno-error=discarded-qualifiers"
