@@ -16,7 +16,6 @@ public:
   bst:
     overlap-whitelist:
     - /etc/environment
-    - /etc/containers/policy.json
 
 variables:
   strip-binaries: ""
@@ -30,5 +29,6 @@ config:
     if [ -d system_files/shared/etc ]; then
       mkdir -p "%{install-root}%{sysconfdir}"
       cp -r system_files/shared/etc/./ "%{install-root}%{sysconfdir}/"
+      rm -f "%{install-root}%{sysconfdir}/containers/policy.json"
     fi
   - "%{install-extra}"
