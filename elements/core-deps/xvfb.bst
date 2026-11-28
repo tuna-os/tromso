@@ -19,6 +19,7 @@ depends:
 - freedesktop-sdk.bst:components/libepoxy.bst
 - freedesktop-sdk.bst:components/libtirpc.bst
 - freedesktop-sdk.bst:components/libunwind.bst
+- freedesktop-sdk.bst:components/nettle.bst
 - freedesktop-sdk.bst:components/pixman.bst
 - freedesktop-sdk.bst:components/systemd.bst
 - freedesktop-sdk.bst:components/xorg-font-util.bst
